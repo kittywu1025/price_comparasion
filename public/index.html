@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>首页 - 价格比价</title>
+  <style>body{font-family:sans-serif;max-width:720px;margin:0 auto;padding:12px} .card{border:1px solid #ddd;border-radius:8px;padding:10px;margin:8px 0} .muted{color:#666} nav a{margin-right:10px}</style>
+</head>
+<body>
+  <nav>
+    <a href="/index.html">首页</a>
+    <a href="/add.html">添加</a>
+    <a href="/stores.html">店铺</a>
+  </nav>
+  <h2>商品列表（按商品聚合）</h2>
+  <p class="muted">登录暂未启用（按你的要求先跳过）</p>
+
+  <input id="q" placeholder="搜索商品名/品牌/条码" style="width:100%;padding:8px" />
+  <div id="list"></div>
+
+  <script>
+    async function load(){
+      const q = document.getElementById('q').value.trim();
+      const data = await fetch('/api/products' + (q ? `?q=${encodeURIComponent(q)}` : '')).then(r=>r.json());
+      const list = document.getElementById('list');
+      if(!data.length){
+        list.innerHTML = '<p class="muted">还没有价格记录，先去添加一条。</p>';
+        return;
+      }
+      list.innerHTML = data.map(item => `
+        <div class="card">
+          <a href="/product.html?id=${item.productId}"><strong>${item.nameZh || item.nameJa || '未命名商品'}</strong></a>
+          <div class="muted">最低单位价：${item.lowestUnitPrice ?? '-'} ${item.lowestUnitPriceLabel ?? ''}</div>
+          <div class="muted">最低价店铺：${item.lowestStoreName ?? '-'}</div>
+          <div class="muted">最近价格：¥${item.latestPriceTaxIn ?? '-'}（${item.latestRecordDate ?? '-'}）</div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('q').addEventListener('input', ()=>load());
+    load();
+  </script>
+</body>
+</html>
