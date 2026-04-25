@@ -8,11 +8,13 @@ function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     const initial = {
-      counters: { category: 1, store: 1, product: 1, priceRecord: 1 },
+      counters: { category: 1, store: 1, product: 1, priceRecord: 1, storeRevision: 1, priceRecordRevision: 1 },
       categories: [],
       stores: [],
       products: [],
-      priceRecords: []
+      priceRecords: [],
+      storeRevisions: [],
+      priceRecordRevisions: []
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
   }
@@ -20,7 +22,21 @@ function ensureDataFile() {
 
 export function readDb() {
   ensureDataFile();
-  return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  const db = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  db.counters ??= {};
+  db.counters.category ??= 1;
+  db.counters.store ??= 1;
+  db.counters.product ??= 1;
+  db.counters.priceRecord ??= 1;
+  db.counters.storeRevision ??= 1;
+  db.counters.priceRecordRevision ??= 1;
+  db.categories ??= [];
+  db.stores ??= [];
+  db.products ??= [];
+  db.priceRecords ??= [];
+  db.storeRevisions ??= [];
+  db.priceRecordRevisions ??= [];
+  return db;
 }
 
 export function writeDb(data) {

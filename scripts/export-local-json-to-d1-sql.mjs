@@ -25,7 +25,8 @@ for (const store of db.stores || []) {
     name: store.name,
     chain_brand: store.chainBrand || "",
     location: store.location || "",
-    note: store.note || ""
+    note: store.note || "",
+    created_by: "local-import"
   }));
 }
 

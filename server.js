@@ -6,13 +6,17 @@ import { buildPriceRecordPayload } from "./src/core/price-record-service.js";
 import { initDb } from "./src/storage/init-json-db.js";
 import {
   createCategory,
+  deletePriceRecord,
   createPriceRecord,
   createStore,
   deleteStore,
   getProductDetail,
+  getPriceRecordAccess,
   listCategories,
   listProducts,
   listStores,
+  undoPriceRecord,
+  undoStore,
   updatePriceRecord,
   updateStore
 } from "./src/storage/repository.js";
@@ -21,6 +25,18 @@ initDb();
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.resolve("public");
+const DEV_ACTOR_EMAIL = String(process.env.DEV_ACTOR_EMAIL || "local-admin@example.com").trim().toLowerCase();
+const DEV_ADMIN_EMAILS = String(process.env.DEV_ADMIN_EMAILS || DEV_ACTOR_EMAIL)
+  .split(",")
+  .map((x) => x.trim().toLowerCase())
+  .filter(Boolean);
+
+function getLocalAuth() {
+  return {
+    email: DEV_ACTOR_EMAIL,
+    isAdmin: DEV_ADMIN_EMAILS.includes(DEV_ACTOR_EMAIL)
+  };
+}
 
 function sendJson(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
@@ -61,6 +77,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const { pathname, searchParams } = url;
+    const auth = getLocalAuth();
 
     if (req.method === "GET" && pathname === "/api/health") {
       return sendJson(res, 200, { ok: true, loginEnabled: false });
@@ -77,27 +94,32 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && pathname === "/api/stores") {
-      return sendJson(res, 200, listStores());
+      return sendJson(res, 200, listStores(auth));
     }
 
     if (req.method === "POST" && pathname === "/api/stores") {
       const body = await parseBody(req);
       if (!body.name?.trim()) return sendJson(res, 400, { error: "name is required" });
-      return sendJson(res, 201, createStore(body));
+      return sendJson(res, 201, createStore(body, auth));
     }
 
     if (pathname.startsWith("/api/stores/")) {
-      const id = Number(pathname.split("/").pop());
+      const parts = pathname.split("/").filter(Boolean);
+      const id = Number(parts[2]);
       if (!Number.isFinite(id)) return sendJson(res, 400, { error: "invalid store id" });
+
+      if (req.method === "POST" && parts[3] === "undo") {
+        return sendJson(res, 200, undoStore(id, auth));
+      }
 
       if (req.method === "PUT") {
         const body = await parseBody(req);
         if (!body.name?.trim()) return sendJson(res, 400, { error: "name is required" });
-        return sendJson(res, 200, updateStore(id, body));
+        return sendJson(res, 200, updateStore(id, body, auth));
       }
 
       if (req.method === "DELETE") {
-        return sendJson(res, 200, deleteStore(id));
+        return sendJson(res, 200, deleteStore(id, auth));
       }
     }
 
@@ -134,16 +156,32 @@ const server = http.createServer(async (req, res) => {
         imageUrl: body.imageUrl,
         recordDate: body.recordDate,
         note: body.note,
-        createdBy: "no-auth"
+        createdBy: auth.email
       });
 
-      const created = createPriceRecord({ ...payload, product: body.product });
+      const created = createPriceRecord({ ...payload, product: body.product }, auth);
       return sendJson(res, 201, created);
     }
 
-    if (req.method === "PUT" && pathname.startsWith("/api/price-records/")) {
-      const id = Number(pathname.split("/").pop());
+    if (pathname.startsWith("/api/price-records/")) {
+      const parts = pathname.split("/").filter(Boolean);
+      const id = Number(parts[2]);
       if (!Number.isFinite(id)) return sendJson(res, 400, { error: "invalid price record id" });
+
+      if (req.method === "GET") {
+        return sendJson(res, 200, getPriceRecordAccess(id, auth));
+      }
+
+      if (req.method === "POST" && parts[3] === "undo") {
+        return sendJson(res, 200, undoPriceRecord(id, auth));
+      }
+
+      if (req.method === "DELETE") {
+        return sendJson(res, 200, deletePriceRecord(id, auth));
+      }
+
+      if (req.method !== "PUT") return sendJson(res, 405, { error: "Method not allowed" });
+
       const body = await parseBody(req);
 
       const payload = buildPriceRecordPayload({
@@ -157,10 +195,10 @@ const server = http.createServer(async (req, res) => {
         imageUrl: body.imageUrl,
         recordDate: body.recordDate,
         note: body.note,
-        createdBy: "no-auth"
+        createdBy: auth.email
       });
 
-      const updated = updatePriceRecord(id, payload);
+      const updated = updatePriceRecord(id, payload, auth);
       return sendJson(res, 200, updated);
     }
 

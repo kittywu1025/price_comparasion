@@ -57,6 +57,12 @@
       gap: 12px;
     }
 
+    .hero-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
     .hero h1 {
       margin: 0;
       font-size: 20px;
@@ -72,6 +78,19 @@
       color: #fff;
       font-size: 18px;
       cursor: pointer;
+    }
+
+    .quick-btn {
+      height: 42px;
+      border-radius: 999px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
     }
 
     .card {
@@ -214,6 +233,13 @@
       box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
     }
 
+    #priceAfterTaxInput {
+      background: #eef4f2;
+      color: #607270;
+      border-color: #d4e1dd;
+      font-weight: 700;
+    }
+
     .segment {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -240,6 +266,10 @@
       color: var(--primary-strong);
       font-weight: 700;
       box-shadow: 0 4px 8px rgba(17, 69, 60, 0.08);
+    }
+
+    .segment.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .result {
@@ -316,6 +346,76 @@
       color: #435857;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+
+    .duplicate-panel {
+      display: none;
+      border: 1px solid #dcebe6;
+      border-radius: 14px;
+      background: #f8fcfb;
+      padding: 9px;
+      gap: 8px;
+    }
+
+    .duplicate-panel.show {
+      display: grid;
+    }
+
+    .duplicate-title {
+      margin: 0;
+      font-size: 12px;
+      color: #5f7370;
+      font-weight: 700;
+    }
+
+    .duplicate-item {
+      border: 1px solid #e1ece8;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .duplicate-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #183132;
+      word-break: break-word;
+    }
+
+    .duplicate-meta {
+      font-size: 12px;
+      color: #607270;
+    }
+
+    .duplicate-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .duplicate-actions button,
+    .duplicate-actions a {
+      height: 34px;
+      border-radius: 9px;
+      border: 0;
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .duplicate-use {
+      background: #0d9a7d;
+      color: #fff;
+    }
+
+    .duplicate-view {
+      background: #edf6f3;
+      color: #1a5950;
     }
 
     nav {
@@ -439,6 +539,49 @@
       padding: 10px 12px 12px;
     }
 
+    .quick-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 19, 18, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 34;
+      padding: 12px;
+    }
+
+    .quick-panel {
+      width: min(520px, 100%);
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid #dceae6;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 10px;
+    }
+
+    .quick-panel h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .quick-panel textarea {
+      width: 100%;
+      min-height: 96px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -460,7 +603,10 @@
   <div class="app">
     <header class="hero">
       <h1>商品录入</h1>
-      <button id="scanBtn" class="scan-btn" aria-label="扫码">⌁</button>
+      <div class="hero-actions">
+        <button id="quickFillBtn" class="quick-btn" type="button">快速填入</button>
+        <button id="scanBtn" class="scan-btn" aria-label="扫码">⌁</button>
+      </div>
     </header>
     <div id="barcodeNote" class="toolbar-note">条码：未扫码</div>
 
@@ -486,6 +632,8 @@
               </div>
             </div>
           </div>
+
+          <div id="duplicatePanel" class="duplicate-panel span-2"></div>
 
           <div class="group span-2">
             <p class="group-title">价格与规格</p>
@@ -528,8 +676,11 @@
           </div>
 
           <div class="field">
-            <label for="storeId">购买店铺</label>
-            <select id="storeId"></select>
+            <label for="storeSearch">购买店铺</label>
+            <input id="storeSearch" list="storeOptions" placeholder="输入店铺名或直接选择" autocomplete="off" />
+            <datalist id="storeOptions"></datalist>
+            <select id="storeId" style="display:none;"></select>
+            <div id="storeHint" class="toolbar-note" style="margin:6px 0 0;">可输入关键词匹配现有店铺</div>
           </div>
 
           <div class="field">
@@ -540,6 +691,19 @@
           <div class="field span-2">
             <label for="note">备注</label>
             <input id="note" placeholder="可选" />
+          </div>
+
+          <div class="field">
+            <label>限时优惠</label>
+            <div id="promoSegment" class="segment two">
+              <button type="button" data-promo="0" class="active">否</button>
+              <button type="button" data-promo="1">是</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="promoUntil">优惠截止日期</label>
+            <input id="promoUntil" type="date" />
           </div>
         </div>
 
@@ -584,12 +748,29 @@
     </div>
   </div>
 
+  <div id="quickMask" class="quick-mask">
+    <div class="quick-panel">
+      <h2>快速填入</h2>
+      <textarea id="quickText" placeholder="例：牛奶 198円 Cosmos 1000ml"></textarea>
+      <div class="quick-actions">
+        <button id="applyQuickFill" class="btn btn-primary" type="button">解析填入</button>
+        <button id="closeQuickFill" class="btn btn-subtle" type="button">取消</button>
+      </div>
+      <div id="quickHint" class="toolbar-note">支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个。</div>
+    </div>
+  </div>
+
   <script>
     const state = {
       taxMode: 8,
       unit: "g",
+      isPromo: false,
       imageDataUrl: null,
       barcode: "",
+      stores: [],
+      selectedProductId: null,
+      selectedProductName: "",
+      duplicateTimer: null,
       scanTimer: null,
       scanStream: null,
       scanner: null
@@ -602,6 +783,101 @@
 
     function round1(n) {
       return Math.round(n * 10) / 10;
+    }
+
+    function buildPromoNote(note, isPromo, promoUntil) {
+      const plain = String(note || "").trim().replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "");
+      if (!isPromo) return plain || null;
+      const prefix = promoUntil ? `[[promo:${promoUntil}]]` : "[[promo]]";
+      return plain ? `${prefix} ${plain}` : prefix;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function clearSelectedProduct() {
+      state.selectedProductId = null;
+      state.selectedProductName = "";
+    }
+
+    function selectExistingProduct(product) {
+      state.selectedProductId = Number(product.productId);
+      state.selectedProductName = product.nameZh || product.nameJa || "未命名商品";
+      $("nameZh").value = product.nameZh || "";
+      $("nameJa").value = product.nameJa || "";
+      $("duplicatePanel").classList.add("show");
+      $("duplicatePanel").innerHTML = `
+        <p class="duplicate-title">将作为已有商品继续记录：${escapeHtml(state.selectedProductName)}</p>
+        <div class="duplicate-actions">
+          <button class="duplicate-use" type="button" id="clearSelectedProduct">改为新建商品</button>
+          <a class="duplicate-view" href="/index.html?q=${encodeURIComponent(state.selectedProductName)}">查看清单</a>
+        </div>
+      `;
+      $("clearSelectedProduct").onclick = () => {
+        clearSelectedProduct();
+        $("duplicatePanel").classList.remove("show");
+        $("duplicatePanel").innerHTML = "";
+      };
+    }
+
+    async function checkDuplicateProducts() {
+      const keyword = ($("nameZh").value.trim() || $("nameJa").value.trim()).trim();
+      if (!keyword || keyword.length < 2) {
+        $("duplicatePanel").classList.remove("show");
+        $("duplicatePanel").innerHTML = "";
+        return;
+      }
+
+      const res = await fetch(`/api/products?q=${encodeURIComponent(keyword)}`);
+      const products = await res.json();
+      const candidates = products
+        .filter((item) => Number(item.productId) !== Number(state.selectedProductId))
+        .slice(0, 3);
+
+      if (!candidates.length) {
+        $("duplicatePanel").classList.remove("show");
+        $("duplicatePanel").innerHTML = "";
+        return;
+      }
+
+      $("duplicatePanel").classList.add("show");
+      $("duplicatePanel").innerHTML = `
+        <p class="duplicate-title">可能已经录入过，确认后可直接给已有商品新增价格</p>
+        ${candidates.map((item) => `
+          <div class="duplicate-item">
+            <div class="duplicate-name">${escapeHtml(item.nameZh || item.nameJa || "未命名商品")}</div>
+            <div class="duplicate-meta">最近价格 ¥${Number(item.latestPriceTaxIn || 0).toFixed(0)} · ${escapeHtml(item.latestRecordDate || "-")}</div>
+            <div class="duplicate-actions">
+              <button class="duplicate-use" type="button" data-use-product="${item.productId}">使用此商品</button>
+              <a class="duplicate-view" href="/index.html?q=${encodeURIComponent(item.nameZh || item.nameJa || "")}">查看</a>
+            </div>
+          </div>
+        `).join("")}
+        <button class="btn btn-subtle" type="button" id="continueNewProduct">继续新建商品</button>
+      `;
+      $("duplicatePanel").querySelectorAll("[data-use-product]").forEach((btn) => {
+        btn.onclick = () => {
+          const product = candidates.find((item) => Number(item.productId) === Number(btn.dataset.useProduct));
+          if (product) selectExistingProduct(product);
+        };
+      });
+      $("continueNewProduct").onclick = () => {
+        clearSelectedProduct();
+        $("duplicatePanel").classList.remove("show");
+        $("duplicatePanel").innerHTML = "";
+      };
+    }
+
+    function scheduleDuplicateCheck() {
+      clearSelectedProduct();
+      if (state.duplicateTimer) clearTimeout(state.duplicateTimer);
+      state.duplicateTimer = setTimeout(checkDuplicateProducts, 260);
     }
 
     function calc() {
@@ -637,12 +913,11 @@
     }
 
     function findCosmosStoreId() {
-      const options = Array.from($("storeId").options || []);
-      const hit = options.find((opt) => {
-        const t = String(opt.textContent || "").toLowerCase();
+      const hit = state.stores.find((store) => {
+        const t = String(store.name || "").toLowerCase();
         return t.includes("cosmos") || t.includes("コスモス");
       });
-      return hit ? Number(hit.value) : null;
+      return hit ? Number(hit.id) : null;
     }
 
     function applyTaxStoreLinkByTax() {
@@ -650,12 +925,116 @@
       const cosmosId = findCosmosStoreId();
       if (!cosmosId) return;
       $("storeId").value = String(cosmosId);
+      const store = state.stores.find((item) => Number(item.id) === cosmosId);
+      if (store) {
+        $("storeSearch").value = store.name;
+        $("storeHint").textContent = `已匹配：${store.name}`;
+      }
     }
 
     function applyTaxStoreLinkByStore() {
-      const selectedText = $("storeId").selectedOptions?.[0]?.textContent || "";
+      const selectedText = $("storeSearch").value || $("storeId").selectedOptions?.[0]?.textContent || "";
       const isCosmos = selectedText.toLowerCase().includes("cosmos") || selectedText.includes("コスモス");
       setTaxMode(isCosmos ? 0 : 8);
+    }
+
+    function matchStoreByInput() {
+      const keyword = $("storeSearch").value.trim().toLowerCase();
+      if (!keyword) {
+        $("storeId").value = "";
+        $("storeHint").textContent = "可输入关键词匹配现有店铺";
+        return null;
+      }
+      const exact = state.stores.find((store) => String(store.name || "").toLowerCase() === keyword);
+      const matched = exact || state.stores.find((store) => String(store.name || "").toLowerCase().includes(keyword));
+      if (!matched) {
+        $("storeId").value = "";
+        $("storeHint").textContent = "没有匹配到店铺，请继续输入或先去店铺页新增";
+        return null;
+      }
+      $("storeId").value = String(matched.id);
+      $("storeHint").textContent = `已匹配：${matched.name}`;
+      return matched;
+    }
+
+    function normalizeQuickText(value) {
+      return String(value || "").replace(/[，、。]/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function parseQuickFill(text) {
+      const raw = normalizeQuickText(text);
+      if (!raw) throw new Error("请输入商品、价格、店铺和规格。");
+
+      const specMatch = raw.match(/(\d+(?:\.\d+)?)\s*(kg|g|克|ml|毫升|個|个)/i);
+      const textWithoutSpec = specMatch ? raw.replace(specMatch[0], " ") : raw;
+      const priceMatch = textWithoutSpec.match(/(?:¥|￥)?\s*(\d+(?:\.\d+)?)\s*(?:円|日元|元)?/);
+      const store = state.stores.find((item) => {
+        const name = String(item.name || "").toLowerCase();
+        const chain = String(item.chainBrand || "").toLowerCase();
+        const lowered = raw.toLowerCase();
+        return lowered.includes(name) || (chain && lowered.includes(chain));
+      });
+
+      let name = raw;
+      if (specMatch) name = name.replace(specMatch[0], " ");
+      if (priceMatch) name = name.replace(priceMatch[0], " ");
+      if (store) {
+        name = name.replace(new RegExp(store.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
+        if (store.chainBrand) {
+          name = name.replace(new RegExp(String(store.chainBrand).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
+        }
+      }
+      name = normalizeQuickText(name).replace(/多少钱|价格|店铺|规格/g, "").trim();
+
+      if (!name) throw new Error("没有识别到商品名。");
+      if (!priceMatch) throw new Error("没有识别到价格。");
+      if (!specMatch) throw new Error("没有识别到规格。");
+
+      let specValue = Number(specMatch[1]);
+      let unit = specMatch[2].toLowerCase();
+      if (unit === "kg") {
+        specValue *= 1000;
+        unit = "g";
+      }
+      if (unit === "克") unit = "g";
+      if (unit === "毫升") unit = "ml";
+      if (unit === "個") unit = "个";
+
+      return {
+        name,
+        priceTaxIn: Number(priceMatch[1]),
+        specValue,
+        unit,
+        store
+      };
+    }
+
+    function applyQuickFillText() {
+      try {
+        const parsed = parseQuickFill($("quickText").value);
+        $("nameZh").value = parsed.name;
+        $("spec").value = parsed.specValue;
+        state.unit = parsed.unit;
+        $("unitSegment").querySelectorAll("button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.unit === parsed.unit);
+        });
+
+        if (parsed.store) {
+          $("storeId").value = String(parsed.store.id);
+          $("storeSearch").value = parsed.store.name;
+          $("storeHint").textContent = `已匹配：${parsed.store.name}`;
+          applyTaxStoreLinkByStore();
+        }
+
+        const taxFactor = state.taxMode === 0 ? 1 : 1 + state.taxMode / 100;
+        $("priceBeforeTax").value = (parsed.priceTaxIn / taxFactor).toFixed(1);
+        calc();
+        scheduleDuplicateCheck();
+        $("quickHint").textContent = "已填入，可继续修改或补照片。";
+        $("quickMask").style.display = "none";
+      } catch (err) {
+        $("quickHint").textContent = err.message || "解析失败，请换成更明确的格式。";
+      }
     }
 
     function bindSegment(containerId, key) {
@@ -673,6 +1052,15 @@
       });
     }
 
+    function setPromoMode(isPromo) {
+      state.isPromo = Boolean(isPromo);
+      $("promoSegment").querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.promo === (state.isPromo ? "1" : "0"));
+      });
+      $("promoUntil").disabled = !state.isPromo;
+      if (!state.isPromo) $("promoUntil").value = "";
+    }
+
     function openSheet() {
       $("sheetMask").style.display = "flex";
     }
@@ -688,10 +1076,18 @@
 
     async function loadStores() {
       const stores = await fetch("/api/stores").then((r) => r.json());
+      state.stores = stores;
+      $("storeOptions").innerHTML = stores.length
+        ? stores.map((s) => `<option value="${s.name}"></option>`).join("")
+        : "";
       $("storeId").innerHTML = stores.length
         ? stores.map((s) => `<option value="${s.id}">${s.name}</option>`).join("")
         : '<option value="">请先到店铺页新增店铺</option>';
-      if (stores.length) applyTaxStoreLinkByStore();
+      if (stores.length) {
+        $("storeSearch").value = stores[0].name;
+        $("storeHint").textContent = `已匹配：${stores[0].name}`;
+        applyTaxStoreLinkByStore();
+      }
     }
 
     function updateBarcodeNote() {
@@ -756,6 +1152,18 @@
       openScanner();
     }
 
+    $("quickFillBtn").onclick = () => {
+      $("quickMask").style.display = "flex";
+      $("quickHint").textContent = "支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个。";
+      $("quickText").focus();
+    };
+    $("closeQuickFill").onclick = () => {
+      $("quickMask").style.display = "none";
+    };
+    $("applyQuickFill").onclick = applyQuickFillText;
+    $("quickMask").addEventListener("click", (e) => {
+      if (e.target === $("quickMask")) $("quickMask").style.display = "none";
+    });
     $("scanBtn").onclick = handleScanClick;
     $("rescanBtn").onclick = handleScanClick;
     $("closeScanner").onclick = stopScanner;
@@ -764,6 +1172,20 @@
     });
     $("uploadBox").onclick = openSheet;
     $("storeId").addEventListener("change", applyTaxStoreLinkByStore);
+    $("storeSearch").addEventListener("input", () => {
+      const matched = matchStoreByInput();
+      if (matched) applyTaxStoreLinkByStore();
+    });
+    $("storeSearch").addEventListener("blur", () => {
+      const matched = matchStoreByInput();
+      if (matched) {
+        $("storeSearch").value = matched.name;
+        applyTaxStoreLinkByStore();
+      }
+    });
+    $("promoSegment").querySelectorAll("button").forEach((btn) => {
+      btn.onclick = () => setPromoMode(btn.dataset.promo === "1");
+    });
     $("uploadBox").addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -792,6 +1214,8 @@
       reader.readAsDataURL(file);
     };
 
+    $("nameZh").addEventListener("input", scheduleDuplicateCheck);
+    $("nameJa").addEventListener("input", scheduleDuplicateCheck);
     ["priceBeforeTax", "spec"].forEach((id) => $(id).addEventListener("input", calc));
     bindSegment("taxSegment", "taxMode");
     bindSegment("unitSegment", "unit");
@@ -799,8 +1223,9 @@
     $("form").onsubmit = async (e) => {
       e.preventDefault();
       const { before, after } = calc();
+      const matchedStore = matchStoreByInput();
 
-      if (!$("storeId").value) {
+      if (!matchedStore || !$("storeId").value) {
         $("msg").textContent = "请先选择购买店铺。";
         return;
       }
@@ -810,11 +1235,13 @@
       }
 
       const payload = {
-        product: {
-          nameZh: $("nameZh").value.trim(),
-          nameJa: $("nameJa").value.trim(),
-          barcode: state.barcode
-        },
+        product: state.selectedProductId
+          ? { id: state.selectedProductId }
+          : {
+            nameZh: $("nameZh").value.trim(),
+            nameJa: $("nameJa").value.trim(),
+            barcode: state.barcode
+          },
         storeId: Number($("storeId").value),
         priceTaxEx: before,
         taxRate: state.taxMode,
@@ -823,7 +1250,7 @@
         unit: state.unit,
         imageUrl: state.imageDataUrl,
         recordDate: $("recordDate").value,
-        note: $("note").value.trim() || null
+        note: buildPromoNote($("note").value, state.isPromo, $("promoUntil").value)
       };
 
       const res = await fetch("/api/price-records", {
@@ -844,6 +1271,7 @@
     };
 
     $("recordDate").value = today();
+    setPromoMode(false);
     loadStores();
     updateBarcodeNote();
     calc();

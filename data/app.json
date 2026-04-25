@@ -3,7 +3,9 @@
     "category": 6,
     "store": 14,
     "product": 2,
-    "priceRecord": 2
+    "priceRecord": 2,
+    "storeRevision": 1,
+    "priceRecordRevision": 1
   },
   "categories": [
     {
@@ -136,5 +138,7 @@
       "note": null,
       "createdAt": "2026-04-25"
     }
-  ]
+  ],
+  "storeRevisions": [],
+  "priceRecordRevisions": []
 }

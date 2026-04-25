@@ -144,10 +144,17 @@
       background: linear-gradient(180deg, #ffffff, #f3fbf8);
     }
 
-    .flag {
+    .flags {
       position: absolute;
       top: 10px;
       right: 10px;
+      display: grid;
+      gap: 4px;
+      justify-items: end;
+      z-index: 2;
+    }
+
+    .flag {
       border-radius: 999px;
       font-size: 11px;
       font-weight: 700;
@@ -158,6 +165,11 @@
     .flag.best {
       background: var(--primary-soft);
       color: #04664f;
+    }
+
+    .flag.same {
+      background: #eef4ff;
+      color: #265f9a;
     }
 
     .flag.low {
@@ -441,6 +453,10 @@
       align-items: center;
     }
 
+    .history-row[data-record-id] {
+      cursor: pointer;
+    }
+
     .history-date {
       font-size: 13px;
       font-weight: 700;
@@ -630,7 +646,7 @@
     .modal-actions {
       margin-top: 10px;
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 8px;
     }
 
@@ -652,6 +668,11 @@
     .btn-light {
       background: #edf6f3;
       color: #1b5c51;
+    }
+
+    .btn-danger {
+      background: #feecec;
+      color: #b53939;
     }
 
     .modal-msg {
@@ -705,8 +726,15 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+    const pageParams = new URLSearchParams(location.search);
+    const storeFilterId = pageParams.get("storeId") || "";
+    const storeFilterName = pageParams.get("storeName") || "";
     let cache = [];
     let storesCache = null;
+    let activeProductId = null;
+    let suppressNextCardClick = false;
+    let suppressNextHistoryClick = false;
+    let longPressTimer = null;
 
     $("scanSearch").onclick = () => alert("扫码搜索将在下一版接入，当前可用文本搜索。");
     $("mask").addEventListener("click", (e) => {
@@ -805,14 +833,12 @@
       return `
         <div class="history-list">
           ${sorted.map((r) => `
-            <div class="history-row">
+            <div class="history-row" data-record-id="${r.id}">
               <div>
                 <div class="history-date">${escapeHtml(r.recordDate || "-")}</div>
-                <div class="history-meta">${escapeHtml(r.storeName || "-")} · ${escapeHtml(r.specValue ?? "-")} ${escapeHtml(r.unit || "")}</div>
               </div>
               <div>
-                <div class="history-price">${asUnit(r.unitPrice, r.unitPriceLabel)}</div>
-                <div class="history-total">总价 ¥${asMoney(r.priceTaxIn)}</div>
+                <div class="history-price">¥${asMoney(r.priceTaxIn)}</div>
               </div>
             </div>
           `).join("")}
@@ -850,11 +876,40 @@
       return storesCache;
     }
 
+    async function getRecordAccess(recordId) {
+      return fetchJson(`/api/price-records/${recordId}`);
+    }
+
+    function clearLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    async function deleteRecord(recordId, successText = "删除成功。") {
+      const access = await getRecordAccess(recordId);
+      if (!access.canDelete) {
+        throw new Error("你只能删除自己创建的数据。");
+      }
+      const ok = confirm("确认删除这条数据吗？删除后不可恢复。");
+      if (!ok) return false;
+      await fetchJson(`/api/price-records/${recordId}`, { method: "DELETE" });
+      alert(successText);
+      return true;
+    }
+
     async function load() {
       const q = $("q").value.trim();
-      const data = await fetch("/api/products" + (q ? `?q=${encodeURIComponent(q)}` : "")).then((r) => r.json());
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (storeFilterId) params.set("storeId", storeFilterId);
+      const query = params.toString();
+      const data = await fetch("/api/products" + (query ? `?${query}` : "")).then((r) => r.json());
       cache = data.slice();
-      $("summaryChip").textContent = `${cache.length} 条记录`;
+      $("summaryChip").textContent = storeFilterName
+        ? `${cache.length} 条记录 · ${storeFilterName}`
+        : `${cache.length} 条记录`;
 
       const list = $("list");
       if (!cache.length) {
@@ -862,14 +917,17 @@
         return;
       }
 
-      const min = Math.min(...cache.map((x) => (x.lowestUnitPrice > 0 ? x.lowestUnitPrice : Infinity)));
       list.innerHTML = cache
         .map((item) => {
-          const isBest = item.lowestUnitPrice === min;
-          const tag = isBest ? '<div class="flag best">最低价</div>' : (item.latestPriceTaxIn < 200 ? '<div class="flag low">优惠</div>' : "");
+          const isBest = item.isKeywordBest;
+          const flags = [
+            item.latestIsPromo ? '<div class="flag low">限时优惠</div>' : "",
+            isBest ? '<div class="flag best">最低价</div>' : "",
+            item.isSameProductBest ? '<div class="flag same">同产品最低价</div>' : ""
+          ].filter(Boolean).join("");
           return `
-            <article class="card ${isBest ? "best" : ""}" onclick="openDetail(${item.productId})">
-              ${tag}
+            <article class="card ${isBest ? "best" : ""}" data-product-id="${item.productId}">
+              ${flags ? `<div class="flags">${flags}</div>` : ""}
               <div class="thumb">
                 ${item.defaultImageUrl ? `<img src="${item.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
               </div>
@@ -878,7 +936,7 @@
                 <div class="meta">最低店铺：${item.lowestStoreName || "-"}</div>
                 <div class="price-row">
                   <div class="price">¥${asMoney(item.latestPriceTaxIn)}</div>
-                  <div class="unit ${unitPriceClass(item.lowestUnitPrice || 0, min)}">${asUnit(item.lowestUnitPrice, item.lowestUnitPriceLabel)}</div>
+                  <div class="unit ${isBest ? "best" : ""}">${asUnit(item.lowestUnitPrice, item.lowestUnitPriceLabel)}</div>
                 </div>
                 <div class="meta">${item.latestRecordDate || "-"}</div>
               </div>
@@ -889,6 +947,7 @@
     }
 
     async function openDetail(id) {
+      activeProductId = id;
       const res = await fetch("/api/products/" + id);
       const data = await res.json();
       if (!res.ok) {
@@ -949,6 +1008,7 @@
             <div class="modal-actions">
               <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
               <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
+              <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button" style="display:none;">删除当前记录</button>
             </div>
           </div>
           <form id="editForm" class="edit-form">
@@ -1024,6 +1084,11 @@
             </div>
             <div class="modal-actions">
               <button id="editSubmitBtn" class="btn btn-primary" type="submit">保存修正</button>
+              <button id="undoEditBtn" class="btn btn-light" type="button" style="display:none;">撤回我的修改</button>
+            </div>
+            <div class="modal-actions">
+              <button id="deleteRecordBtn" class="btn btn-danger" type="button" style="display:none;">删除这条数据</button>
+              <button id="backDetailBtn" class="btn btn-light" type="button">返回详情</button>
             </div>
             <div id="editMsg" class="modal-msg"></div>
           </form>
@@ -1039,14 +1104,28 @@
         const select = modal.querySelector("#editStoreId");
         try {
           const stores = await getStores();
+          const access = await getRecordAccess(top.id);
           select.innerHTML = stores
             .map((s) => `<option value="${s.id}" ${Number(s.id) === Number(top.storeId) ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
             .join("");
+          modal.querySelector("#deleteRecordBtn").style.display =
+            editMode === "correction" && access.canDelete ? "block" : "none";
+          modal.querySelector("#undoEditBtn").style.display =
+            editMode === "correction" && access.canUndo ? "block" : "none";
           return true;
         } catch (err) {
           modal.querySelector("#editMsg").textContent = "编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。";
+          modal.querySelector("#deleteRecordBtn").style.display = "none";
+          modal.querySelector("#undoEditBtn").style.display = "none";
           return false;
         }
+      }
+
+      function backToDetail() {
+        form.classList.remove("active");
+        modalHead.classList.remove("hidden");
+        detailView.classList.remove("hidden");
+        modal.querySelector("#editMsg").textContent = "";
       }
 
       async function showRecordForm(mode) {
@@ -1066,6 +1145,50 @@
 
       modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");
       modal.querySelector("#showEditBtn").onclick = () => showRecordForm("correction");
+      const detailDeleteBtn = modal.querySelector("#detailDeleteRecordBtn");
+      getRecordAccess(top.id)
+        .then((access) => {
+          detailDeleteBtn.style.display = access.canDelete ? "block" : "none";
+        })
+        .catch(() => {
+          detailDeleteBtn.style.display = "none";
+        });
+      detailDeleteBtn.onclick = async () => {
+        try {
+          const deleted = await deleteRecord(top.id, "删除成功，清单已刷新。");
+          if (!deleted) return;
+          storesCache = null;
+          closeModal();
+          await load();
+        } catch (err) {
+          alert(`删除失败：${err.message}`);
+        }
+      };
+      modal.querySelector("#backDetailBtn").onclick = backToDetail;
+      modal.querySelector("#deleteRecordBtn").onclick = async () => {
+        const editMsg = modal.querySelector("#editMsg");
+        try {
+          const deleted = await deleteRecord(top.id, "删除成功，清单已刷新。");
+          if (!deleted) return;
+          storesCache = null;
+          closeModal();
+          await load();
+        } catch (err) {
+          editMsg.textContent = `删除失败：${err.message}`;
+        }
+      };
+      modal.querySelector("#undoEditBtn").onclick = async () => {
+        const editMsg = modal.querySelector("#editMsg");
+        try {
+          await fetchJson(`/api/price-records/${top.id}/undo`, { method: "POST" });
+          editMsg.textContent = "已撤回你最后一次修改。";
+          storesCache = null;
+          await load();
+          await openDetail(id);
+        } catch (err) {
+          editMsg.textContent = `撤回失败：${err.message}`;
+        }
+      };
 
       function round1(n) {
         return Math.round(n * 10) / 10;
@@ -1161,12 +1284,122 @@
 
     function closeModal() {
       $("mask").style.display = "none";
+      activeProductId = null;
     }
 
     window.openDetail = openDetail;
     window.closeModal = closeModal;
 
+    $("list").addEventListener("click", async (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      if (suppressNextCardClick) {
+        suppressNextCardClick = false;
+        return;
+      }
+      await openDetail(Number(card.dataset.productId));
+    });
+
+    $("list").addEventListener("mousedown", (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextCardClick = true;
+        try {
+          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
+          const latest = detail.records?.[0];
+          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
+          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
+          if (deleted) await load();
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    });
+    $("list").addEventListener("touchstart", (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextCardClick = true;
+        try {
+          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
+          const latest = detail.records?.[0];
+          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
+          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
+          if (deleted) await load();
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    }, { passive: true });
+    ["mouseup", "mouseleave", "touchend", "touchcancel", "touchmove"].forEach((eventName) => {
+      $("list").addEventListener(eventName, clearLongPress, { passive: true });
+    });
+
+    $("modal").addEventListener("click", async (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      if (suppressNextHistoryClick) {
+        suppressNextHistoryClick = false;
+      }
+    });
+
+    $("modal").addEventListener("mousedown", (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextHistoryClick = true;
+        try {
+          const deleted = await deleteRecord(Number(row.dataset.recordId));
+          if (deleted) {
+            await load();
+            if (activeProductId) {
+              await openDetail(activeProductId);
+            } else {
+              closeModal();
+            }
+          }
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    });
+    $("modal").addEventListener("touchstart", (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextHistoryClick = true;
+        try {
+          const deleted = await deleteRecord(Number(row.dataset.recordId));
+          if (deleted) {
+            await load();
+            closeModal();
+          }
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    }, { passive: true });
+    ["mouseup", "mouseleave", "touchend", "touchcancel", "touchmove"].forEach((eventName) => {
+      $("modal").addEventListener(eventName, clearLongPress, { passive: true });
+    });
+
     $("q").addEventListener("input", load);
+    $("summaryChip").onclick = () => {
+      if (!storeFilterId) return;
+      const next = new URL(location.href);
+      next.searchParams.delete("storeId");
+      next.searchParams.delete("storeName");
+      location.href = next.pathname + (next.search ? next.search : "");
+    };
     load();
   </script>
 </body>
