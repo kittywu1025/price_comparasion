@@ -485,6 +485,89 @@
       font-weight: 600;
     }
 
+    .store-rank-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .store-rank-row {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .store-rank-row.best {
+      border-color: #9dd8c9;
+      background: #f4fbf8;
+    }
+
+    .store-rank-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f2a2b;
+      word-break: break-word;
+    }
+
+    .store-rank-meta {
+      margin-top: 4px;
+      color: #607371;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .store-rank-price {
+      text-align: right;
+      color: #0a826b;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: #e2f7f1;
+      color: #04664f;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      vertical-align: middle;
+    }
+
+    .trend-filter-row {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .trend-filter {
+      height: 32px;
+      border: 1px solid #dce7e3;
+      border-radius: 999px;
+      background: #fff;
+      color: #4f6562;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .trend-filter.active {
+      border-color: #9dd8c9;
+      background: #e9f7f3;
+      color: #0c765f;
+    }
+
     .edit-grid {
       margin-top: 10px;
       display: grid;
@@ -779,8 +862,87 @@
       );
     }
 
-    function renderTrend(records) {
-      const series = sortRecordsByDateAsc(records)
+    function storeKeyOf(record) {
+      return String(record.storeId ?? record.storeName ?? "");
+    }
+
+    function latestRecordsByStore(records) {
+      const latest = new Map();
+      sortRecordsByDateDesc(records).forEach((record) => {
+        const key = storeKeyOf(record);
+        if (!key || latest.has(key)) return;
+        latest.set(key, record);
+      });
+      return Array.from(latest.values()).sort((a, b) =>
+        Number(a.unitPrice || Infinity) - Number(b.unitPrice || Infinity) ||
+        Number(a.priceTaxIn || Infinity) - Number(b.priceTaxIn || Infinity)
+      );
+    }
+
+    function lowestRecordsByDate(records) {
+      const byDate = new Map();
+      records.forEach((record) => {
+        if (!Number.isFinite(Number(record.unitPrice))) return;
+        const key = record.recordDate || "-";
+        const current = byDate.get(key);
+        if (
+          !current ||
+          Number(record.unitPrice) < Number(current.unitPrice) ||
+          (Number(record.unitPrice) === Number(current.unitPrice) && Number(record.id || 0) > Number(current.id || 0))
+        ) {
+          byDate.set(key, record);
+        }
+      });
+      return Array.from(byDate.values());
+    }
+
+    function recordsForTrend(records, mode = "lowest", storeKey = "") {
+      if (mode === "store") {
+        return records.filter((record) => storeKeyOf(record) === String(storeKey));
+      }
+      return lowestRecordsByDate(records);
+    }
+
+    function renderTrendFilters(records, activeMode = "lowest", activeStoreKey = "") {
+      const stores = latestRecordsByStore(records);
+      if (!stores.length) return "";
+      return `
+        <div class="trend-filter-row">
+          <button class="trend-filter ${activeMode === "lowest" ? "active" : ""}" type="button" data-trend-mode="lowest">最低价走势</button>
+          ${stores.map((record) => {
+            const key = storeKeyOf(record);
+            return `<button class="trend-filter ${activeMode === "store" && String(activeStoreKey) === key ? "active" : ""}" type="button" data-trend-mode="store" data-trend-store="${escapeHtml(key)}">${escapeHtml(record.storeName || "-")}</button>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderStoreRankings(records) {
+      const rankings = latestRecordsByStore(records);
+      if (!rankings.length) {
+        return `<div class="trend-card"><div class="trend-empty">暂无店铺价格数据</div></div>`;
+      }
+
+      return `
+        <div class="store-rank-list">
+          ${rankings.map((record, index) => `
+            <div class="store-rank-row ${index === 0 ? "best" : ""}" role="button" tabindex="0" data-rank-store="${escapeHtml(storeKeyOf(record))}">
+              <div>
+                <div class="store-rank-name">
+                  ${escapeHtml(record.storeName || "-")}
+                  ${index === 0 ? '<span class="rank-badge">当前最低</span>' : ""}
+                </div>
+                <div class="store-rank-meta">${escapeHtml(record.recordDate || "-")} · ${asUnit(record.unitPrice, record.unitPriceLabel)}</div>
+              </div>
+              <div class="store-rank-price">¥${asMoney(record.priceTaxIn)}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderTrend(records, mode = "lowest", storeKey = "") {
+      const series = sortRecordsByDateAsc(recordsForTrend(records, mode, storeKey))
         .filter((r) => Number.isFinite(Number(r.unitPrice)))
         .map((r) => ({
           date: r.recordDate || "-",
@@ -1004,8 +1166,13 @@
               <div class="stat"><p class="stat-k">记录时间</p><p class="stat-v">${top.recordDate || "-"}</p></div>
             </div>
             <div class="detail-section">
-              <p class="detail-section-title">单位价格走势</p>
-              ${renderTrend(data.records || [])}
+              <p class="detail-section-title">各店现价排行</p>
+              ${renderStoreRankings(data.records || [])}
+            </div>
+            <div class="detail-section">
+              <p class="detail-section-title">价格走势</p>
+              ${renderTrendFilters(data.records || [])}
+              <div id="trendMount">${renderTrend(data.records || [])}</div>
             </div>
             <div class="detail-section">
               <p class="detail-section-title">历史记录</p>
@@ -1105,6 +1272,30 @@
       const modalHead = modal.querySelector("#modalHead");
       const detailView = modal.querySelector("#detailView");
       let editMode = "correction";
+      const detailRecords = data.records || [];
+
+      function updateTrend(mode = "lowest", storeKey = "") {
+        modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
+          const isActive = btn.dataset.trendMode === mode &&
+            (mode !== "store" || String(btn.dataset.trendStore || "") === String(storeKey));
+          btn.classList.toggle("active", isActive);
+        });
+        modal.querySelector("#trendMount").innerHTML = renderTrend(detailRecords, mode, storeKey);
+      }
+
+      modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
+        btn.onclick = () => updateTrend(btn.dataset.trendMode, btn.dataset.trendStore || "");
+      });
+      modal.querySelectorAll("[data-rank-store]").forEach((row) => {
+        const selectStoreTrend = () => updateTrend("store", row.dataset.rankStore || "");
+        row.onclick = selectStoreTrend;
+        row.onkeydown = (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectStoreTrend();
+          }
+        };
+      });
 
       async function loadProtectedStores() {
         const select = modal.querySelector("#editStoreId");

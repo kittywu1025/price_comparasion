@@ -331,6 +331,7 @@ async function listProducts(env, { q = "", categoryId, storeId } = {}) {
         nameZh: product.name_zh,
         nameJa: product.name_ja,
         brand: product.brand,
+        barcode: product.barcode,
         defaultImageUrl: product.default_image_url,
         isKeywordBest: Boolean(keywordLowest && keywordLowest.product_id === product.id),
         isSameProductBest: Boolean(sameProductLowest && sameProductLowest.product_id === product.id),

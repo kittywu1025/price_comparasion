@@ -950,6 +950,21 @@
       };
     }
 
+    async function checkBarcodeProduct() {
+      const barcode = String(state.barcode || "").trim();
+      if (!barcode) return;
+      try {
+        const res = await fetch(`/api/products?q=${encodeURIComponent(barcode)}`);
+        const products = await res.json();
+        const exact = products.find((item) => String(item.barcode || "").trim() === barcode);
+        if (!exact) return;
+        selectExistingProduct(exact);
+        $("msg").textContent = "已识别到同条码商品，本次会作为该商品的新价格记录。";
+      } catch (_) {
+        // Barcode reuse is also enforced by the API; this only improves the form hint.
+      }
+    }
+
     async function checkDuplicateProducts() {
       const keyword = ($("nameZh").value.trim() || $("nameJa").value.trim()).trim();
       if (!keyword || keyword.length < 2) {
@@ -999,7 +1014,7 @@
     }
 
     function scheduleDuplicateCheck() {
-      clearSelectedProduct();
+      if (!state.barcode) clearSelectedProduct();
       if (state.duplicateTimer) clearTimeout(state.duplicateTimer);
       state.duplicateTimer = setTimeout(checkDuplicateProducts, 260);
     }
@@ -1318,6 +1333,7 @@
             state.barcode = String(codes[0].rawValue || "").trim();
             if (!state.barcode) return;
             updateBarcodeNote();
+            checkBarcodeProduct();
             $("scannerHint").textContent = `已识别：${state.barcode}`;
             stopScanner();
           } catch (_) {

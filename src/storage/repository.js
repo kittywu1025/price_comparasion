@@ -141,6 +141,7 @@ export function listProducts({ q = "", categoryId, storeId } = {}) {
       nameZh: p.nameZh,
       nameJa: p.nameJa,
       brand: p.brand,
+      barcode: p.barcode,
       defaultImageUrl: p.defaultImageUrl,
       isKeywordBest: Boolean(keywordLowest && keywordLowest.productId === p.id),
       isSameProductBest: Boolean(sameProductLowest && sameProductLowest.productId === p.id),
@@ -205,13 +206,24 @@ export function createPriceRecord(input, auth = {}) {
   ensureDbShape(db);
 
   let productId = input.product?.id ? Number(input.product.id) : null;
+  const barcode = String(input.product?.barcode || "").trim();
+  if (!productId && barcode) {
+    const existingProduct = db.products.find((product) => String(product.barcode || "").trim() === barcode);
+    if (existingProduct) {
+      productId = existingProduct.id;
+      if (input.imageUrl && !existingProduct.defaultImageUrl) {
+        existingProduct.defaultImageUrl = input.imageUrl;
+        existingProduct.updatedAt = nowDate();
+      }
+    }
+  }
   if (!productId) {
     const product = {
       id: getNextId(db, "product"),
       nameZh: input.product?.nameZh || "",
       nameJa: input.product?.nameJa || "",
       brand: input.product?.brand || "",
-      barcode: input.product?.barcode || "",
+      barcode,
       categoryId: input.product?.categoryId ? Number(input.product.categoryId) : null,
       defaultImageUrl: input.imageUrl || null,
       createdAt: nowDate(),
