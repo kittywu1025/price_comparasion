@@ -99,7 +99,12 @@ npx wrangler d1 execute price-comparison --remote --file tmp/cloudflare-import.s
 
 ## 7. 配置 Cloudflare Access
 
-Access 用来控制谁能访问这个网页。
+Access 用来控制谁能新增、修改、上传数据。推荐配置为：
+
+- 清单页公开可看。
+- 录入页、店铺页、写入相关 API 必须登录。
+
+不要继续用 `*` 保护整个网站，否则清单页也会要求登录。
 
 1. 进入 Cloudflare `Zero Trust`。
 2. 如果第一次使用，先创建 Team name。
@@ -107,17 +112,40 @@ Access 用来控制谁能访问这个网页。
 4. 点击 `Add an application`。
 5. 选择 `Self-hosted`。
 6. Application name 填：`price-comparison`。
-7. Application domain 填你的 Pages 域名，例如：
-   `price-comparasion.pages.dev`
-8. Policy 创建：
+7. Application domain 填：`price-comparasion.pages.dev`。
+8. 在 Target / 目标里添加这些路径：
+   - `/add.html`
+   - `/stores.html`
+   - `/api/stores*`
+   - `/api/price-records*`
+   - `/api/categories*`
+9. Policy 创建：
    - Action：`Allow`
    - Include：`Emails`
    - 填你自己和允许使用的朋友邮箱
-9. 保存。
+10. 保存。
 
-配置完后，别人打开网址会先走 Cloudflare 登录验证，通过邮箱验证后才能访问。
+配置完后，别人可以直接打开清单页查看；只有进入录入、店铺管理，或调用写入 API 时才需要邮箱验证。
 
-## 8. 验证
+## 8. 自定义登录页文案
+
+默认 Cloudflare Access 登录页是英文，不够直观。可以改成更像“请登录”的页面。
+
+1. 进入 Cloudflare `Zero Trust`。
+2. 打开 `Reusable components`。
+3. 打开 `Custom pages`。
+4. 找到 `Access login page`。
+5. 点击 `Manage`。
+6. 建议这样填写：
+   - Organization name：`价格比价工具`
+   - Header：`请登录`
+   - Footer：`输入已授权的邮箱，系统会发送验证码。未授权邮箱无法新增、修改或上传数据。`
+   - Background color：选择接近当前应用的浅绿色或白色
+7. 保存。
+
+注意：Cloudflare 默认按钮文案可能仍显示英文，例如 `Send me a code`。如果之后需要完全中文化，可以再做 Custom HTML 登录页。
+
+## 9. 验证
 
 部署完成后打开：
 

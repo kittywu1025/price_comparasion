@@ -833,9 +833,20 @@
       return new Date().toISOString().slice(0, 10);
     }
 
+    async function fetchJson(url, options) {
+      const res = await fetch(url, options);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("请先登录后再编辑数据。");
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "请求失败");
+      return data;
+    }
+
     async function getStores() {
       if (storesCache) return storesCache;
-      storesCache = await fetch("/api/stores").then((r) => r.json());
+      storesCache = await fetchJson("/api/stores");
       return storesCache;
     }
 
@@ -886,7 +897,6 @@
       }
 
       const top = data.records?.[0] || {};
-      const stores = await getStores();
       const modal = $("modal");
       if (!top.id) {
         modal.innerHTML = `
@@ -905,9 +915,6 @@
         return;
       }
 
-      const storeOptions = stores
-        .map((s) => `<option value="${s.id}" ${Number(s.id) === Number(top.storeId) ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
-        .join("");
       let editTaxMode = Number(top.taxRate ?? 0);
       let editUnit = top.unit || "g";
       const initialBefore = Number(
@@ -1008,7 +1015,7 @@
             <div class="edit-grid">
               <div class="edit-field">
                 <label for="editStoreId">购买店铺</label>
-                <select id="editStoreId">${storeOptions}</select>
+                <select id="editStoreId"><option value="">登录后加载店铺</option></select>
               </div>
               <div class="edit-field">
                 <label id="editRecordDateLabel" for="editRecordDate">更新日期</label>
@@ -1028,7 +1035,21 @@
       const detailView = modal.querySelector("#detailView");
       let editMode = "correction";
 
-      function showRecordForm(mode) {
+      async function loadProtectedStores() {
+        const select = modal.querySelector("#editStoreId");
+        try {
+          const stores = await getStores();
+          select.innerHTML = stores
+            .map((s) => `<option value="${s.id}" ${Number(s.id) === Number(top.storeId) ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
+            .join("");
+          return true;
+        } catch (err) {
+          modal.querySelector("#editMsg").textContent = "编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。";
+          return false;
+        }
+      }
+
+      async function showRecordForm(mode) {
         editMode = mode;
         modalHead.classList.add("hidden");
         detailView.classList.add("hidden");
@@ -1037,7 +1058,10 @@
         modal.querySelector("#editRecordDateLabel").textContent = mode === "new" ? "记录日期" : "更新日期";
         modal.querySelector("#editRecordDate").value = today();
         modal.querySelector("#editSubmitBtn").textContent = mode === "new" ? "新增价格记录" : "保存修正";
-        modal.querySelector("#editMsg").textContent = "";
+        modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
+        const ok = await loadProtectedStores();
+        modal.querySelector("#editSubmitBtn").disabled = !ok;
+        if (ok) modal.querySelector("#editMsg").textContent = "";
       }
 
       modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");

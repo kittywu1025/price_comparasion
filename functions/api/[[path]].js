@@ -25,6 +25,10 @@ export async function onRequest(context) {
       return json({ error: "Cloudflare D1 binding DB is missing" }, 500);
     }
 
+    if (requiresAccess(route, request) && !hasAccessSession(request)) {
+      return json({ error: "login required" }, 401);
+    }
+
     if (route[0] === "categories") {
       return handleCategories(request, env);
     }
@@ -45,6 +49,19 @@ export async function onRequest(context) {
   } catch (error) {
     return json({ error: error.message || "Bad request" }, 400);
   }
+}
+
+function requiresAccess(route, request) {
+  const area = route[0];
+  if (area === "stores" || area === "price-records" || area === "categories") return true;
+  return request.method !== "GET";
+}
+
+function hasAccessSession(request) {
+  return Boolean(
+    request.headers.get("cf-access-jwt-assertion") ||
+    request.headers.get("cf-access-authenticated-user-email")
+  );
 }
 
 function getRoute(pathParam) {
