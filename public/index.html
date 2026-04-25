@@ -480,6 +480,13 @@
       display: block;
     }
 
+    .edit-mode-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f2a2b;
+    }
+
     .edit-top {
       margin-top: 10px;
       display: grid;
@@ -933,10 +940,12 @@
               ${renderHistory(data.records || [])}
             </div>
             <div class="modal-actions">
-              <button id="showEditBtn" class="btn btn-primary" type="button">编辑</button>
+              <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
+              <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
             </div>
           </div>
           <form id="editForm" class="edit-form">
+            <p id="editModeTitle" class="edit-mode-title">修正记录</p>
             <div class="edit-top">
               <div class="edit-photo">
                 ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
@@ -1002,12 +1011,12 @@
                 <select id="editStoreId">${storeOptions}</select>
               </div>
               <div class="edit-field">
-                <label for="editRecordDate">更新日期</label>
+                <label id="editRecordDateLabel" for="editRecordDate">更新日期</label>
                 <input id="editRecordDate" type="date" value="${today()}" required />
               </div>
             </div>
             <div class="modal-actions">
-              <button class="btn btn-primary" type="submit">保存修改</button>
+              <button id="editSubmitBtn" class="btn btn-primary" type="submit">保存修正</button>
             </div>
             <div id="editMsg" class="modal-msg"></div>
           </form>
@@ -1017,11 +1026,22 @@
       const form = modal.querySelector("#editForm");
       const modalHead = modal.querySelector("#modalHead");
       const detailView = modal.querySelector("#detailView");
-      modal.querySelector("#showEditBtn").onclick = () => {
+      let editMode = "correction";
+
+      function showRecordForm(mode) {
+        editMode = mode;
         modalHead.classList.add("hidden");
         detailView.classList.add("hidden");
         form.classList.add("active");
-      };
+        modal.querySelector("#editModeTitle").textContent = mode === "new" ? "新增价格记录" : "修正记录";
+        modal.querySelector("#editRecordDateLabel").textContent = mode === "new" ? "记录日期" : "更新日期";
+        modal.querySelector("#editRecordDate").value = today();
+        modal.querySelector("#editSubmitBtn").textContent = mode === "new" ? "新增价格记录" : "保存修正";
+        modal.querySelector("#editMsg").textContent = "";
+      }
+
+      modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");
+      modal.querySelector("#showEditBtn").onclick = () => showRecordForm("correction");
 
       function round1(n) {
         return Math.round(n * 10) / 10;
@@ -1072,7 +1092,6 @@
         e.preventDefault();
         const { before, after } = calcEdit();
         const payload = {
-          productId: data.product.id,
           storeId: Number(modal.querySelector("#editStoreId").value),
           priceTaxIn: after,
           specValue: Number(modal.querySelector("#editSpecValue").value),
@@ -1085,14 +1104,27 @@
         };
         const editMsg = modal.querySelector("#editMsg");
         try {
-          const saveRes = await fetch(`/api/price-records/${top.id}`, {
-            method: "PUT",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(payload)
-          });
+          const saveRes = editMode === "new"
+            ? await fetch("/api/price-records", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                product: { id: data.product.id },
+                ...payload,
+                note: payload.note || "price-change"
+              })
+            })
+            : await fetch(`/api/price-records/${top.id}`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                productId: data.product.id,
+                ...payload
+              })
+            });
           const saveData = await saveRes.json();
           if (!saveRes.ok) throw new Error(saveData.error || "保存失败");
-          editMsg.textContent = "保存成功，已刷新。";
+          editMsg.textContent = editMode === "new" ? "新增成功，已刷新。" : "修正成功，已刷新。";
           await load();
           storesCache = null;
           await openDetail(id);
