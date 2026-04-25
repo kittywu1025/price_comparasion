@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>商品详情</title>
+<style>body{font-family:sans-serif;max-width:720px;margin:0 auto;padding:12px}.card{border:1px solid #ddd;border-radius:8px;padding:10px;margin:8px 0}nav a{margin-right:10px}.muted{color:#666}</style></head>
+<body>
+<nav><a href="/index.html">首页</a><a href="/add.html">添加</a><a href="/stores.html">店铺</a></nav>
+<h2>商品详情</h2>
+<div id="app"></div>
+<script>
+  const id = new URLSearchParams(location.search).get('id');
+  async function load(){
+    const res = await fetch('/api/products/' + id);
+    const app = document.getElementById('app');
+    if(!res.ok){ app.innerHTML = '<p>商品不存在</p>'; return; }
+    const data = await res.json();
+    const o = data.overview || {};
+    app.innerHTML = `
+      <div class="card">
+        <strong>${data.product.nameZh || data.product.nameJa}</strong>
+        <div class="muted">品牌：${data.product.brand || '-'}</div>
+        <div class="muted">分类：${data.product.categoryName || '-'}</div>
+        <div class="muted">最低单位价：${o.lowestUnitPrice ?? '-'} </div>
+        <div class="muted">最低总价：${o.lowestTotalPrice ?? '-'} </div>
+        <div class="muted">记录数：${o.recordCount ?? 0}</div>
+      </div>
+      ${data.records.map(r => `
+        <div class="card">
+          <div><strong>${r.storeName}</strong>｜¥${r.priceTaxIn}</div>
+          <div class="muted">${r.specValue}${r.unit}，${r.unitPrice}${r.unitPriceLabel}</div>
+          <div class="muted">${r.recordDate} ${r.note || ''}</div>
+        </div>
+      `).join('')}
+    `;
+  }
+  load();
+</script>
+</body>
+</html>

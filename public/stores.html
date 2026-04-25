@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>店铺管理</title>
+<style>body{font-family:sans-serif;max-width:720px;margin:0 auto;padding:12px}input,button{width:100%;padding:8px;margin:6px 0}.card{border:1px solid #ddd;border-radius:8px;padding:10px;margin:8px 0}nav a{margin-right:10px}</style></head>
+<body>
+<nav><a href="/index.html">首页</a><a href="/add.html">添加</a><a href="/stores.html">店铺</a></nav>
+<h2>店铺管理</h2>
+<form id="form">
+  <input id="name" placeholder="店铺名称" required />
+  <input id="chainBrand" placeholder="连锁品牌" />
+  <input id="location" placeholder="位置" />
+  <button>新增店铺</button>
+</form>
+<div id="list"></div>
+<script>
+  async function fetchJson(url, options){
+    const res = await fetch(url, options);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || '请求失败');
+    return data;
+  }
+  async function load(){
+    const stores = await fetchJson('/api/stores');
+    document.getElementById('list').innerHTML = stores.map(s => `<div class="card"><strong>${s.name}</strong><div>${s.chainBrand||'-'} ${s.location||''}</div></div>`).join('') || '<p>暂无店铺</p>';
+  }
+  document.getElementById('form').onsubmit = async (e)=>{
+    e.preventDefault();
+    await fetchJson('/api/stores', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({
+      name:document.getElementById('name').value,
+      chainBrand:document.getElementById('chainBrand').value,
+      location:document.getElementById('location').value
+    })});
+    e.target.reset();
+    load();
+  };
+  load();
+</script>
+</body>
+</html>

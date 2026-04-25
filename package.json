@@ -1,0 +1,15 @@
+{
+  "name": "price-comparasion",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "init-db": "node src/storage/init-json-db.js",
+    "seed": "node src/storage/seed-json-db.js",
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
