@@ -884,13 +884,13 @@
     function lowestRecordsByDate(records) {
       const byDate = new Map();
       records.forEach((record) => {
-        if (!Number.isFinite(Number(record.unitPrice))) return;
+        if (!Number.isFinite(Number(record.priceTaxIn))) return;
         const key = record.recordDate || "-";
         const current = byDate.get(key);
         if (
           !current ||
-          Number(record.unitPrice) < Number(current.unitPrice) ||
-          (Number(record.unitPrice) === Number(current.unitPrice) && Number(record.id || 0) > Number(current.id || 0))
+          Number(record.priceTaxIn) < Number(current.priceTaxIn) ||
+          (Number(record.priceTaxIn) === Number(current.priceTaxIn) && Number(record.id || 0) > Number(current.id || 0))
         ) {
           byDate.set(key, record);
         }
@@ -945,11 +945,10 @@
 
     function renderTrend(records, mode = "lowest", storeKey = "") {
       const series = sortRecordsByDateAsc(recordsForTrend(records, mode, storeKey))
-        .filter((r) => Number.isFinite(Number(r.unitPrice)))
+        .filter((r) => Number.isFinite(Number(r.priceTaxIn)))
         .map((r) => ({
           date: r.recordDate || "-",
-          value: Number(r.unitPrice),
-          label: r.unitPriceLabel || ""
+          value: Number(r.priceTaxIn)
         }));
 
       if (!series.length) {
@@ -977,15 +976,14 @@
       `).join("");
       const first = points[0];
       const last = points[points.length - 1];
-      const label = last?.label || first?.label || "";
 
       return `
         <div class="trend-card">
-          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="单位价格走势">
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="税后价格走势">
             <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" stroke="#dbe7e3" stroke-width="1" />
             <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${height - padY}" stroke="#dbe7e3" stroke-width="1" />
-            <text x="${padX}" y="14" fill="#607371" font-size="10">${max.toFixed(2)} ${label}</text>
-            <text x="${padX}" y="${height - 4}" fill="#607371" font-size="10">${min.toFixed(2)} ${label}</text>
+            <text x="${padX}" y="14" fill="#607371" font-size="10">¥${asMoney(max)}</text>
+            <text x="${padX}" y="${height - 4}" fill="#607371" font-size="10">¥${asMoney(min)}</text>
             ${points.length > 1 ? `<polyline points="${pointAttr}" fill="none" stroke="#0d9a7d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />` : ""}
             ${circles}
             <text x="${padX}" y="${height - 10}" fill="#607371" font-size="10">${escapeHtml(first.date)}</text>
