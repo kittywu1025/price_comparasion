@@ -1,39 +1,425 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>店铺管理</title>
-<style>body{font-family:sans-serif;max-width:720px;margin:0 auto;padding:12px}input,button{width:100%;padding:8px;margin:6px 0}.card{border:1px solid #ddd;border-radius:8px;padding:10px;margin:8px 0}nav a{margin-right:10px}</style></head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>店铺管理</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #fff;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --danger: #c93f3f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 14px 14px 70px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    nav {
+      position: sticky;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d8e7e1;
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
+      backdrop-filter: blur(4px);
+    }
+
+    nav a {
+      text-align: center;
+      text-decoration: none;
+      color: #4f6562;
+      font-size: 13px;
+      line-height: 44px;
+      height: 44px;
+      font-weight: 600;
+    }
+
+    nav a.active {
+      background: #e9f7f3;
+      color: #0c8f72;
+    }
+
+    .form {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input, button {
+      font: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      height: 40px;
+      padding: 0 12px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #76c5b1;
+      box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
+    }
+
+    button {
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .btn-primary {
+      border: 0;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .btn-ghost {
+      background: #edf6f3;
+      color: #1a5950;
+      border: 0;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .status {
+      color: #375a56;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .name {
+      font-size: 15px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .actions button {
+      width: auto;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .btn-edit {
+      border: 0;
+      background: #e8f4ff;
+      color: #1f5c98;
+    }
+
+    .btn-delete {
+      border: 0;
+      background: #feecec;
+      color: var(--danger);
+    }
+  </style>
+</head>
 <body>
-<nav><a href="/index.html">首页</a><a href="/add.html">添加</a><a href="/stores.html">店铺</a></nav>
-<h2>店铺管理</h2>
-<form id="form">
-  <input id="name" placeholder="店铺名称" required />
-  <input id="chainBrand" placeholder="连锁品牌" />
-  <input id="location" placeholder="位置" />
-  <button>新增店铺</button>
-</form>
-<div id="list"></div>
-<script>
-  async function fetchJson(url, options){
-    const res = await fetch(url, options);
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || '请求失败');
-    return data;
-  }
-  async function load(){
-    const stores = await fetchJson('/api/stores');
-    document.getElementById('list').innerHTML = stores.map(s => `<div class="card"><strong>${s.name}</strong><div>${s.chainBrand||'-'} ${s.location||''}</div></div>`).join('') || '<p>暂无店铺</p>';
-  }
-  document.getElementById('form').onsubmit = async (e)=>{
-    e.preventDefault();
-    await fetchJson('/api/stores', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({
-      name:document.getElementById('name').value,
-      chainBrand:document.getElementById('chainBrand').value,
-      location:document.getElementById('location').value
-    })});
-    e.target.reset();
+  <div class="app">
+    <div class="panel">
+      <h1 id="formTitle">新增店铺</h1>
+      <form id="form" class="form">
+        <input id="name" placeholder="店铺名称" required />
+        <input id="chainBrand" placeholder="连锁品牌（可选）" />
+        <div class="row">
+          <input id="location" placeholder="位置（默认尝试GPS）" />
+          <button id="detectLocation" class="btn-ghost" type="button">使用当前位置</button>
+        </div>
+        <div id="geoStatus" class="hint"></div>
+        <input id="note" placeholder="备注（可选）" />
+        <div class="row">
+          <button id="submitBtn" class="btn-primary" type="submit">新增店铺</button>
+          <button id="cancelEditBtn" class="btn-ghost" type="button" style="display:none;">取消编辑</button>
+        </div>
+      </form>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <div id="list" class="list"></div>
+    </div>
+
+    <nav>
+      <a href="/index.html">清单</a>
+      <a href="/add.html">录入</a>
+      <a class="active" href="/stores.html">店铺</a>
+    </nav>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let editingId = null;
+    let locationManuallyEdited = false;
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    async function fetchJson(url, options) {
+      const res = await fetch(url, options);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "请求失败");
+      return data;
+    }
+
+    function setGeoStatus(text) {
+      $("geoStatus").textContent = text;
+    }
+
+    function setStatus(text) {
+      $("status").textContent = text;
+    }
+
+    function getCurrentPosition(options = {}) {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("当前浏览器不支持定位"));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 5 * 60 * 1000,
+          ...options
+        });
+      });
+    }
+
+    function formatLocation(position) {
+      const { latitude, longitude, accuracy } = position.coords;
+      const lat = latitude.toFixed(6);
+      const lng = longitude.toFixed(6);
+      const acc = Math.round(accuracy || 0);
+      return `GPS ${lat}, ${lng}${acc ? ` (±${acc}m)` : ""}`;
+    }
+
+    async function fillLocation(force = false) {
+      setGeoStatus("正在定位...");
+      try {
+        const pos = await getCurrentPosition();
+        if (force || (!locationManuallyEdited && !$("location").value.trim())) {
+          $("location").value = formatLocation(pos);
+        }
+        setGeoStatus("已获取当前位置，可手动修改。");
+      } catch (err) {
+        if (err && err.code === 1) {
+          setGeoStatus("你拒绝了定位权限，可手动填写位置。");
+        } else if (err && err.code === 2) {
+          setGeoStatus("无法获取定位信息，可手动填写位置。");
+        } else if (err && err.code === 3) {
+          setGeoStatus("定位超时，可重试或手动填写位置。");
+        } else {
+          setGeoStatus((err && err.message) ? `${err.message}，可手动填写位置。` : "定位失败，可手动填写位置。");
+        }
+      }
+    }
+
+    function resetForm() {
+      editingId = null;
+      $("form").reset();
+      $("formTitle").textContent = "新增店铺";
+      $("submitBtn").textContent = "新增店铺";
+      $("cancelEditBtn").style.display = "none";
+      locationManuallyEdited = false;
+      setStatus("");
+      setGeoStatus("");
+      fillLocation(false);
+    }
+
+    function enterEdit(store) {
+      editingId = store.id;
+      $("formTitle").textContent = `编辑店铺 #${store.id}`;
+      $("submitBtn").textContent = "保存修改";
+      $("cancelEditBtn").style.display = "inline-block";
+      $("name").value = store.name || "";
+      $("chainBrand").value = store.chainBrand || "";
+      $("location").value = store.location || "";
+      $("note").value = store.note || "";
+      locationManuallyEdited = true;
+      setGeoStatus("编辑模式：可手动修改位置，或点击“使用当前位置”覆盖。");
+      setStatus("");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function removeStore(id) {
+      const ok = confirm("确认删除这个店铺吗？");
+      if (!ok) return;
+      try {
+        await fetchJson(`/api/stores/${id}`, { method: "DELETE" });
+        setStatus("删除成功。");
+        await load();
+      } catch (err) {
+        if (String(err.message).includes("related price records")) {
+          setStatus("删除失败：该店铺已有关联价格记录，请先处理记录。");
+        } else {
+          setStatus(`删除失败：${err.message}`);
+        }
+      }
+    }
+
+    async function load() {
+      const stores = await fetchJson("/api/stores");
+      const list = $("list");
+      if (!stores.length) {
+        list.innerHTML = "<div class='meta'>暂无店铺</div>";
+        return;
+      }
+
+      list.innerHTML = stores.map((s) => `
+        <article class="card">
+          <div class="name">${escapeHtml(s.name)}</div>
+          <div class="meta">品牌：${escapeHtml(s.chainBrand || "-")}</div>
+          <div class="meta">位置：${escapeHtml(s.location || "-")}</div>
+          <div class="meta">备注：${escapeHtml(s.note || "-")}</div>
+          <div class="actions">
+            <button class="btn-edit" data-action="edit" data-id="${s.id}">编辑</button>
+            <button class="btn-delete" data-action="delete" data-id="${s.id}">删除</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    $("location").addEventListener("input", () => {
+      locationManuallyEdited = true;
+    });
+    $("detectLocation").onclick = () => fillLocation(true);
+    $("cancelEditBtn").onclick = resetForm;
+
+    $("list").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      if (!id) return;
+      const action = btn.dataset.action;
+
+      if (action === "edit") {
+        const stores = await fetchJson("/api/stores");
+        const store = stores.find((x) => x.id === id);
+        if (!store) {
+          setStatus("未找到该店铺。");
+          return;
+        }
+        enterEdit(store);
+        return;
+      }
+
+      if (action === "delete") {
+        await removeStore(id);
+      }
+    });
+
+    $("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: $("name").value.trim(),
+        chainBrand: $("chainBrand").value.trim(),
+        location: $("location").value.trim(),
+        note: $("note").value.trim()
+      };
+      if (!payload.name) {
+        setStatus("店铺名称不能为空。");
+        return;
+      }
+
+      try {
+        if (editingId) {
+          await fetchJson(`/api/stores/${editingId}`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          setStatus("修改成功。");
+        } else {
+          await fetchJson("/api/stores", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          setStatus("新增成功。");
+        }
+        resetForm();
+        await load();
+      } catch (err) {
+        setStatus(`保存失败：${err.message}`);
+      }
+    };
+
+    fillLocation(false);
     load();
-  };
-  load();
-</script>
+  </script>
 </body>
 </html>

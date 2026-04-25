@@ -8,10 +8,13 @@ import {
   createCategory,
   createPriceRecord,
   createStore,
+  deleteStore,
   getProductDetail,
   listCategories,
   listProducts,
-  listStores
+  listStores,
+  updatePriceRecord,
+  updateStore
 } from "./src/storage/repository.js";
 
 initDb();
@@ -83,6 +86,21 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, createStore(body));
     }
 
+    if (pathname.startsWith("/api/stores/")) {
+      const id = Number(pathname.split("/").pop());
+      if (!Number.isFinite(id)) return sendJson(res, 400, { error: "invalid store id" });
+
+      if (req.method === "PUT") {
+        const body = await parseBody(req);
+        if (!body.name?.trim()) return sendJson(res, 400, { error: "name is required" });
+        return sendJson(res, 200, updateStore(id, body));
+      }
+
+      if (req.method === "DELETE") {
+        return sendJson(res, 200, deleteStore(id));
+      }
+    }
+
     if (req.method === "GET" && pathname === "/api/products") {
       return sendJson(
         res,
@@ -121,6 +139,29 @@ const server = http.createServer(async (req, res) => {
 
       const created = createPriceRecord({ ...payload, product: body.product });
       return sendJson(res, 201, created);
+    }
+
+    if (req.method === "PUT" && pathname.startsWith("/api/price-records/")) {
+      const id = Number(pathname.split("/").pop());
+      if (!Number.isFinite(id)) return sendJson(res, 400, { error: "invalid price record id" });
+      const body = await parseBody(req);
+
+      const payload = buildPriceRecordPayload({
+        productId: body.productId || "temp",
+        storeId: body.storeId,
+        priceTaxIn: body.priceTaxIn,
+        priceTaxEx: body.priceTaxEx,
+        taxRate: body.taxRate,
+        specValue: body.specValue,
+        unit: body.unit,
+        imageUrl: body.imageUrl,
+        recordDate: body.recordDate,
+        note: body.note,
+        createdBy: "no-auth"
+      });
+
+      const updated = updatePriceRecord(id, payload);
+      return sendJson(res, 200, updated);
     }
 
     if (serveStatic(res, pathname)) return;

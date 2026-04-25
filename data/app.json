@@ -1,0 +1,140 @@
+{
+  "counters": {
+    "category": 6,
+    "store": 14,
+    "product": 2,
+    "priceRecord": 2
+  },
+  "categories": [
+    {
+      "id": 1,
+      "name": "食品"
+    },
+    {
+      "id": 2,
+      "name": "日用品"
+    },
+    {
+      "id": 3,
+      "name": "饮料"
+    },
+    {
+      "id": 4,
+      "name": "调味料"
+    },
+    {
+      "id": 5,
+      "name": "冷冻食品"
+    }
+  ],
+  "stores": [
+    {
+      "id": 1,
+      "name": "Cosmos コスモス（中央店）",
+      "chainBrand": "Cosmos",
+      "location": "中央",
+      "note": ""
+    },
+    {
+      "id": 4,
+      "name": "大youme（東広島）",
+      "chainBrand": "youme",
+      "location": "Saijo Doyomaru 西条土与丸",
+      "note": "中央区域的大youme"
+    },
+    {
+      "id": 5,
+      "name": "Fuji Grand フジグラン（東広島）",
+      "chainBrand": "Fuji",
+      "location": "Saijo Misonou 西条町御薗宇",
+      "note": "生活采购常去"
+    },
+    {
+      "id": 6,
+      "name": "youme mall ゆめモール（西条）",
+      "chainBrand": "youme",
+      "location": "Saijo Sukezane 西条町助実",
+      "note": "youme mall 门店"
+    },
+    {
+      "id": 7,
+      "name": "Gyomu Super Every エブリイ（西条御薗宇店）",
+      "chainBrand": "业务超市",
+      "location": "西条町御薗宇",
+      "note": "大包装和冷冻食品选择多"
+    },
+    {
+      "id": 8,
+      "name": "HALOWS ハローズ（東広島店）",
+      "chainBrand": "HALOWS",
+      "location": "Saijo Jike 西条町寺家",
+      "note": "营业时间长"
+    },
+    {
+      "id": 9,
+      "name": "LAMU ラ・ムー（西条店）",
+      "chainBrand": "LAMU",
+      "location": "Saijo Doyomaru 西条町土与丸",
+      "note": "低价导向"
+    },
+    {
+      "id": 10,
+      "name": "SHOJI ショージ（下見店）",
+      "chainBrand": "SHOJI",
+      "location": "Saijo Shitami 西条下見",
+      "note": "靠近广岛大学周边"
+    },
+    {
+      "id": 11,
+      "name": "MaxValu マックスバリュ（西条西店）",
+      "chainBrand": "MaxValu",
+      "location": "Saijo Jike 西条町寺家",
+      "note": "连锁综合超市"
+    },
+    {
+      "id": 12,
+      "name": "FRESTA フレスタ（西条店）",
+      "chainBrand": "FRESTA",
+      "location": "Saijo 西条",
+      "note": "本地常用连锁超市"
+    },
+    {
+      "id": 13,
+      "name": "小youme（广岛大学附近）",
+      "chainBrand": "youme",
+      "location": "Saijo Honmachi 西条本町",
+      "note": "广岛大学对面的小youme"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "nameZh": "111",
+      "nameJa": "",
+      "brand": "",
+      "barcode": "",
+      "categoryId": null,
+      "defaultImageUrl": null,
+      "createdAt": "2026-04-25",
+      "updatedAt": "2026-04-25"
+    }
+  ],
+  "priceRecords": [
+    {
+      "id": 1,
+      "productId": 1,
+      "storeId": 1,
+      "priceTaxIn": 108,
+      "priceTaxEx": null,
+      "taxRate": null,
+      "specValue": 100,
+      "unit": "g",
+      "unitPrice": 108,
+      "unitPriceLabel": "/100g",
+      "imageUrl": null,
+      "recordDate": "2026-04-25",
+      "note": null,
+      "createdAt": "2026-04-25"
+    }
+  ]
+}

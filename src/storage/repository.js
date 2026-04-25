@@ -32,6 +32,35 @@ export function createStore(input) {
   return row;
 }
 
+export function updateStore(storeId, input) {
+  const db = readDb();
+  const id = Number(storeId);
+  const target = db.stores.find((s) => s.id === id);
+  if (!target) throw new Error("store not found");
+  if (!input.name?.trim()) throw new Error("name is required");
+
+  target.name = input.name.trim();
+  target.chainBrand = (input.chainBrand ?? "").trim();
+  target.location = (input.location ?? "").trim();
+  target.note = (input.note ?? "").trim();
+
+  writeDb(db);
+  return target;
+}
+
+export function deleteStore(storeId) {
+  const db = readDb();
+  const id = Number(storeId);
+  const inUse = db.priceRecords.some((r) => r.storeId === id);
+  if (inUse) throw new Error("store has related price records");
+
+  const idx = db.stores.findIndex((s) => s.id === id);
+  if (idx === -1) throw new Error("store not found");
+  const [deleted] = db.stores.splice(idx, 1);
+  writeDb(db);
+  return deleted;
+}
+
 export function listProducts({ q = "", categoryId, storeId } = {}) {
   const db = readDb();
 
@@ -150,4 +179,26 @@ export function createPriceRecord(input) {
     unitPriceLabel: row.unitPriceLabel,
     recordDate: row.recordDate
   };
+}
+
+export function updatePriceRecord(recordId, input) {
+  const db = readDb();
+  const id = Number(recordId);
+  const row = db.priceRecords.find((r) => r.id === id);
+  if (!row) throw new Error("price record not found");
+
+  row.storeId = Number(input.storeId);
+  row.priceTaxIn = Number(input.priceTaxIn);
+  row.priceTaxEx = input.priceTaxEx == null ? null : Number(input.priceTaxEx);
+  row.taxRate = input.taxRate == null ? null : Number(input.taxRate);
+  row.specValue = Number(input.specValue);
+  row.unit = input.unit;
+  row.unitPrice = input.unitPrice;
+  row.unitPriceLabel = input.unitPriceLabel;
+  row.imageUrl = input.imageUrl || null;
+  row.recordDate = input.recordDate;
+  row.note = input.note || null;
+
+  writeDb(db);
+  return row;
 }
