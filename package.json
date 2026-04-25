@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "cf:export-local": "node scripts/export-local-json-to-d1-sql.mjs",
     "init-db": "node src/storage/init-json-db.js",
     "seed": "node src/storage/seed-json-db.js",
     "start": "node server.js",

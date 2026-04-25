@@ -1,0 +1,14 @@
+name = "price-comparasion"
+compatibility_date = "2026-04-25"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "price-comparison"
+database_id = "88191809-b09c-409e-baad-a2ab4a09179e"
+preview_database_id = "DB"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "price-comparison-images"
+preview_bucket_name = "price-comparison-images-dev"
