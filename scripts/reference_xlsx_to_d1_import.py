@@ -12,7 +12,6 @@ ROOT = Path(__file__).resolve().parents[1]
 INPUT_XLSX = ROOT / "reference" / "price_minimal_template_数据表_总表.xlsx"
 OUTPUT_SQL = ROOT / "tmp" / "reference-xlsx-import.sql"
 OUTPUT_SUMMARY = ROOT / "tmp" / "reference-xlsx-import-summary.json"
-IMPORT_DATE = date(2026, 4, 25).isoformat()
 
 STORE_MAP = {
     "every 西条御菌店": {
@@ -92,6 +91,7 @@ def main() -> None:
     OUTPUT_SQL.parent.mkdir(parents=True, exist_ok=True)
 
     product_id_by_key: dict[str, int] = {}
+    product_by_key: dict[str, dict] = {}
     products: list[dict] = []
     price_records: list[dict] = []
     imported_new_store_keys = {
@@ -102,6 +102,7 @@ def main() -> None:
 
     next_product_id = 1000
     next_price_record_id = 5000
+    last_record_date: str | None = None
 
     for excel_row, row in enumerate(rows[1:], start=2):
         raw_store = clean(row[idx["店铺位置"]])
@@ -113,24 +114,6 @@ def main() -> None:
         name_ja = clean(row[idx["名称(日文)"]])
         barcode = clean_barcode(row[idx["条形码"]])
         product_key = barcode or f"{name_zh.lower()}|{name_ja.lower()}"
-
-        if product_key not in product_id_by_key:
-            product_id_by_key[product_key] = next_product_id
-            products.append(
-                {
-                    "id": next_product_id,
-                    "name_zh": name_zh,
-                    "name_ja": name_ja,
-                    "brand": "",
-                    "barcode": barcode,
-                    "category_id": None,
-                    "default_image_url": None,
-                    "created_by": "reference-xlsx-import",
-                    "created_at": IMPORT_DATE,
-                    "updated_at": IMPORT_DATE,
-                }
-            )
-            next_product_id += 1
 
         normalized_unit = normalize_unit(row[idx["单位"]])
         spec_value, spec_note = normalize_spec(row[idx["规格"]], normalized_unit)
@@ -144,13 +127,45 @@ def main() -> None:
                 }
             )
 
-        record_date = normalize_date(row[idx["更新时间"]])
+        raw_record_date = row[idx["更新时间"]]
+        record_date = normalize_date(raw_record_date)
         date_note = None
-        if record_date == IMPORT_DATE and row[idx["更新时间"]] in (None, ""):
-            date_note = f"原更新时间缺失，导入时设为{IMPORT_DATE}"
+        if not record_date:
+            if not last_record_date:
+                raise RuntimeError(f"Missing 更新时间 at row {excel_row} with no previous date")
+            record_date = last_record_date
+            date_note = f"原更新时间缺失，沿用上一条记录日期{record_date}"
             fallback_dates.append(
-                {"row": excel_row, "nameZh": name_zh, "store": raw_store}
+                {
+                    "row": excel_row,
+                    "nameZh": name_zh,
+                    "store": raw_store,
+                    "fallback": date_note,
+                }
             )
+        last_record_date = record_date
+
+        if product_key not in product_id_by_key:
+            product_id_by_key[product_key] = next_product_id
+            product = {
+                "id": next_product_id,
+                "name_zh": name_zh,
+                "name_ja": name_ja,
+                "brand": "",
+                "barcode": barcode,
+                "category_id": None,
+                "default_image_url": None,
+                "created_by": "reference-xlsx-import",
+                "created_at": record_date,
+                "updated_at": record_date,
+            }
+            product_by_key[product_key] = product
+            products.append(product)
+            next_product_id += 1
+        else:
+            product = product_by_key[product_key]
+            product["created_at"] = min(product["created_at"], record_date)
+            product["updated_at"] = max(product["updated_at"], record_date)
 
         price_tax_ex = float(row[idx["价格(税前)"]])
         tax_rate = parse_tax_rate(row[idx["税率"]])
@@ -271,7 +286,7 @@ def normalize_spec(raw_value, normalized_unit):
 
 def normalize_date(raw_value):
     if raw_value in (None, ""):
-        return IMPORT_DATE
+        return None
     if isinstance(raw_value, datetime):
         return raw_value.date().isoformat()
     if isinstance(raw_value, date):

@@ -287,6 +287,7 @@
     </header>
 
     <div class="panel">
+      <div id="listStatus" class="status">正在加载店铺...</div>
       <div id="list" class="list"></div>
     </div>
 
@@ -350,6 +351,10 @@
 
     function setStatus(text) {
       $("status").textContent = text;
+    }
+
+    function setListStatus(text) {
+      $("listStatus").textContent = text;
     }
 
     function openEditor() {
@@ -451,27 +456,34 @@
     }
 
     async function load() {
-      const stores = await fetchJson("/api/stores");
       const list = $("list");
-      if (!stores.length) {
-        list.innerHTML = "<div class='meta'>暂无店铺</div>";
-        return;
-      }
+      setListStatus("正在加载店铺...");
+      list.innerHTML = "";
+      try {
+        const stores = await fetchJson("/api/stores");
+        if (!stores.length) {
+          setListStatus("暂无店铺");
+          return;
+        }
 
-      list.innerHTML = stores.map((s) => `
-        <article class="card" data-id="${s.id}" data-name="${escapeHtml(s.name)}">
-          <div class="name">${escapeHtml(s.name)}</div>
-          <div class="meta">品牌：${escapeHtml(s.chainBrand || "-")}</div>
-          <div class="meta">位置：${escapeHtml(s.location || "-")}</div>
-          <div class="meta">备注：${escapeHtml(s.note || "-")}</div>
-          <div class="actions">
-            <button class="btn-edit" data-action="edit" data-id="${s.id}">编辑</button>
-            ${s.canDelete
-              ? `<button class="btn-delete" data-action="delete" data-id="${s.id}">删除</button>`
-              : `<button class="btn-disabled" type="button" disabled>不可删</button>`}
-          </div>
-        </article>
-      `).join("");
+        setListStatus(`${stores.length} 个店铺`);
+        list.innerHTML = stores.map((s) => `
+          <article class="card" data-id="${s.id}" data-name="${escapeHtml(s.name)}">
+            <div class="name">${escapeHtml(s.name)}</div>
+            <div class="meta">品牌：${escapeHtml(s.chainBrand || "-")}</div>
+            <div class="meta">位置：${escapeHtml(s.location || "-")}</div>
+            <div class="meta">备注：${escapeHtml(s.note || "-")}</div>
+            <div class="actions">
+              <button class="btn-edit" data-action="edit" data-id="${s.id}">编辑</button>
+              ${s.canDelete
+                ? `<button class="btn-delete" data-action="delete" data-id="${s.id}">删除</button>`
+                : `<button class="btn-disabled" type="button" disabled>不可删</button>`}
+            </div>
+          </article>
+        `).join("");
+      } catch (err) {
+        setListStatus(`店铺加载失败：${err.message || "请刷新页面重试"}`);
+      }
     }
 
     $("location").addEventListener("input", () => {

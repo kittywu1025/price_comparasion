@@ -233,6 +233,25 @@
       box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
     }
 
+    .input-with-action {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+    }
+
+    .input-with-action button {
+      height: 40px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: #edf6f3;
+      color: #1a5950;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     #priceAfterTaxInput {
       background: #eef4f2;
       color: #607270;
@@ -582,6 +601,78 @@
       gap: 8px;
     }
 
+    .calc-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 19, 18, 0.45);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 36;
+      padding: 12px;
+    }
+
+    .calc-panel {
+      width: min(420px, 100%);
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid #dceae6;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 10px;
+    }
+
+    .calc-panel h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .calc-display {
+      height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 12px;
+      font-size: 18px;
+      text-align: right;
+    }
+
+    .calc-result {
+      min-height: 18px;
+      color: #607270;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .calc-grid button {
+      height: 44px;
+      border: 0;
+      border-radius: 12px;
+      background: #f2f7f5;
+      color: #1f2a2b;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .calc-grid button[data-calc-op],
+    .calc-grid button[data-calc-action] {
+      background: #e8f5f1;
+      color: #0b7f68;
+    }
+
+    .calc-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -661,7 +752,10 @@
             <div class="inline-grid">
               <div class="field">
                 <label for="spec">规格数值</label>
-                <input id="spec" type="number" step="0.01" placeholder="400" required />
+                <div class="input-with-action">
+                  <input id="spec" type="number" step="0.01" placeholder="400" required />
+                  <button id="openSpecCalc" type="button">计算</button>
+                </div>
               </div>
 
               <div class="field">
@@ -757,6 +851,36 @@
         <button id="closeQuickFill" class="btn btn-subtle" type="button">取消</button>
       </div>
       <div id="quickHint" class="toolbar-note">支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个。</div>
+    </div>
+  </div>
+
+  <div id="calcMask" class="calc-mask">
+    <div class="calc-panel">
+      <h2>规格计算</h2>
+      <input id="calcExpression" class="calc-display" inputmode="decimal" placeholder="例：100*3 或 100g*3" />
+      <div id="calcResult" class="calc-result">输入算式后应用到规格数值</div>
+      <div class="calc-grid">
+        <button type="button" data-calc-key="7">7</button>
+        <button type="button" data-calc-key="8">8</button>
+        <button type="button" data-calc-key="9">9</button>
+        <button type="button" data-calc-op="/">÷</button>
+        <button type="button" data-calc-key="4">4</button>
+        <button type="button" data-calc-key="5">5</button>
+        <button type="button" data-calc-key="6">6</button>
+        <button type="button" data-calc-op="*">×</button>
+        <button type="button" data-calc-key="1">1</button>
+        <button type="button" data-calc-key="2">2</button>
+        <button type="button" data-calc-key="3">3</button>
+        <button type="button" data-calc-op="-">−</button>
+        <button type="button" data-calc-key="0">0</button>
+        <button type="button" data-calc-key=".">.</button>
+        <button type="button" data-calc-action="back">⌫</button>
+        <button type="button" data-calc-op="+">+</button>
+      </div>
+      <div class="calc-actions">
+        <button id="applySpecCalc" class="btn btn-primary" type="button">应用结果</button>
+        <button id="closeSpecCalc" class="btn btn-subtle" type="button">取消</button>
+      </div>
     </div>
   </div>
 
@@ -901,6 +1025,64 @@
       $("priceAfterTaxInput").value = `¥${round1(after).toFixed(1)}`;
       $("unitPrice").textContent = `¥${round1(unitPrice).toFixed(1)}${unitLabel}`;
       return { before, after: round1(after) };
+    }
+
+    function normalizeExpression(value) {
+      return String(value || "")
+        .replace(/[×xX]/g, "*")
+        .replace(/[÷]/g, "/")
+        .replace(/[（）]/g, (ch) => ch === "（" ? "(" : ")")
+        .replace(/(kg|g|克|ml|毫升|個|个)/gi, "")
+        .replace(/,/g, "")
+        .trim();
+    }
+
+    function evaluateExpression(value) {
+      const expression = normalizeExpression(value);
+      if (!expression) throw new Error("请输入算式");
+      if (!/^[0-9+\-*/().\s]+$/.test(expression)) {
+        throw new Error("只支持数字和 + - × ÷ ( )");
+      }
+      const result = Function(`"use strict"; return (${expression});`)();
+      if (!Number.isFinite(result) || result <= 0) throw new Error("结果必须大于 0");
+      return result;
+    }
+
+    function formatNumber(value) {
+      return Number.isInteger(value)
+        ? String(value)
+        : String(Math.round(value * 100) / 100).replace(/\.?0+$/, "");
+    }
+
+    function updateCalcResult() {
+      try {
+        const value = evaluateExpression($("calcExpression").value);
+        $("calcResult").textContent = `结果：${formatNumber(value)}`;
+      } catch (err) {
+        $("calcResult").textContent = err.message || "输入算式后应用到规格数值";
+      }
+    }
+
+    function openSpecCalculator() {
+      $("calcExpression").value = $("spec").value || "";
+      updateCalcResult();
+      $("calcMask").style.display = "flex";
+      $("calcExpression").focus();
+    }
+
+    function closeSpecCalculator() {
+      $("calcMask").style.display = "none";
+    }
+
+    function applySpecCalculator() {
+      try {
+        const value = evaluateExpression($("calcExpression").value);
+        $("spec").value = formatNumber(value);
+        calc();
+        closeSpecCalculator();
+      } catch (err) {
+        $("calcResult").textContent = err.message || "无法计算";
+      }
     }
 
     function setTaxMode(nextTaxMode) {
@@ -1161,6 +1343,31 @@
       $("quickMask").style.display = "none";
     };
     $("applyQuickFill").onclick = applyQuickFillText;
+    $("openSpecCalc").onclick = openSpecCalculator;
+    $("closeSpecCalc").onclick = closeSpecCalculator;
+    $("applySpecCalc").onclick = applySpecCalculator;
+    $("calcExpression").addEventListener("input", updateCalcResult);
+    $("calcExpression").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applySpecCalculator();
+      }
+    });
+    $("calcMask").addEventListener("click", (e) => {
+      if (e.target === $("calcMask")) closeSpecCalculator();
+    });
+    $("calcMask").querySelectorAll("[data-calc-key], [data-calc-op], [data-calc-action]").forEach((btn) => {
+      btn.onclick = () => {
+        const action = btn.dataset.calcAction;
+        if (action === "back") {
+          $("calcExpression").value = $("calcExpression").value.slice(0, -1);
+        } else {
+          $("calcExpression").value += btn.dataset.calcKey || btn.dataset.calcOp || "";
+        }
+        updateCalcResult();
+        $("calcExpression").focus();
+      };
+    });
     $("quickMask").addEventListener("click", (e) => {
       if (e.target === $("quickMask")) $("quickMask").style.display = "none";
     });

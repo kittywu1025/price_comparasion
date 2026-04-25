@@ -675,6 +675,11 @@
       color: #b53939;
     }
 
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.52;
+    }
+
     .modal-msg {
       margin-top: 8px;
       font-size: 12px;
@@ -735,6 +740,8 @@
     let suppressNextCardClick = false;
     let suppressNextHistoryClick = false;
     let longPressTimer = null;
+    let bodyScrollY = 0;
+    let modalLocked = false;
 
     $("scanSearch").onclick = () => alert("扫码搜索将在下一版接入，当前可用文本搜索。");
     $("mask").addEventListener("click", (e) => {
@@ -922,8 +929,7 @@
           const isBest = item.isKeywordBest;
           const flags = [
             item.latestIsPromo ? '<div class="flag low">限时优惠</div>' : "",
-            isBest ? '<div class="flag best">最低价</div>' : "",
-            item.isSameProductBest ? '<div class="flag same">同产品最低价</div>' : ""
+            isBest ? '<div class="flag best">最低价</div>' : ""
           ].filter(Boolean).join("");
           return `
             <article class="card ${isBest ? "best" : ""}" data-product-id="${item.productId}">
@@ -970,7 +976,7 @@
             <div class="stat"><p class="stat-v">暂无可编辑记录</p></div>
           </section>
         `;
-        $("mask").style.display = "flex";
+        openModal();
         return;
       }
 
@@ -1008,7 +1014,7 @@
             <div class="modal-actions">
               <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
               <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
-              <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button" style="display:none;">删除当前记录</button>
+              <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button">删除当前记录</button>
             </div>
           </div>
           <form id="editForm" class="edit-form">
@@ -1148,10 +1154,12 @@
       const detailDeleteBtn = modal.querySelector("#detailDeleteRecordBtn");
       getRecordAccess(top.id)
         .then((access) => {
-          detailDeleteBtn.style.display = access.canDelete ? "block" : "none";
+          detailDeleteBtn.disabled = !access.canDelete;
+          detailDeleteBtn.title = access.canDelete ? "" : "只能删除自己创建的数据";
         })
         .catch(() => {
-          detailDeleteBtn.style.display = "none";
+          detailDeleteBtn.disabled = true;
+          detailDeleteBtn.title = "请先登录后再删除";
         });
       detailDeleteBtn.onclick = async () => {
         try {
@@ -1279,11 +1287,40 @@
           editMsg.textContent = `保存失败：${err.message}`;
         }
       };
+      openModal();
+    }
+
+    function lockBodyScroll() {
+      if (modalLocked) return;
+      bodyScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${bodyScrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+      modalLocked = true;
+    }
+
+    function unlockBodyScroll() {
+      if (!modalLocked) return;
+      const y = bodyScrollY;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      modalLocked = false;
+      window.scrollTo(0, y);
+    }
+
+    function openModal() {
+      lockBodyScroll();
       $("mask").style.display = "flex";
     }
 
     function closeModal() {
       $("mask").style.display = "none";
+      unlockBodyScroll();
       activeProductId = null;
     }
 
