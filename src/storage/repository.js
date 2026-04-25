@@ -4,6 +4,40 @@ export function listCategories() {
   return readDb().categories.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export function getMyStats(auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const actor = getCreatedBy(auth);
+  const myPriceRecords = db.priceRecords.filter((record) => record.createdBy === actor);
+  const myProducts = db.products.filter((product) => product.createdBy === actor);
+  const myStores = db.stores.filter((store) => store.createdBy === actor);
+  const myStoreEdits = db.storeRevisions.filter((revision) => revision.modifiedBy === actor);
+  const myRecordEdits = db.priceRecordRevisions.filter((revision) => revision.modifiedBy === actor);
+
+  return {
+    user: {
+      email: actor,
+      isAdmin: Boolean(auth?.isAdmin)
+    },
+    mine: {
+      priceRecords: myPriceRecords.length,
+      products: myProducts.length,
+      stores: myStores.length,
+      edits: myStoreEdits.length + myRecordEdits.length
+    },
+    totals: {
+      priceRecords: db.priceRecords.length,
+      products: db.products.length,
+      stores: db.stores.length
+    },
+    lastContributionDate: myPriceRecords
+      .map((record) => record.recordDate || record.createdAt || "")
+      .filter(Boolean)
+      .sort()
+      .pop() || null
+  };
+}
+
 export function createCategory(name) {
   const db = readDb();
   const exists = db.categories.find((c) => c.name === name);
@@ -226,6 +260,7 @@ export function createPriceRecord(input, auth = {}) {
       barcode,
       categoryId: input.product?.categoryId ? Number(input.product.categoryId) : null,
       defaultImageUrl: input.imageUrl || null,
+      createdBy: getCreatedBy(auth),
       createdAt: nowDate(),
       updatedAt: nowDate()
     };
@@ -382,6 +417,10 @@ function ensureDbShape(db) {
 
   for (const record of db.priceRecords ?? []) {
     record.createdBy ??= "local-import";
+  }
+
+  for (const product of db.products ?? []) {
+    product.createdBy ??= "local-import";
   }
 }
 

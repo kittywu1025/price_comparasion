@@ -38,6 +38,10 @@ export async function onRequest(context) {
       return handleStores(request, env, route, auth);
     }
 
+    if (route[0] === "me") {
+      return handleMe(request, env, route, auth);
+    }
+
     if (route[0] === "products") {
       return handleProducts(request, env, route, auth);
     }
@@ -234,6 +238,56 @@ async function handleProducts(request, env, route, auth) {
   }
 
   return json({ error: "Method not allowed" }, 405);
+}
+
+async function handleMe(request, env, route, auth) {
+  if (request.method !== "GET" || route[1] !== "stats") {
+    return json({ error: "Not found" }, 404);
+  }
+
+  const email = auth.email || "";
+  const [
+    totalRecords,
+    totalProducts,
+    totalStores,
+    myRecords,
+    myProducts,
+    myStores,
+    myRecordEdits,
+    myStoreEdits,
+    lastContribution
+  ] = await Promise.all([
+    first(env, "select count(*) as count from price_records"),
+    first(env, "select count(*) as count from products"),
+    first(env, "select count(*) as count from stores"),
+    email ? first(env, "select count(*) as count from price_records where lower(created_by) = ?", [email]) : { count: 0 },
+    email ? first(env, "select count(*) as count from products where lower(created_by) = ?", [email]) : { count: 0 },
+    email ? first(env, "select count(*) as count from stores where lower(created_by) = ?", [email]) : { count: 0 },
+    email ? first(env, "select count(*) as count from price_record_revisions where lower(modified_by) = ?", [email]) : { count: 0 },
+    email ? first(env, "select count(*) as count from store_revisions where lower(modified_by) = ?", [email]) : { count: 0 },
+    email
+      ? first(env, "select max(record_date) as date from price_records where lower(created_by) = ?", [email])
+      : { date: null }
+  ]);
+
+  return json({
+    user: {
+      email: email || "未登录",
+      isAdmin: Boolean(auth.isAdmin)
+    },
+    mine: {
+      priceRecords: Number(myRecords?.count || 0),
+      products: Number(myProducts?.count || 0),
+      stores: Number(myStores?.count || 0),
+      edits: Number(myRecordEdits?.count || 0) + Number(myStoreEdits?.count || 0)
+    },
+    totals: {
+      priceRecords: Number(totalRecords?.count || 0),
+      products: Number(totalProducts?.count || 0),
+      stores: Number(totalStores?.count || 0)
+    },
+    lastContributionDate: lastContribution?.date || null
+  });
 }
 
 async function handlePriceRecords(request, env, route, auth) {

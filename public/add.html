@@ -437,17 +437,22 @@
       color: #1a5950;
     }
 
+    .promo-date-field.is-hidden {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
     nav {
       position: fixed;
       left: 50%;
       bottom: max(12px, env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      width: min(460px, calc(100% - 28px));
+      width: min(520px, calc(100% - 28px));
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #d8e7e1;
       border-radius: 999px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       overflow: hidden;
       box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
       backdrop-filter: blur(4px);
@@ -458,7 +463,7 @@
       text-align: center;
       text-decoration: none;
       color: #4f6562;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 44px;
       height: 44px;
       font-weight: 600;
@@ -673,6 +678,46 @@
       gap: 8px;
     }
 
+    .existing-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 19, 18, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 37;
+      padding: 12px;
+    }
+
+    .existing-panel {
+      width: min(520px, 100%);
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid #dceae6;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 10px;
+    }
+
+    .existing-panel h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .existing-body {
+      color: #435857;
+      font-size: 13px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+
+    .existing-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -795,7 +840,7 @@
             </div>
           </div>
 
-          <div class="field">
+          <div id="promoUntilField" class="field">
             <label for="promoUntil">优惠截止日期</label>
             <input id="promoUntil" type="date" />
           </div>
@@ -817,9 +862,11 @@
     </section>
 
     <nav>
+      <a href="/home.html">首页</a>
       <a href="/index.html">清单</a>
       <a class="active" href="/add.html">录入</a>
       <a href="/stores.html">店铺</a>
+      <a href="/profile.html">我的</a>
     </nav>
   </div>
 
@@ -884,6 +931,17 @@
     </div>
   </div>
 
+  <div id="existingMask" class="existing-mask">
+    <div class="existing-panel">
+      <h2>已存在同条码商品</h2>
+      <div id="existingBody" class="existing-body"></div>
+      <div class="existing-actions">
+        <button id="applyExistingProduct" class="btn btn-primary" type="button">使用已有商品</button>
+        <button id="closeExistingProduct" class="btn btn-subtle" type="button">先不带入</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       taxMode: 8,
@@ -894,6 +952,8 @@
       stores: [],
       selectedProductId: null,
       selectedProductName: "",
+      pendingExistingProduct: null,
+      pendingExistingDetail: null,
       duplicateTimer: null,
       scanTimer: null,
       scanStream: null,
@@ -950,6 +1010,66 @@
       };
     }
 
+    function setUnitMode(nextUnit) {
+      const unit = nextUnit || "g";
+      state.unit = unit;
+      $("unitSegment").querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.unit === unit);
+      });
+      calc();
+    }
+
+    function setStoreById(storeId) {
+      const store = state.stores.find((item) => Number(item.id) === Number(storeId));
+      if (!store) return false;
+      $("storeId").value = String(store.id);
+      $("storeSearch").value = store.name;
+      $("storeHint").textContent = `已匹配：${store.name}`;
+      return true;
+    }
+
+    function latestRecordOf(detail) {
+      return (detail?.records || [])[0] || null;
+    }
+
+    function describeExistingProduct(product, detail) {
+      const record = latestRecordOf(detail);
+      const name = product.nameZh || product.nameJa || "未命名商品";
+      const parts = [
+        `条码 ${escapeHtml(state.barcode)} 已对应到「${escapeHtml(name)}」。`,
+        "这次会作为同一个商品新增价格记录，不会重新创建商品。"
+      ];
+      if (record) {
+        parts.push(`将自动带入最近一次规格：${escapeHtml(record.specValue ?? "-")} ${escapeHtml(record.unit || "")}，税率 ${escapeHtml(record.taxRate ?? "-")}% ，店铺 ${escapeHtml(record.storeName || "-")}。`);
+        parts.push("价格请按本次看到的价格修改。");
+      }
+      return parts.join("<br>");
+    }
+
+    function openExistingProductPrompt(product, detail) {
+      state.pendingExistingProduct = product;
+      state.pendingExistingDetail = detail;
+      $("existingBody").innerHTML = describeExistingProduct(product, detail);
+      $("existingMask").style.display = "flex";
+    }
+
+    function closeExistingProductPrompt() {
+      $("existingMask").style.display = "none";
+    }
+
+    function applyExistingProductData(product, detail) {
+      const record = latestRecordOf(detail);
+      selectExistingProduct(product);
+      if (record) {
+        if (record.specValue != null) $("spec").value = record.specValue;
+        if (record.unit) setUnitMode(record.unit);
+        if (record.taxRate != null) setTaxMode(record.taxRate);
+        if (record.storeId != null) setStoreById(record.storeId);
+      }
+      calc();
+      $("msg").textContent = "已带入已有商品信息，请按本次价格修改后保存。";
+    }
+
     async function checkBarcodeProduct() {
       const barcode = String(state.barcode || "").trim();
       if (!barcode) return;
@@ -958,10 +1078,10 @@
         const products = await res.json();
         const exact = products.find((item) => String(item.barcode || "").trim() === barcode);
         if (!exact) return;
-        selectExistingProduct(exact);
-        $("msg").textContent = "已识别到同条码商品，本次会作为该商品的新价格记录。";
-      } catch (_) {
-        // Barcode reuse is also enforced by the API; this only improves the form hint.
+        const detail = await fetch(`/api/products/${exact.productId}`).then((r) => r.json());
+        openExistingProductPrompt(exact, detail);
+      } catch (err) {
+        $("msg").textContent = `条码检查失败：${err.message || "请稍后重试"}`;
       }
     }
 
@@ -1217,9 +1337,7 @@
         });
 
         if (parsed.store) {
-          $("storeId").value = String(parsed.store.id);
-          $("storeSearch").value = parsed.store.name;
-          $("storeHint").textContent = `已匹配：${parsed.store.name}`;
+          setStoreById(parsed.store.id);
           applyTaxStoreLinkByStore();
         }
 
@@ -1255,6 +1373,7 @@
         b.classList.toggle("active", b.dataset.promo === (state.isPromo ? "1" : "0"));
       });
       $("promoUntil").disabled = !state.isPromo;
+      $("promoUntilField").classList.toggle("is-hidden", !state.isPromo);
       if (!state.isPromo) $("promoUntil").value = "";
     }
 
@@ -1359,6 +1478,19 @@
       $("quickMask").style.display = "none";
     };
     $("applyQuickFill").onclick = applyQuickFillText;
+    $("applyExistingProduct").onclick = () => {
+      if (state.pendingExistingProduct) {
+        applyExistingProductData(state.pendingExistingProduct, state.pendingExistingDetail);
+      }
+      closeExistingProductPrompt();
+    };
+    $("closeExistingProduct").onclick = () => {
+      $("msg").textContent = "未带入旧规格，但同条码保存时仍会归到已有商品。";
+      closeExistingProductPrompt();
+    };
+    $("existingMask").addEventListener("click", (e) => {
+      if (e.target === $("existingMask")) closeExistingProductPrompt();
+    });
     $("openSpecCalc").onclick = openSpecCalculator;
     $("closeSpecCalc").onclick = closeSpecCalculator;
     $("applySpecCalc").onclick = applySpecCalculator;

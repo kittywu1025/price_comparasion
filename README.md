@@ -8,14 +8,17 @@
 - 代码推送到 GitHub 前，同步更新 README。
 
 ## 当前功能
+- 首页通知页：展示项目说明、最近更新、数据收集建议和待开发事项。
 - 商品清单：按商品聚合展示价格，支持店铺筛选、最低价标记、限时优惠标记。
 - 商品详情：查看税后总价、规格、店铺、记录时间、各店现价排行、历史记录、价格走势。
 - 商品记录：支持新增价格记录、修正记录、删除当前记录；详情弹窗打开时锁定背景滚动。
 - 商品录入：移动端优先布局，支持扫码条码、拍照/上传、快速填入、店铺输入匹配、税后价自动计算、限时优惠开关。
 - 规格计算：规格数值支持弹出计算器，可输入 `100*3`、`100g*3` 这类组合规格。
 - 店铺管理：店铺列表、弹窗新增/编辑/删除、点击店铺查看该店铺相关商品。
+- 个人主页：查看自己的价格记录、商品、店铺和修改次数贡献统计。
 - 商品去重：条码相同视为同一个商品，会追加价格记录；只有中文名相同仍允许录入为不同商品。
 - 权限规则：只有管理员可删除所有人数据；普通用户只能删除自己的数据、撤回自己的修改，但可以修改别人数据。
+- 反馈入口：先在个人主页占位，后续计划免费保存到 D1 供开发者查看。
 - 数据导入：支持从 `reference/price_minimal_template_数据表_总表.xlsx` 生成 D1 导入 SQL，图片暂时忽略。
 
 ## 技术栈
@@ -31,9 +34,11 @@ npm start
 ```
 
 打开：
-- 首页：http://localhost:3000/index.html
-- 添加：http://localhost:3000/add.html
+- 首页：http://localhost:3000/home.html
+- 清单：http://localhost:3000/index.html
+- 录入：http://localhost:3000/add.html
 - 店铺：http://localhost:3000/stores.html
+- 我的：http://localhost:3000/profile.html
 
 ## Cloudflare 数据导入
 从参考表格生成 SQL：
@@ -48,6 +53,7 @@ npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-impo
 
 ## 接口
 - `GET /api/health`
+- `GET /api/me/stats`
 - `GET /api/categories`
 - `POST /api/categories`
 - `GET /api/stores`

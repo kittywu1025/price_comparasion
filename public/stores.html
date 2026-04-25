@@ -89,12 +89,12 @@
       left: 50%;
       bottom: max(12px, env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      width: min(460px, calc(100% - 28px));
+      width: min(520px, calc(100% - 28px));
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #d8e7e1;
       border-radius: 999px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       overflow: hidden;
       box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
       backdrop-filter: blur(4px);
@@ -105,7 +105,7 @@
       text-align: center;
       text-decoration: none;
       color: #4f6562;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 44px;
       height: 44px;
       font-weight: 600;
@@ -292,9 +292,11 @@
     </div>
 
     <nav>
+      <a href="/home.html">首页</a>
       <a href="/index.html">清单</a>
       <a href="/add.html">录入</a>
       <a class="active" href="/stores.html">店铺</a>
+      <a href="/profile.html">我的</a>
     </nav>
   </div>
 
@@ -339,7 +341,15 @@
     }
 
     async function fetchJson(url, options) {
-      const res = await fetch(url, options);
+      let res;
+      try {
+        res = await fetch(url, options);
+      } catch (err) {
+        if (location.protocol === "file:") {
+          throw new Error("当前是 file:// 打开，无法读取 API。请用 http://127.0.0.1:3000/stores.html 打开。");
+        }
+        throw new Error("无法连接本地 API。请确认终端里 npm start 正在运行，并使用 http://127.0.0.1:3000/stores.html 打开。");
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "请求失败");
       return data;

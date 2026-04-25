@@ -11,6 +11,7 @@ import {
   createStore,
   deleteStore,
   getProductDetail,
+  getMyStats,
   getPriceRecordAccess,
   listCategories,
   listProducts,
@@ -63,7 +64,7 @@ function parseBody(req) {
 }
 
 function serveStatic(res, pathname) {
-  const filePath = path.join(PUBLIC_DIR, pathname === "/" ? "index.html" : pathname);
+  const filePath = path.join(PUBLIC_DIR, pathname === "/" ? "home.html" : pathname);
   if (!filePath.startsWith(PUBLIC_DIR)) return false;
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
   const ext = path.extname(filePath);
@@ -81,6 +82,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && pathname === "/api/health") {
       return sendJson(res, 200, { ok: true, loginEnabled: false });
+    }
+
+    if (req.method === "GET" && pathname === "/api/me/stats") {
+      return sendJson(res, 200, getMyStats(auth));
     }
 
     if (req.method === "GET" && pathname === "/api/categories") {

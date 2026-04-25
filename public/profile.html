@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的贡献</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #ffffff;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --primary-soft: #e2f7f1;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 14px 14px 76px;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat-card,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.05);
+    }
+
+    .stat-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat-value {
+      margin: 5px 0 0;
+      color: #0a826b;
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .disabled-box {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 82px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      resize: vertical;
+      color: var(--muted);
+      background: #f8fbfa;
+      font: inherit;
+    }
+
+    button {
+      height: 40px;
+      border: 0;
+      border-radius: 12px;
+      background: #edf6f3;
+      color: #78908c;
+      font-weight: 700;
+    }
+
+    nav {
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(520px, calc(100% - 28px));
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d8e7e1;
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
+      backdrop-filter: blur(4px);
+      z-index: 25;
+    }
+
+    nav a {
+      text-align: center;
+      text-decoration: none;
+      color: #4f6562;
+      font-size: 12px;
+      line-height: 44px;
+      height: 44px;
+      font-weight: 600;
+    }
+
+    nav a.active {
+      background: #e9f7f3;
+      color: #0c8f72;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <h1>我的贡献</h1>
+      <p id="userLine">正在读取贡献数据...</p>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <p class="stat-label">我添加的价格记录</p>
+        <p id="myRecords" class="stat-value">-</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">我创建的商品</p>
+        <p id="myProducts" class="stat-value">-</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">我创建的店铺</p>
+        <p id="myStores" class="stat-value">-</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">我的修改次数</p>
+        <p id="myEdits" class="stat-value">-</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">全站数据</p>
+      <p id="totalLine" class="panel-body">正在读取...</p>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">联系开发者 / 提交建议</p>
+      <p class="panel-body">这个功能先占位。后续免费方案会优先把评论保存到 Cloudflare D1，由开发者在管理页查看。</p>
+      <div class="disabled-box">
+        <textarea disabled placeholder="后续可以在这里写建议、问题、想要的功能。"></textarea>
+        <button type="button" disabled>反馈功能待开发</button>
+      </div>
+    </section>
+
+    <nav>
+      <a href="/home.html">首页</a>
+      <a href="/index.html">清单</a>
+      <a href="/add.html">录入</a>
+      <a href="/stores.html">店铺</a>
+      <a class="active" href="/profile.html">我的</a>
+    </nav>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function setText(id, value) {
+      $(id).textContent = value == null ? "-" : String(value);
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch("/api/me/stats");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "读取失败");
+
+        $("userLine").textContent = `${data.user?.email || "未登录"}${data.user?.isAdmin ? " · 管理员" : ""}`;
+        setText("myRecords", data.mine?.priceRecords ?? 0);
+        setText("myProducts", data.mine?.products ?? 0);
+        setText("myStores", data.mine?.stores ?? 0);
+        setText("myEdits", data.mine?.edits ?? 0);
+        $("totalLine").textContent =
+          `当前共有 ${data.totals?.priceRecords ?? 0} 条价格记录、${data.totals?.products ?? 0} 个商品、${data.totals?.stores ?? 0} 个店铺。` +
+          (data.lastContributionDate ? ` 你最近一次贡献日期：${data.lastContributionDate}。` : "");
+      } catch (err) {
+        $("userLine").textContent = `贡献数据读取失败：${err.message || "请稍后重试"}`;
+        $("totalLine").textContent = "如果你是本地打开，请确认使用 http://127.0.0.1:3000/profile.html，并且 npm start 正在运行。";
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

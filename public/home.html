@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>价格收集公告</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #ffffff;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --primary-soft: #e2f7f1;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 14px 14px 76px;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .quick-card,
+    .notice-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.05);
+    }
+
+    .quick-card {
+      text-decoration: none;
+      color: inherit;
+      min-height: 92px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .quick-title,
+    .notice-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .quick-meta,
+    .notice-body {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .notice-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: #06735d;
+      padding: 3px 9px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    nav {
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(520px, calc(100% - 28px));
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d8e7e1;
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
+      backdrop-filter: blur(4px);
+      z-index: 25;
+    }
+
+    nav a {
+      text-align: center;
+      text-decoration: none;
+      color: #4f6562;
+      font-size: 12px;
+      line-height: 44px;
+      height: 44px;
+      font-weight: 600;
+    }
+
+    nav a.active {
+      background: #e9f7f3;
+      color: #0c8f72;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <h1>价格收集公告</h1>
+      <p>这里放项目说明、最近更新和数据收集提醒。当前版本先以可用、免费、方便手机录入为优先。</p>
+    </section>
+
+    <section class="quick-grid">
+      <a class="quick-card" href="/add.html">
+        <div>
+          <p class="quick-title">录入新价格</p>
+          <p class="quick-meta">扫码、拍照、选择店铺后保存</p>
+        </div>
+      </a>
+      <a class="quick-card" href="/index.html">
+        <div>
+          <p class="quick-title">查看价格清单</p>
+          <p class="quick-meta">按最低价、店铺、历史走势查看</p>
+        </div>
+      </a>
+    </section>
+
+    <section class="notice-list">
+      <article class="notice-card">
+        <span class="tag">当前重点</span>
+        <p class="notice-title">先把数据收集流程做顺</p>
+        <p class="notice-body">同条码商品会归到同一个商品下；不同店铺价格会在详情页里按店铺排行展示。</p>
+      </article>
+      <article class="notice-card">
+        <span class="tag">使用建议</span>
+        <p class="notice-title">优先记录价格、规格、店铺和日期</p>
+        <p class="notice-body">图片可以后补；如果是组合规格，可以在录入页用规格计算器输入类似 100g*3。</p>
+      </article>
+      <article class="notice-card">
+        <span class="tag">待开发</span>
+        <p class="notice-title">联系开发者与评论反馈</p>
+        <p class="notice-body">后续会做反馈入口。免费方案优先考虑保存到 D1 的 feedback 表，开发者在后台页面查看。</p>
+      </article>
+    </section>
+
+    <nav>
+      <a class="active" href="/home.html">首页</a>
+      <a href="/index.html">清单</a>
+      <a href="/add.html">录入</a>
+      <a href="/stores.html">店铺</a>
+      <a href="/profile.html">我的</a>
+    </nav>
+  </div>
+</body>
+</html>
