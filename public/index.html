@@ -830,11 +830,11 @@
     <main id="list" class="list"></main>
 
     <nav data-active="list">
-      <a href="/home.html">首页</a>
-      <a class="active" href="/index.html">清单</a>
-      <a href="/add.html">录入</a>
-      <a href="/stores.html">店铺</a>
-      <a href="/profile.html">我的</a>
+      <a href="home.html">首页</a>
+      <a class="active" href="index.html">清单</a>
+      <a href="add.html">录入</a>
+      <a href="stores.html">店铺</a>
+      <a href="profile.html">我的</a>
     </nav>
   </div>
 
@@ -1660,6 +1660,32 @@
       location.href = next.pathname + (next.search ? next.search : "");
     };
     load();
+
+    setupSwipeNav();
+
+    function setupSwipeNav() {
+      const nav = document.querySelector("nav[data-active]");
+      if (!nav) return;
+      let startX = 0;
+      let startY = 0;
+      nav.addEventListener("touchstart", (event) => {
+        const touch = event.changedTouches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+      }, { passive: true });
+      nav.addEventListener("touchend", (event) => {
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        if (Math.abs(dx) < 38 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        const links = Array.from(nav.querySelectorAll("a"));
+        const current = links.findIndex((link) => link.classList.contains("active"));
+        const next = dx < 0 ? current + 1 : current - 1;
+        if (next >= 0 && next < links.length) {
+          location.href = links[next].getAttribute("href");
+        }
+      }, { passive: true });
+    }
   </script>
 </body>
 </html>

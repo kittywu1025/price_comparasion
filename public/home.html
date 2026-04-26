@@ -207,13 +207,13 @@
     </section>
 
     <section class="quick-grid">
-      <a class="quick-card" href="/add.html">
+      <a class="quick-card" href="add.html">
         <div>
           <p class="quick-title">开始录入</p>
           <p class="quick-meta">拍照、扫码、填价格和规格</p>
         </div>
       </a>
-      <a class="quick-card" href="/index.html">
+      <a class="quick-card" href="index.html">
         <div>
           <p class="quick-title">查看清单</p>
           <p class="quick-meta">看最低价、店铺排行和历史价格</p>
@@ -249,12 +249,39 @@
     </section>
 
     <nav data-active="home">
-      <a class="active" href="/home.html">首页</a>
-      <a href="/index.html">清单</a>
-      <a href="/add.html">录入</a>
-      <a href="/stores.html">店铺</a>
-      <a href="/profile.html">我的</a>
+      <a class="active" href="home.html">首页</a>
+      <a href="index.html">清单</a>
+      <a href="add.html">录入</a>
+      <a href="stores.html">店铺</a>
+      <a href="profile.html">我的</a>
     </nav>
   </div>
+  <script>
+    setupSwipeNav();
+
+    function setupSwipeNav() {
+      const nav = document.querySelector("nav[data-active]");
+      if (!nav) return;
+      let startX = 0;
+      let startY = 0;
+      nav.addEventListener("touchstart", (event) => {
+        const touch = event.changedTouches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+      }, { passive: true });
+      nav.addEventListener("touchend", (event) => {
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        if (Math.abs(dx) < 38 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        const links = Array.from(nav.querySelectorAll("a"));
+        const current = links.findIndex((link) => link.classList.contains("active"));
+        const next = dx < 0 ? current + 1 : current - 1;
+        if (next >= 0 && next < links.length) {
+          location.href = links[next].getAttribute("href");
+        }
+      }, { passive: true });
+    }
+  </script>
 </body>
 </html>

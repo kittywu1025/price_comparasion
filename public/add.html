@@ -883,11 +883,11 @@
     </section>
 
     <nav data-active="add">
-      <a href="/home.html">首页</a>
-      <a href="/index.html">清单</a>
-      <a class="active" href="/add.html">录入</a>
-      <a href="/stores.html">店铺</a>
-      <a href="/profile.html">我的</a>
+      <a href="home.html">首页</a>
+      <a href="index.html">清单</a>
+      <a class="active" href="add.html">录入</a>
+      <a href="stores.html">店铺</a>
+      <a href="profile.html">我的</a>
     </nav>
   </div>
 
@@ -1021,7 +1021,7 @@
         <p class="duplicate-title">将作为已有商品继续记录：${escapeHtml(state.selectedProductName)}</p>
         <div class="duplicate-actions">
           <button class="duplicate-use" type="button" id="clearSelectedProduct">改为新建商品</button>
-          <a class="duplicate-view" href="/index.html?q=${encodeURIComponent(state.selectedProductName)}">查看清单</a>
+          <a class="duplicate-view" href="index.html?q=${encodeURIComponent(state.selectedProductName)}">查看清单</a>
         </div>
       `;
       $("clearSelectedProduct").onclick = () => {
@@ -1135,7 +1135,7 @@
             <div class="duplicate-meta">最近价格 ¥${Number(item.latestPriceTaxIn || 0).toFixed(0)} · ${escapeHtml(item.latestRecordDate || "-")}</div>
             <div class="duplicate-actions">
               <button class="duplicate-use" type="button" data-use-product="${item.productId}">使用此商品</button>
-              <a class="duplicate-view" href="/index.html?q=${encodeURIComponent(item.nameZh || item.nameJa || "")}">查看</a>
+              <a class="duplicate-view" href="index.html?q=${encodeURIComponent(item.nameZh || item.nameJa || "")}">查看</a>
             </div>
           </div>
         `).join("")}
@@ -1642,7 +1642,7 @@
 
       $("msg").textContent = "保存成功，正在返回清单页...";
       setTimeout(() => {
-        location.href = "/index.html";
+        location.href = "index.html";
       }, 700);
     };
 
@@ -1651,6 +1651,32 @@
     loadStores();
     updateBarcodeNote();
     calc();
+
+    setupSwipeNav();
+
+    function setupSwipeNav() {
+      const nav = document.querySelector("nav[data-active]");
+      if (!nav) return;
+      let startX = 0;
+      let startY = 0;
+      nav.addEventListener("touchstart", (event) => {
+        const touch = event.changedTouches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+      }, { passive: true });
+      nav.addEventListener("touchend", (event) => {
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        if (Math.abs(dx) < 38 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        const links = Array.from(nav.querySelectorAll("a"));
+        const current = links.findIndex((link) => link.classList.contains("active"));
+        const next = dx < 0 ? current + 1 : current - 1;
+        if (next >= 0 && next < links.length) {
+          location.href = links[next].getAttribute("href");
+        }
+      }, { passive: true });
+    }
   </script>
 </body>
 </html>
