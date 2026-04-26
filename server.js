@@ -64,7 +64,12 @@ function parseBody(req) {
 }
 
 function serveStatic(res, pathname) {
-  const filePath = path.join(PUBLIC_DIR, pathname === "/" ? "home.html" : pathname);
+  const requestedPath = pathname === "/" ? "home.html" : pathname;
+  let filePath = path.join(PUBLIC_DIR, requestedPath);
+  if (!filePath.startsWith(PUBLIC_DIR)) return false;
+  if ((!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) && !path.extname(filePath)) {
+    filePath = path.join(PUBLIC_DIR, `${requestedPath}.html`);
+  }
   if (!filePath.startsWith(PUBLIC_DIR)) return false;
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
   const ext = path.extname(filePath);

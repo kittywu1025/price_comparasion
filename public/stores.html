@@ -347,7 +347,7 @@
 
     <nav data-active="stores">
       <a href="home.html">首页</a>
-      <a href="list.html">清单</a>
+      <a href="products">清单</a>
       <a href="add.html">录入</a>
       <a class="active" href="stores.html">店铺</a>
       <a href="profile.html">我的</a>
@@ -656,7 +656,7 @@
       if (!btn) {
         const card = e.target.closest(".card[data-id]");
         if (card) {
-          location.href = pageUrl("/list.html", new URLSearchParams({
+          location.href = pageUrl("/products", new URLSearchParams({
             storeId: card.dataset.id,
             storeName: card.dataset.name
           }));

@@ -36,7 +36,7 @@ npm start
 
 打开：
 - 首页：http://localhost:3000/home.html
-- 清单：http://localhost:3000/list.html
+- 清单：http://localhost:3000/products
 - 录入：http://localhost:3000/add.html
 - 店铺：http://localhost:3000/stores.html
 - 我的：http://localhost:3000/profile.html
