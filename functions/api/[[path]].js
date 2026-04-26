@@ -58,21 +58,19 @@ export async function onRequest(context) {
 
 function requiresAccess(route, request) {
   const area = route[0];
+  if (area === "me") return true;
   if (area === "stores" || area === "price-records" || area === "categories") return true;
   return request.method !== "GET";
 }
 
 function hasAccessSession(request) {
-  return Boolean(
-    request.headers.get("cf-access-jwt-assertion") ||
-    request.headers.get("cf-access-authenticated-user-email")
-  );
+  return Boolean(request.headers.get("cf-access-authenticated-user-email") || getAccessJwt(request));
 }
 
 function getAuth(request, env) {
   const email = String(
     request.headers.get("cf-access-authenticated-user-email") ||
-    emailFromAccessJwt(request.headers.get("cf-access-jwt-assertion")) ||
+    emailFromAccessJwt(getAccessJwt(request)) ||
     ""
   ).trim().toLowerCase();
   const adminEmails = String(env.ACCESS_ADMIN_EMAILS || env.ADMIN_EMAILS || "")
@@ -84,6 +82,19 @@ function getAuth(request, env) {
     email,
     isAdmin: email ? adminEmails.includes(email) : false
   };
+}
+
+function getAccessJwt(request) {
+  return request.headers.get("cf-access-jwt-assertion") || cookieValue(request, "CF_Authorization");
+}
+
+function cookieValue(request, name) {
+  const cookie = request.headers.get("cookie") || "";
+  return cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1) || "";
 }
 
 function emailFromAccessJwt(token) {

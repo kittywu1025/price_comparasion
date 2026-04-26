@@ -186,7 +186,7 @@
     }
   </style>
 </head>
-<body>
+<body data-require-auth="true">
   <div class="app">
     <section class="hero">
       <h1>我的贡献</h1>
@@ -231,7 +231,7 @@
       <a href="products">清单</a>
       <a href="add.html">录入</a>
       <a href="stores.html">店铺</a>
-      <a class="active" href="profile.html">我的</a>
+      <a class="active" href="profile.html" data-auth-only="true" hidden>我的</a>
     </nav>
   </div>
 
@@ -290,5 +290,6 @@
       }, { passive: true });
     }
   </script>
+  <script src="auth-nav.js"></script>
 </body>
 </html>

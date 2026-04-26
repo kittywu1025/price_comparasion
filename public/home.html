@@ -253,7 +253,7 @@
       <a href="products">清单</a>
       <a href="add.html">录入</a>
       <a href="stores.html">店铺</a>
-      <a href="profile.html">我的</a>
+      <a href="profile.html" data-auth-only="true" hidden>我的</a>
     </nav>
   </div>
   <script>
@@ -283,5 +283,6 @@
       }, { passive: true });
     }
   </script>
+  <script src="auth-nav.js"></script>
 </body>
 </html>
