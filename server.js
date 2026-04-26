@@ -196,7 +196,7 @@ const server = http.createServer(async (req, res) => {
         createdBy: auth.email
       });
 
-      const created = createPriceRecord({ ...payload, product: body.product }, auth);
+      const created = createPriceRecord({ ...payload, product: body.product, imageUrls: body.imageUrls ?? body.imageUrl }, auth);
       return sendJson(res, 201, created);
     }
 
@@ -235,7 +235,7 @@ const server = http.createServer(async (req, res) => {
         createdBy: auth.email
       });
 
-      const updated = updatePriceRecord(id, payload, auth);
+      const updated = updatePriceRecord(id, { ...payload, imageUrls: body.imageUrls ?? body.imageUrl }, auth);
       return sendJson(res, 200, updated);
     }
 

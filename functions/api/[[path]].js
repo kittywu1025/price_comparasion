@@ -641,8 +641,9 @@ async function getProductDetail(env, productId) {
 }
 
 async function createPriceRecord(env, input, auth) {
-  const imageUrl = await normalizeImageUrl(env, input.imageUrl);
-  const productId = await resolveProductId(env, input.product, imageUrl, auth);
+  const imageUrls = await normalizeImageUrls(env, input.imageUrls ?? input.imageUrl);
+  const imageUrl = serializeImageUrls(imageUrls);
+  const productId = await resolveProductId(env, input.product, imageUrls[0] || null, auth);
   const payload = buildPriceRecordPayload({
     productId,
     storeId: input.storeId,
@@ -688,7 +689,9 @@ async function updatePriceRecord(env, recordId, input, auth) {
   if (!existing) throw new Error("price record not found");
   await snapshotPriceRecordRevision(env, existing, auth);
 
-  const imageUrl = input.imageUrl === undefined ? existing.image_url : await normalizeImageUrl(env, input.imageUrl);
+  const imageValue = input.imageUrls !== undefined ? input.imageUrls : input.imageUrl;
+  const imageUrls = imageValue === undefined ? parseImageUrls(existing.image_url) : await normalizeImageUrls(env, imageValue);
+  const imageUrl = serializeImageUrls(imageUrls);
   const payload = buildPriceRecordPayload({
     productId: input.productId || existing.product_id,
     storeId: input.storeId,
@@ -724,6 +727,7 @@ async function updatePriceRecord(env, recordId, input, auth) {
       recordId
     ]
   );
+  await run(env, "update products set default_image_url = ?, updated_at = datetime('now') where id = ?", [imageUrls[0] || null, payload.productId]);
 
   const row = await first(env, "select * from price_records where id = ?", [recordId]);
   return toPriceRecord(row);
@@ -781,6 +785,9 @@ async function normalizeImageUrl(env, imageUrl) {
 
   const mimeType = match[1];
   const bytes = base64ToBytes(match[2]);
+  if (bytes.byteLength > 900 * 1024) {
+    throw new Error("图片太大，请压缩到 900KB 以下再上传");
+  }
   const key = `products/${crypto.randomUUID()}.${imageExtension(mimeType)}`;
 
   await env.IMAGES.put(key, bytes, {
@@ -788,6 +795,36 @@ async function normalizeImageUrl(env, imageUrl) {
   });
 
   return `/api/images/${key}`;
+}
+
+async function normalizeImageUrls(env, value) {
+  const input = Array.isArray(value) ? value : (value ? [value] : []);
+  const urls = [];
+  for (const item of input.filter(Boolean).slice(0, 4)) {
+    const normalized = await normalizeImageUrl(env, item);
+    if (normalized) urls.push(normalized);
+  }
+  return urls;
+}
+
+function parseImageUrls(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [text];
+}
+
+function serializeImageUrls(urls) {
+  const cleanUrls = (urls || []).filter(Boolean).slice(0, 4);
+  if (!cleanUrls.length) return null;
+  return cleanUrls.length === 1 ? cleanUrls[0] : JSON.stringify(cleanUrls);
 }
 
 async function getImage(env, keyParts) {
@@ -902,6 +939,7 @@ function toStore(row, auth) {
 }
 
 function toPriceRecord(row) {
+  const imageUrls = parseImageUrls(row.image_url);
   return {
     id: row.id,
     productId: row.product_id,
@@ -913,7 +951,8 @@ function toPriceRecord(row) {
     unit: row.unit,
     unitPrice: row.unit_price == null ? null : Number(row.unit_price),
     unitPriceLabel: row.unit_price_label,
-    imageUrl: row.image_url || null,
+    imageUrl: imageUrls[0] || null,
+    imageUrls,
     recordDate: row.record_date,
     note: row.note || null,
     createdAt: row.created_at,

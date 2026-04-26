@@ -334,6 +334,8 @@ export function getProductDetail(productId) {
 export function createPriceRecord(input, auth = {}) {
   const db = readDb();
   ensureDbShape(db);
+  const imageUrls = normalizeImageUrls(input.imageUrls ?? input.imageUrl);
+  const imageUrl = serializeImageUrls(imageUrls);
 
   let productId = input.product?.id ? Number(input.product.id) : null;
   const barcode = String(input.product?.barcode || "").trim();
@@ -341,8 +343,8 @@ export function createPriceRecord(input, auth = {}) {
     const existingProduct = db.products.find((product) => String(product.barcode || "").trim() === barcode);
     if (existingProduct) {
       productId = existingProduct.id;
-      if (input.imageUrl && !existingProduct.defaultImageUrl) {
-        existingProduct.defaultImageUrl = input.imageUrl;
+      if (imageUrls[0] && !existingProduct.defaultImageUrl) {
+        existingProduct.defaultImageUrl = imageUrls[0];
         existingProduct.updatedAt = nowDate();
       }
     }
@@ -355,7 +357,7 @@ export function createPriceRecord(input, auth = {}) {
       brand: input.product?.brand || "",
       barcode,
       categoryId: input.product?.categoryId ? Number(input.product.categoryId) : null,
-      defaultImageUrl: input.imageUrl || null,
+      defaultImageUrl: imageUrls[0] || null,
       createdBy: getCreatedBy(auth),
       createdAt: nowDate(),
       updatedAt: nowDate()
@@ -375,7 +377,7 @@ export function createPriceRecord(input, auth = {}) {
     unit: input.unit,
     unitPrice: input.unitPrice,
     unitPriceLabel: input.unitPriceLabel,
-    imageUrl: input.imageUrl || null,
+    imageUrl,
     recordDate: input.recordDate,
     note: input.note || null,
     createdBy: getCreatedBy(auth),
@@ -440,9 +442,15 @@ export function updatePriceRecord(recordId, input, auth = {}) {
   row.unit = input.unit;
   row.unitPrice = input.unitPrice;
   row.unitPriceLabel = input.unitPriceLabel;
-  row.imageUrl = input.imageUrl || null;
+  const imageInput = input.imageUrls !== undefined ? input.imageUrls : input.imageUrl;
+  row.imageUrl = imageInput === undefined ? row.imageUrl : serializeImageUrls(normalizeImageUrls(imageInput));
   row.recordDate = input.recordDate;
   row.note = input.note || null;
+  const product = db.products.find((item) => item.id === row.productId);
+  if (product) {
+    product.defaultImageUrl = parseImageUrls(row.imageUrl)[0] || null;
+    product.updatedAt = nowDate();
+  }
 
   writeDb(db);
   return row;
@@ -484,6 +492,7 @@ export function deletePriceRecord(recordId, auth = {}) {
 }
 
 function toPriceRecord(row) {
+  const imageUrls = parseImageUrls(row.imageUrl);
   return {
     id: row.id,
     productId: row.productId,
@@ -495,7 +504,8 @@ function toPriceRecord(row) {
     unit: row.unit,
     unitPrice: row.unitPrice,
     unitPriceLabel: row.unitPriceLabel,
-    imageUrl: row.imageUrl || null,
+    imageUrl: imageUrls[0] || null,
+    imageUrls,
     recordDate: row.recordDate,
     note: row.note || null,
     createdAt: row.createdAt,
@@ -504,6 +514,31 @@ function toPriceRecord(row) {
     lastModifiedBy: row.lastModifiedBy || "",
     lastModifiedByName: row.lastModifiedByName || row.lastModifiedBy || ""
   };
+}
+
+function normalizeImageUrls(value) {
+  const input = Array.isArray(value) ? value : (value ? [value] : []);
+  return input.filter(Boolean).slice(0, 4);
+}
+
+function parseImageUrls(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [text];
+}
+
+function serializeImageUrls(urls) {
+  const cleanUrls = (urls || []).filter(Boolean).slice(0, 4);
+  if (!cleanUrls.length) return null;
+  return cleanUrls.length === 1 ? cleanUrls[0] : JSON.stringify(cleanUrls);
 }
 
 function ensureDbShape(db) {
