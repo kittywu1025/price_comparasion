@@ -910,7 +910,8 @@
 
     function asUnit(v, label) {
       if (v == null || label == null) return "-";
-      return `${Number(v).toFixed(2)} ${label}`;
+      const digits = String(label).includes("个") ? 0 : 2;
+      return `${Number(v).toFixed(digits)} ${label}`;
     }
 
     function sortRecordsByDateAsc(records) {
@@ -1166,10 +1167,10 @@
               </div>
               <div class="info">
                 <h2 class="name">${item.nameZh || item.nameJa || "未命名商品"}</h2>
-                <div class="meta">最低店铺：${item.lowestStoreName || "-"}</div>
+                <div class="meta">记录店铺：${item.latestStoreName || "-"}</div>
                 <div class="price-row">
                   <div class="price">¥${asMoney(item.latestPriceTaxIn)}</div>
-                  <div class="unit ${isBest ? "best" : ""}">${asUnit(item.lowestUnitPrice, item.lowestUnitPriceLabel)}</div>
+                  <div class="unit ${isBest ? "best" : ""}">${asUnit(item.latestUnitPrice, item.latestUnitPriceLabel)}</div>
                 </div>
                 <div class="meta">${item.latestRecordDate || "-"}</div>
               </div>

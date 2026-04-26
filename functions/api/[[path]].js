@@ -436,6 +436,7 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
       const sameProductLowest = lowestRecord(sameProductRecords);
       const keywordLowestStore = keywordLowest ? stores.find((s) => s.id === keywordLowest.store_id)?.name : null;
       const sameProductLowestStore = sameProductLowest ? stores.find((s) => s.id === sameProductLowest.store_id)?.name : null;
+      const latestStore = latest ? stores.find((s) => s.id === latest.store_id)?.name : null;
 
       return {
         productId: product.id,
@@ -454,6 +455,9 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
         sameProductLowestUnitPriceLabel: sameProductLowest?.unit_price_label ?? null,
         sameProductLowestStoreName: sameProductLowestStore ?? null,
         latestPriceTaxIn: latest?.price_tax_in ?? null,
+        latestUnitPrice: latest?.unit_price ?? null,
+        latestUnitPriceLabel: latest?.unit_price_label ?? null,
+        latestStoreName: latestStore ?? null,
         latestRecordDate: latest?.record_date ?? null
       };
     })

@@ -182,6 +182,7 @@ export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}
     const sameProductLowest = lowestRecord(sameProductRecords);
     const keywordLowestStore = keywordLowest ? db.stores.find((s) => s.id === keywordLowest.storeId)?.name : null;
     const sameProductLowestStore = sameProductLowest ? db.stores.find((s) => s.id === sameProductLowest.storeId)?.name : null;
+    const latestStore = latest ? db.stores.find((s) => s.id === latest.storeId)?.name : null;
     return {
       productId: p.id,
       nameZh: p.nameZh,
@@ -199,6 +200,9 @@ export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}
       sameProductLowestUnitPriceLabel: sameProductLowest?.unitPriceLabel ?? null,
       sameProductLowestStoreName: sameProductLowestStore ?? null,
       latestPriceTaxIn: latest?.priceTaxIn ?? null,
+      latestUnitPrice: latest?.unitPrice ?? null,
+      latestUnitPriceLabel: latest?.unitPriceLabel ?? null,
+      latestStoreName: latestStore ?? null,
       latestRecordDate: latest?.recordDate ?? null
     };
   }).sort((a, b) => (b.latestRecordDate || "").localeCompare(a.latestRecordDate || ""));
