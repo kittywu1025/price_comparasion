@@ -8,6 +8,7 @@ export function getMyStats(auth = {}) {
   const db = readDb();
   ensureDbShape(db);
   const actor = getCreatedBy(auth);
+  const profile = profileFor(db, actor);
   const myPriceRecords = db.priceRecords.filter((record) => record.createdBy === actor);
   const myProducts = db.products.filter((product) => product.createdBy === actor);
   const myStores = db.stores.filter((store) => store.createdBy === actor);
@@ -17,6 +18,7 @@ export function getMyStats(auth = {}) {
   return {
     user: {
       email: actor,
+      displayName: profile.displayName || "",
       isAdmin: Boolean(auth?.isAdmin)
     },
     mine: {
@@ -38,6 +40,38 @@ export function getMyStats(auth = {}) {
   };
 }
 
+export function getMyProfile(auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const actor = getCreatedBy(auth);
+  const profile = profileFor(db, actor);
+  return {
+    email: actor,
+    displayName: profile.displayName || "",
+    isAdmin: Boolean(auth?.isAdmin)
+  };
+}
+
+export function updateMyProfile(input, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const actor = getCreatedBy(auth);
+  const displayName = String(input.displayName || "").trim().slice(0, 40);
+  let profile = db.userProfiles.find((item) => item.email === actor);
+  if (!profile) {
+    profile = { email: actor, displayName: "", updatedAt: new Date().toISOString() };
+    db.userProfiles.push(profile);
+  }
+  profile.displayName = displayName;
+  profile.updatedAt = new Date().toISOString();
+  writeDb(db);
+  return {
+    email: actor,
+    displayName: profile.displayName,
+    isAdmin: Boolean(auth?.isAdmin)
+  };
+}
+
 export function createCategory(name) {
   const db = readDb();
   const exists = db.categories.find((c) => c.name === name);
@@ -46,6 +80,43 @@ export function createCategory(name) {
   db.categories.push(row);
   writeDb(db);
   return row;
+}
+
+export function listFeedback(auth = {}) {
+  if (!auth?.isAdmin) throw new Error("forbidden: admin only");
+  const db = readDb();
+  ensureDbShape(db);
+  return db.feedback
+    .slice()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")) || b.id - a.id)
+    .map((item) => ({
+      id: item.id,
+      message: item.message,
+      createdBy: item.createdBy || "",
+      createdByName: profileFor(db, item.createdBy || "").displayName || item.createdBy || "",
+      createdAt: item.createdAt || ""
+    }));
+}
+
+export function createFeedback(input, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const message = String(input.message || "").trim();
+  if (!message) throw new Error("message is required");
+  const row = {
+    id: getNextId(db, "feedback"),
+    message,
+    createdBy: getCreatedBy(auth),
+    createdAt: new Date().toISOString()
+  };
+  db.feedback.push(row);
+  writeDb(db);
+  return {
+    id: row.id,
+    message: row.message,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt
+  };
 }
 
 export function listStores(auth = {}) {
@@ -215,7 +286,16 @@ export function getProductDetail(productId) {
   const records = db.priceRecords
     .filter((r) => r.productId === productId)
     .sort((a, b) => b.recordDate.localeCompare(a.recordDate) || a.unitPrice - b.unitPrice)
-    .map((r) => ({ ...r, storeName: db.stores.find((s) => s.id === r.storeId)?.name || "-" }));
+    .map((r) => {
+      const revision = latestBy(db.priceRecordRevisions, (item) => item.priceRecordId === r.id);
+      return {
+        ...r,
+        storeName: db.stores.find((s) => s.id === r.storeId)?.name || "-",
+        createdByName: profileFor(db, r.createdBy || "").displayName || r.createdBy || "",
+        lastModifiedBy: revision?.modifiedBy || "",
+        lastModifiedByName: profileFor(db, revision?.modifiedBy || "").displayName || revision?.modifiedBy || ""
+      };
+    });
   const keywordProducts = db.products.filter((candidate) => matchesCompareKeyword(compareKeywordOf(product), compareKeywordOf(candidate)));
   const sameProductProducts = db.products.filter((candidate) => isSameProductGroup(product, candidate));
   const keywordRecords = db.priceRecords.filter((r) => keywordProducts.some((candidate) => candidate.id === r.productId));
@@ -418,7 +498,11 @@ function toPriceRecord(row) {
     imageUrl: row.imageUrl || null,
     recordDate: row.recordDate,
     note: row.note || null,
-    createdAt: row.createdAt
+    createdAt: row.createdAt,
+    createdBy: row.createdBy || "",
+    createdByName: row.createdByName || row.createdBy || "",
+    lastModifiedBy: row.lastModifiedBy || "",
+    lastModifiedByName: row.lastModifiedByName || row.lastModifiedBy || ""
   };
 }
 
@@ -426,8 +510,11 @@ function ensureDbShape(db) {
   db.counters ??= {};
   db.counters.storeRevision ??= 1;
   db.counters.priceRecordRevision ??= 1;
+  db.counters.feedback ??= 1;
   db.storeRevisions ??= [];
   db.priceRecordRevisions ??= [];
+  db.feedback ??= [];
+  db.userProfiles ??= [];
 
   for (const store of db.stores ?? []) {
     store.createdBy ??= "local-import";
@@ -440,6 +527,11 @@ function ensureDbShape(db) {
   for (const product of db.products ?? []) {
     product.createdBy ??= "local-import";
   }
+}
+
+function profileFor(db, email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return db.userProfiles.find((item) => item.email === normalized) || { email: normalized, displayName: "" };
 }
 
 function latestBy(items, predicate) {

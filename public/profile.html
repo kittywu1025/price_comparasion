@@ -131,6 +131,132 @@
       font-weight: 700;
     }
 
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .form-row {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 10px;
+      background: #f8fbfa;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    .dev-row {
+      margin-top: 10px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 12px;
+      background: #f4faf8;
+      border: 1px solid var(--line);
+    }
+
+    .dev-row.show {
+      display: flex;
+    }
+
+    .switch {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #d9e7e2;
+      cursor: pointer;
+      transition: background 0.16s ease;
+    }
+
+    .switch span::before {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(13, 60, 51, 0.18);
+      transition: transform 0.16s ease;
+    }
+
+    .switch input:checked + span {
+      background: var(--primary);
+    }
+
+    .switch input:checked + span::before {
+      transform: translateX(22px);
+    }
+
+    .feedback-list {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .feedback-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fbfa;
+      padding: 10px;
+    }
+
+    .feedback-meta {
+      margin: 0 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .feedback-message {
+      margin: 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .inline-msg {
+      min-height: 18px;
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
     nav {
       --active-index: 4;
       position: fixed;
@@ -218,13 +344,26 @@
     </section>
 
     <section class="panel">
-      <p class="panel-title">联系开发者 / 提交建议</p>
-      <p class="panel-body">这个功能先占位。后续免费方案会优先把评论保存到 Cloudflare D1，由开发者在管理页查看。</p>
-      <div class="disabled-box">
-        <textarea disabled placeholder="后续可以在这里写建议、问题、想要的功能。"></textarea>
-        <button type="button" disabled>反馈功能待开发</button>
+      <p class="panel-title">用户名设置</p>
+      <p class="panel-body">用户名会显示在你提交的建议、创建记录和修改记录里。没有设置时显示登录邮箱。</p>
+      <div class="form-row">
+        <input id="displayNameInput" maxlength="40" placeholder="例如：Kitty" />
+        <button id="saveProfileBtn" class="primary" type="button">保存</button>
+      </div>
+      <p id="profileMsg" class="inline-msg"></p>
+      <div id="devModeRow" class="dev-row">
+        <div>
+          <p class="panel-title">开发者模式</p>
+          <p class="panel-body">打开后显示管理员工具、用户反馈和后续回退入口。</p>
+        </div>
+        <label class="switch" aria-label="开发者模式">
+          <input id="devModeToggle" type="checkbox" />
+          <span></span>
+        </label>
       </div>
     </section>
+
+    <section id="feedbackPanel" class="panel"></section>
 
     <nav data-active="profile">
       <a href="home.html">首页</a>
@@ -237,9 +376,20 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+    const devModeKey = "priceComparisonDevMode";
+    let currentStats = null;
 
     function setText(id, value) {
       $(id).textContent = value == null ? "-" : String(value);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     async function loadStats() {
@@ -247,8 +397,11 @@
         const res = await fetch("/api/me/stats");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "读取失败");
+        currentStats = data;
 
-        $("userLine").textContent = `${data.user?.email || "未登录"}${data.user?.isAdmin ? " · 管理员" : ""}`;
+        const displayName = data.user?.displayName || "";
+        $("userLine").textContent = `${displayName || data.user?.email || "未登录"}${data.user?.isAdmin ? " · 管理员" : ""}`;
+        $("displayNameInput").value = displayName;
         setText("myRecords", data.mine?.priceRecords ?? 0);
         setText("myProducts", data.mine?.products ?? 0);
         setText("myStores", data.mine?.stores ?? 0);
@@ -256,6 +409,8 @@
         $("totalLine").textContent =
           `当前共有 ${data.totals?.priceRecords ?? 0} 条价格记录、${data.totals?.products ?? 0} 个商品、${data.totals?.stores ?? 0} 个店铺。` +
           (data.lastContributionDate ? ` 你最近一次贡献日期：${data.lastContributionDate}。` : "");
+        setupDeveloperMode(data.user?.isAdmin);
+        renderFeedbackPanel();
       } catch (err) {
         $("userLine").textContent = `贡献数据读取失败：${err.message || "请稍后重试"}`;
         $("totalLine").textContent = "如果你是本地打开，请确认使用 http://127.0.0.1:3000/profile.html，并且 npm start 正在运行。";
@@ -263,6 +418,114 @@
     }
 
     loadStats();
+
+    $("saveProfileBtn").onclick = async () => {
+      const button = $("saveProfileBtn");
+      const msg = $("profileMsg");
+      button.disabled = true;
+      msg.textContent = "正在保存...";
+      try {
+        const res = await fetch("/api/me/profile", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ displayName: $("displayNameInput").value })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "保存失败");
+        msg.textContent = "已保存。";
+        if (currentStats?.user) {
+          currentStats.user.displayName = data.displayName || "";
+          $("userLine").textContent = `${data.displayName || currentStats.user.email}${currentStats.user.isAdmin ? " · 管理员" : ""}`;
+        }
+      } catch (err) {
+        msg.textContent = err.message || "保存失败";
+      } finally {
+        button.disabled = false;
+      }
+    };
+
+    function setupDeveloperMode(isAdmin) {
+      const row = $("devModeRow");
+      const toggle = $("devModeToggle");
+      row.classList.toggle("show", Boolean(isAdmin));
+      toggle.checked = localStorage.getItem(devModeKey) === "1";
+      toggle.onchange = () => {
+        localStorage.setItem(devModeKey, toggle.checked ? "1" : "0");
+        renderFeedbackPanel();
+      };
+    }
+
+    function renderFeedbackPanel() {
+      const panel = $("feedbackPanel");
+      const isAdmin = Boolean(currentStats?.user?.isAdmin);
+      const devMode = $("devModeToggle")?.checked;
+      if (isAdmin && devMode) {
+        panel.innerHTML = `
+          <p class="panel-title">用户反馈</p>
+          <p class="panel-body">这里显示别人提交给开发者的建议。回退管理入口后续也放在开发者模式里。</p>
+          <div id="feedbackList" class="feedback-list"><p class="panel-body">正在读取...</p></div>
+        `;
+        loadAdminFeedback();
+        return;
+      }
+      panel.innerHTML = `
+        <p class="panel-title">联系开发者 / 提交建议</p>
+        <p class="panel-body">建议会保存到 Cloudflare D1，只有开发者打开开发者模式后可以查看。</p>
+        <div class="disabled-box">
+          <textarea id="feedbackText" maxlength="1000" placeholder="可以在这里写建议、问题、想要的功能。"></textarea>
+          <button id="submitFeedbackBtn" class="primary" type="button">提交建议</button>
+          <p id="feedbackMsg" class="inline-msg"></p>
+        </div>
+      `;
+      $("submitFeedbackBtn").onclick = submitFeedback;
+    }
+
+    async function submitFeedback() {
+      const text = $("feedbackText").value.trim();
+      const msg = $("feedbackMsg");
+      if (!text) {
+        msg.textContent = "请先写一点内容。";
+        return;
+      }
+      $("submitFeedbackBtn").disabled = true;
+      msg.textContent = "正在提交...";
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "提交失败");
+        $("feedbackText").value = "";
+        msg.textContent = "已提交。";
+      } catch (err) {
+        msg.textContent = err.message || "提交失败";
+      } finally {
+        $("submitFeedbackBtn").disabled = false;
+      }
+    }
+
+    async function loadAdminFeedback() {
+      const mount = $("feedbackList");
+      try {
+        const res = await fetch("/api/feedback");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "读取失败");
+        if (!data.length) {
+          mount.innerHTML = `<p class="panel-body">暂时还没有用户反馈。</p>`;
+          return;
+        }
+        mount.innerHTML = data.map((item) => `
+          <article class="feedback-item">
+            <p class="feedback-meta">${escapeHtml(item.createdByName || item.createdBy || "未知用户")} · ${escapeHtml(item.createdAt || "-")}</p>
+            <p class="feedback-message">${escapeHtml(item.message || "")}</p>
+          </article>
+        `).join("");
+      } catch (err) {
+        mount.innerHTML = `<p class="panel-body">反馈读取失败：${escapeHtml(err.message || "请稍后重试")}</p>`;
+      }
+    }
 
     setupSwipeNav();
 

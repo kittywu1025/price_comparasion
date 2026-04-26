@@ -46,6 +46,10 @@ export async function onRequest(context) {
       return handleMe(request, env, route, auth);
     }
 
+    if (route[0] === "feedback") {
+      return handleFeedback(request, env, auth);
+    }
+
     if (route[0] === "products") {
       return handleProducts(request, env, route, auth);
     }
@@ -64,6 +68,7 @@ function requiresAccess(route, request) {
   const area = route[0];
   if (area === "auth") return true;
   if (area === "me") return true;
+  if (area === "feedback") return true;
   if (area === "stores") return request.method !== "GET";
   if (area === "price-records" || area === "categories") return true;
   return request.method !== "GET";
@@ -148,6 +153,30 @@ async function first(env, sql, params = []) {
 
 async function run(env, sql, params = []) {
   return env.DB.prepare(sql).bind(...params).run();
+}
+
+async function ensureFeedbackTable(env) {
+  await run(
+    env,
+    `create table if not exists feedback (
+      id integer primary key autoincrement,
+      message text not null,
+      created_by text not null default '',
+      created_at text not null default (datetime('now'))
+    )`
+  );
+  await run(env, "create index if not exists idx_feedback_created_at on feedback(created_at desc)");
+}
+
+async function ensureUserProfilesTable(env) {
+  await run(
+    env,
+    `create table if not exists user_profiles (
+      email text primary key,
+      display_name text not null default '',
+      updated_at text not null default (datetime('now'))
+    )`
+  );
 }
 
 async function handleCategories(request, env) {
@@ -284,11 +313,42 @@ async function handleProducts(request, env, route, auth) {
 }
 
 async function handleMe(request, env, route, auth) {
+  if (route[1] === "profile") {
+    await ensureUserProfilesTable(env);
+    if (request.method === "GET") {
+      const profile = await first(env, "select email, display_name from user_profiles where email = ?", [auth.email || ""]);
+      return json({
+        email: auth.email || "未登录",
+        displayName: profile?.display_name || "",
+        isAdmin: Boolean(auth.isAdmin)
+      });
+    }
+    if (request.method === "PUT") {
+      const body = await readJson(request);
+      const displayName = String(body.displayName || "").trim().slice(0, 40);
+      await run(
+        env,
+        `insert into user_profiles (email, display_name, updated_at)
+         values (?, ?, datetime('now'))
+         on conflict(email) do update set display_name = excluded.display_name, updated_at = datetime('now')`,
+        [auth.email || "", displayName]
+      );
+      return json({
+        email: auth.email || "未登录",
+        displayName,
+        isAdmin: Boolean(auth.isAdmin)
+      });
+    }
+    return json({ error: "Method not allowed" }, 405);
+  }
+
   if (request.method !== "GET" || route[1] !== "stats") {
     return json({ error: "Not found" }, 404);
   }
 
+  await ensureUserProfilesTable(env);
   const email = auth.email || "";
+  const profile = email ? await first(env, "select display_name from user_profiles where email = ?", [email]) : null;
   const [
     totalRecords,
     totalProducts,
@@ -316,6 +376,7 @@ async function handleMe(request, env, route, auth) {
   return json({
     user: {
       email: email || "未登录",
+      displayName: profile?.display_name || "",
       isAdmin: Boolean(auth.isAdmin)
     },
     mine: {
@@ -331,6 +392,50 @@ async function handleMe(request, env, route, auth) {
     },
     lastContributionDate: lastContribution?.date || null
   });
+}
+
+async function handleFeedback(request, env, auth) {
+  await ensureFeedbackTable(env);
+  await ensureUserProfilesTable(env);
+
+  if (request.method === "GET") {
+    if (!auth.isAdmin) return json({ error: "forbidden: admin only" }, 403);
+    const rows = await all(
+      env,
+      `select f.id, f.message, f.created_by, f.created_at, up.display_name as created_by_name
+       from feedback f
+       left join user_profiles up on up.email = lower(f.created_by)
+       order by f.created_at desc, f.id desc
+       limit 100`
+    );
+    return json(rows.map((row) => ({
+      id: row.id,
+      message: row.message,
+      createdBy: row.created_by || "",
+      createdByName: row.created_by_name || row.created_by || "",
+      createdAt: row.created_at || ""
+    })));
+  }
+
+  if (request.method === "POST") {
+    const body = await readJson(request);
+    const message = String(body.message || "").trim();
+    if (!message) return json({ error: "message is required" }, 400);
+    const result = await run(
+      env,
+      "insert into feedback (message, created_by) values (?, ?)",
+      [message, auth.email || ""]
+    );
+    const row = await first(env, "select id, message, created_by, created_at from feedback where id = ?", [result.meta.last_row_id]);
+    return json({
+      id: row.id,
+      message: row.message,
+      createdBy: row.created_by || "",
+      createdAt: row.created_at || ""
+    }, 201);
+  }
+
+  return json({ error: "Method not allowed" }, 405);
 }
 
 async function handlePriceRecords(request, env, route, auth) {
@@ -465,6 +570,7 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
 }
 
 async function getProductDetail(env, productId) {
+  await ensureUserProfilesTable(env);
   const product = await first(
     env,
     `select p.*, c.name as category_name
@@ -477,9 +583,20 @@ async function getProductDetail(env, productId) {
 
   const records = await all(
     env,
-    `select pr.*, s.name as store_name
+    `select pr.*, s.name as store_name,
+       prr.modified_by as last_modified_by,
+       cup.display_name as created_by_name,
+       mup.display_name as last_modified_by_name
      from price_records pr
      left join stores s on s.id = pr.store_id
+     left join (
+       select price_record_id, max(id) as max_id
+       from price_record_revisions
+       group by price_record_id
+     ) latest_revision on latest_revision.price_record_id = pr.id
+     left join price_record_revisions prr on prr.id = latest_revision.max_id
+     left join user_profiles cup on cup.email = lower(pr.created_by)
+     left join user_profiles mup on mup.email = lower(prr.modified_by)
      where pr.product_id = ?
      order by pr.record_date desc, pr.unit_price asc, pr.id desc`,
     [productId]
@@ -800,6 +917,10 @@ function toPriceRecord(row) {
     recordDate: row.record_date,
     note: row.note || null,
     createdAt: row.created_at,
+    createdBy: row.created_by || "",
+    createdByName: row.created_by_name || row.created_by || "",
+    lastModifiedBy: row.last_modified_by || "",
+    lastModifiedByName: row.last_modified_by_name || row.last_modified_by || "",
     storeName: row.store_name || "-"
   };
 }

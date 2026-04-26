@@ -95,3 +95,18 @@ create table if not exists price_record_revisions (
 );
 
 create index if not exists idx_price_record_revisions_record_id on price_record_revisions(price_record_id, id desc);
+
+create table if not exists user_profiles (
+  email text primary key,
+  display_name text not null default '',
+  updated_at text not null default (datetime('now'))
+);
+
+create table if not exists feedback (
+  id integer primary key autoincrement,
+  message text not null,
+  created_by text not null default '',
+  created_at text not null default (datetime('now'))
+);
+
+create index if not exists idx_feedback_created_at on feedback(created_at desc);

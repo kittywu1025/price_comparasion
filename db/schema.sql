@@ -11,6 +11,12 @@ create table if not exists app_user (
   created_at timestamptz not null default now()
 );
 
+create table if not exists user_profile (
+  email text primary key,
+  display_name text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 -- 分类
 create table if not exists category (
   id uuid primary key default gen_random_uuid(),
@@ -71,6 +77,15 @@ create index if not exists idx_price_record_product on price_record(product_id);
 create index if not exists idx_price_record_store on price_record(store_id);
 create index if not exists idx_price_record_record_date on price_record(record_date desc);
 create index if not exists idx_price_record_unit_price on price_record(unit_price);
+
+create table if not exists feedback (
+  id uuid primary key default gen_random_uuid(),
+  message text not null,
+  created_by text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_feedback_created_at on feedback(created_at desc);
 
 -- 商品最低价视图（按单位价格）
 create or replace view v_product_lowest_unit_price as

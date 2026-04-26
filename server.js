@@ -6,18 +6,22 @@ import { buildPriceRecordPayload } from "./src/core/price-record-service.js";
 import { initDb } from "./src/storage/init-json-db.js";
 import {
   createCategory,
+  createFeedback,
   deletePriceRecord,
   createPriceRecord,
   createStore,
   deleteStore,
   getProductDetail,
+  getMyProfile,
   getMyStats,
   getPriceRecordAccess,
   listCategories,
+  listFeedback,
   listProducts,
   listStores,
   undoPriceRecord,
   undoStore,
+  updateMyProfile,
   updatePriceRecord,
   updateStore
 } from "./src/storage/repository.js";
@@ -91,6 +95,24 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && pathname === "/api/me/stats") {
       return sendJson(res, 200, getMyStats(auth));
+    }
+
+    if (req.method === "GET" && pathname === "/api/me/profile") {
+      return sendJson(res, 200, getMyProfile(auth));
+    }
+
+    if (req.method === "PUT" && pathname === "/api/me/profile") {
+      const body = await parseBody(req);
+      return sendJson(res, 200, updateMyProfile(body, auth));
+    }
+
+    if (req.method === "GET" && pathname === "/api/feedback") {
+      return sendJson(res, 200, listFeedback(auth));
+    }
+
+    if (req.method === "POST" && pathname === "/api/feedback") {
+      const body = await parseBody(req);
+      return sendJson(res, 201, createFeedback(body, auth));
     }
 
     if (req.method === "GET" && pathname === "/api/categories") {
