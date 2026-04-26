@@ -57,6 +57,13 @@ npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-impo
 - `ACCESS_ADMIN_EMAILS`：填写开发者邮箱，多个邮箱用英文逗号分隔。
 - 兼容别名：`ADMIN_EMAILS`。
 
+当前项目通过 `wrangler.toml` 管理环境变量，所以 Cloudflare 控制台里会提示“此项目的环境变量在 wrangler.toml 中管理”，不能直接在页面保存。需要改 `wrangler.toml`：
+
+```toml
+[vars]
+ACCESS_ADMIN_EMAILS = "873818496@qq.com"
+```
+
 如果没有配置该变量，登录用户只能删除自己创建的数据，不能删除别人创建或导入的数据。
 
 ## 接口

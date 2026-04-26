@@ -2,6 +2,9 @@ name = "price-comparasion"
 compatibility_date = "2026-04-25"
 pages_build_output_dir = "public"
 
+[vars]
+ACCESS_ADMIN_EMAILS = "873818496@qq.com"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "price-comparison"
