@@ -268,9 +268,10 @@ async function handleProducts(request, env, route, auth) {
   if (request.method === "GET" && !productId) {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+    const scope = (url.searchParams.get("scope") || "all").trim().toLowerCase();
     const categoryId = url.searchParams.get("categoryId");
     const storeId = url.searchParams.get("storeId");
-    return json(await listProducts(env, { q, categoryId, storeId }));
+    return json(await listProducts(env, { q, scope, categoryId, storeId }));
   }
 
   if (request.method === "GET" && productId && Number.isFinite(productId)) {
@@ -387,15 +388,27 @@ async function handlePriceRecords(request, env, route, auth) {
   return json({ error: "Method not allowed" }, 405);
 }
 
-async function listProducts(env, { q = "", categoryId, storeId } = {}) {
+async function listProducts(env, { q = "", scope = "all", categoryId, storeId } = {}) {
   let products = await all(env, "select * from products order by id");
   const records = await all(env, "select * from price_records");
   const stores = await all(env, "select id, name from stores");
 
   if (q) {
-    products = products.filter((p) =>
-      [p.name_zh, p.name_ja, p.brand, p.barcode].some((x) => String(x || "").toLowerCase().includes(q))
+    const storeIds = new Set(
+      stores
+        .filter((store) => String(store.name || "").toLowerCase().includes(q))
+        .map((store) => store.id)
     );
+    const productIdsByStoreName = new Set(
+      records.filter((record) => storeIds.has(record.store_id)).map((record) => record.product_id)
+    );
+    products = products.filter((p) => {
+      const productMatch = [p.name_zh, p.name_ja, p.brand, p.barcode]
+        .some((x) => String(x || "").toLowerCase().includes(q));
+      if (scope === "name") return productMatch;
+      if (scope === "store") return productIdsByStoreName.has(p.id);
+      return productMatch || productIdsByStoreName.has(p.id);
+    });
   }
 
   if (categoryId) {

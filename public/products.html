@@ -100,6 +100,33 @@
       color: rgba(255, 255, 255, 0.75);
     }
 
+    .search-scope {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .search-scope button {
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .search-scope button.active {
+      background: #fff;
+      color: #0b7d67;
+    }
+
     .chip {
       height: 44px;
       border-radius: 999px;
@@ -824,6 +851,11 @@
       <div class="search-wrap">
         <input id="q" placeholder="搜索名称、品牌、条码" />
         <div id="summaryChip" class="chip">0 条记录</div>
+        <div id="searchScope" class="search-scope" aria-label="搜索范围">
+          <button class="active" type="button" data-scope="all">全部</button>
+          <button type="button" data-scope="name">只搜名称</button>
+          <button type="button" data-scope="store">只搜店铺</button>
+        </div>
       </div>
     </section>
 
@@ -847,6 +879,7 @@
     const pageParams = new URLSearchParams(location.search);
     const storeFilterId = pageParams.get("storeId") || "";
     const storeFilterName = pageParams.get("storeName") || "";
+    let searchScope = pageParams.get("scope") || "all";
     let cache = [];
     let storesCache = null;
     let activeProductId = null;
@@ -1103,6 +1136,7 @@
       const q = $("q").value.trim();
       const params = new URLSearchParams();
       if (q) params.set("q", q);
+      if (q && searchScope !== "all") params.set("scope", searchScope);
       if (storeFilterId) params.set("storeId", storeFilterId);
       const query = params.toString();
       const data = await fetch("/api/products" + (query ? `?${query}` : "")).then((r) => r.json());
@@ -1652,6 +1686,16 @@
     });
 
     $("q").addEventListener("input", load);
+    $("searchScope").querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("active", button.dataset.scope === searchScope);
+      button.onclick = () => {
+        searchScope = button.dataset.scope || "all";
+        $("searchScope").querySelectorAll("button").forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+        load();
+      };
+    });
     $("summaryChip").onclick = () => {
       if (!storeFilterId) return;
       const next = new URL(location.href);

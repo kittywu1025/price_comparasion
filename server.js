@@ -137,7 +137,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(
         res,
         200,
-        listProducts({ q: searchParams.get("q") || "", categoryId: searchParams.get("categoryId"), storeId: searchParams.get("storeId") })
+        listProducts({
+          q: searchParams.get("q") || "",
+          scope: searchParams.get("scope") || "all",
+          categoryId: searchParams.get("categoryId"),
+          storeId: searchParams.get("storeId")
+        })
       );
     }
 

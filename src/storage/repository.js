@@ -143,15 +143,27 @@ export function deleteStore(storeId, auth = {}) {
   return deleted;
 }
 
-export function listProducts({ q = "", categoryId, storeId } = {}) {
+export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}) {
   const db = readDb();
 
   let products = db.products;
   if (q) {
     const query = q.toLowerCase();
-    products = products.filter((p) =>
-      [p.nameZh, p.nameJa, p.brand, p.barcode].some((x) => (x || "").toLowerCase().includes(query))
+    const storeIds = new Set(
+      db.stores
+        .filter((store) => String(store.name || "").toLowerCase().includes(query))
+        .map((store) => store.id)
     );
+    const productIdsByStoreName = new Set(
+      db.priceRecords.filter((record) => storeIds.has(record.storeId)).map((record) => record.productId)
+    );
+    products = products.filter((p) => {
+      const productMatch = [p.nameZh, p.nameJa, p.brand, p.barcode]
+        .some((x) => (x || "").toLowerCase().includes(query));
+      if (scope === "name") return productMatch;
+      if (scope === "store") return productIdsByStoreName.has(p.id);
+      return productMatch || productIdsByStoreName.has(p.id);
+    });
   }
   if (categoryId) products = products.filter((p) => String(p.categoryId) === String(categoryId));
   if (storeId) {
