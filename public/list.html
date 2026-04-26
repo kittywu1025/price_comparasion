@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>价格比价清单</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #ffffff;
+      --surface-soft: #f8fbfa;
+      --line: #dce7e3;
+      --text: #1f2a2b;
+      --muted: #637674;
+      --primary: #0d9a7d;
+      --primary-soft: #e2f7f1;
+      --danger: #d84343;
+      --warning: #bf7f00;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      padding: 14px 14px 76px;
+    }
+
+    .app {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      border-radius: var(--radius-lg);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .scan-btn {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .search-wrap {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .search-wrap input {
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 0 14px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    .search-wrap input::placeholder {
+      color: rgba(255, 255, 255, 0.75);
+    }
+
+    .chip {
+      height: 44px;
+      border-radius: 999px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      box-shadow: 0 6px 12px rgba(12, 48, 42, 0.05);
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .card:active {
+      transform: translateY(1px);
+    }
+
+    .card.best {
+      border-color: #9dd8c9;
+      box-shadow: 0 8px 18px rgba(12, 107, 89, 0.16);
+      background: linear-gradient(180deg, #ffffff, #f3fbf8);
+    }
+
+    .flags {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: grid;
+      gap: 4px;
+      justify-items: end;
+      z-index: 2;
+    }
+
+    .flag {
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      line-height: 1.2;
+    }
+
+    .flag.best {
+      background: var(--primary-soft);
+      color: #04664f;
+    }
+
+    .flag.same {
+      background: #eef4ff;
+      color: #265f9a;
+    }
+
+    .flag.low {
+      background: #fff4da;
+      color: var(--warning);
+    }
+
+    .thumb {
+      width: 78px;
+      height: 78px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #e6efec;
+      background: #fbfefd;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #95a6a2;
+      font-size: 13px;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .info {
+      min-width: 0;
+    }
+
+    .name {
+      font-size: 16px;
+      line-height: 1.3;
+      margin: 0;
+      word-break: break-word;
+    }
+
+    .meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .price-row {
+      margin-top: 7px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .price {
+      color: var(--danger);
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .unit {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4f605f;
+      word-break: break-word;
+    }
+
+    .unit.best {
+      color: #0d7a63;
+    }
+
+    .unit.bad {
+      color: #b43f3f;
+    }
+
+    .empty {
+      text-align: center;
+      font-size: 14px;
+      color: var(--muted);
+      padding: 40px 12px;
+      background: var(--surface);
+      border: 1px dashed #c8d8d3;
+      border-radius: var(--radius-md);
+    }
+
+    nav {
+      --active-index: 1;
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(520px, calc(100% - 28px));
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d8e7e1;
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(13, 60, 51, 0.1);
+      backdrop-filter: blur(4px);
+      z-index: 25;
+    }
+
+    nav::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 20%;
+      border-radius: 999px;
+      background: #e9f7f3;
+      transform: translateX(calc(var(--active-index) * 100%));
+      transition: transform 0.22s ease;
+      z-index: 0;
+    }
+
+    nav[data-active="home"] { --active-index: 0; }
+    nav[data-active="list"] { --active-index: 1; }
+    nav[data-active="add"] { --active-index: 2; }
+    nav[data-active="stores"] { --active-index: 3; }
+    nav[data-active="profile"] { --active-index: 4; }
+
+    nav a {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      text-decoration: none;
+      color: #4f6562;
+      font-size: 12px;
+      line-height: 44px;
+      height: 44px;
+      font-weight: 600;
+      transition: color 0.18s ease;
+    }
+
+    nav a.active {
+      background: transparent;
+      color: #0c8f72;
+    }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 19, 18, 0.46);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 30;
+      padding: 12px;
+    }
+
+    .modal {
+      position: relative;
+      width: min(520px, 100%);
+      max-height: 88vh;
+      overflow-y: auto;
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .modal-close-fixed {
+      position: sticky;
+      top: 10px;
+      margin: 10px 10px -42px auto;
+      z-index: 5;
+      display: block;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(31, 42, 43, 0.68);
+      color: #fff;
+      font-size: 18px;
+      line-height: 32px;
+      cursor: pointer;
+    }
+
+    .modal-head {
+      position: relative;
+      padding: 14px 14px 0;
+    }
+
+    .modal-head.hidden,
+    .detail-view.hidden {
+      display: none;
+    }
+
+    .modal-img {
+      height: 132px;
+      border: 1px solid #e4efeb;
+      border-radius: 14px;
+      background: #f5faf8;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #8ca09c;
+      font-size: 14px;
+    }
+
+    .modal-img.compact {
+      width: 118px;
+      height: 118px;
+      margin: 0 auto;
+    }
+
+    .modal-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(31, 42, 43, 0.56);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 14px;
+    }
+
+    .modal-title {
+      margin: 0 0 12px;
+      font-size: 18px;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--surface-soft);
+    }
+
+    .stat-k {
+      margin: 0;
+      font-size: 12px;
+      color: #607371;
+    }
+
+    .stat-v {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #183132;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .detail-section {
+      margin-top: 12px;
+    }
+
+    .detail-section-title {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4f6562;
+    }
+
+    .trend-card {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      background: #f8fcfb;
+      padding: 10px;
+    }
+
+    .trend-card svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .trend-empty {
+      color: #708280;
+      font-size: 13px;
+      padding: 16px 0;
+      text-align: center;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-row {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      background: #fff;
+      padding: 9px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .history-row[data-record-id] {
+      cursor: pointer;
+    }
+
+    .history-date {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1f2a2b;
+    }
+
+    .history-meta {
+      margin-top: 3px;
+      color: #607371;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .history-price {
+      text-align: right;
+      color: #0a826b;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .history-total {
+      margin-top: 3px;
+      color: #607371;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .store-rank-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .store-rank-row {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .store-rank-row.best {
+      border-color: #9dd8c9;
+      background: #f4fbf8;
+    }
+
+    .store-rank-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f2a2b;
+      word-break: break-word;
+    }
+
+    .store-rank-meta {
+      margin-top: 4px;
+      color: #607371;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .store-rank-price {
+      text-align: right;
+      color: #0a826b;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: #e2f7f1;
+      color: #04664f;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      vertical-align: middle;
+    }
+
+    .trend-filter-row {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .trend-filter {
+      height: 32px;
+      border: 1px solid #dce7e3;
+      border-radius: 999px;
+      background: #fff;
+      color: #4f6562;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .trend-filter.active {
+      border-color: #9dd8c9;
+      background: #e9f7f3;
+      color: #0c765f;
+    }
+
+    .edit-grid {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .edit-form {
+      display: none;
+    }
+
+    .edit-form.active {
+      display: block;
+    }
+
+    .edit-mode-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f2a2b;
+    }
+
+    .edit-top {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .edit-photo {
+      min-height: 108px;
+      border: 1px dashed #b9cdc7;
+      border-radius: 12px;
+      background: #f7fbfa;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #708280;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .edit-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #fff;
+    }
+
+    .edit-name-stack {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .edit-group {
+      margin-top: 10px;
+      border: 1px solid #dcebe6;
+      border-radius: 14px;
+      background: #f8fcfb;
+      padding: 9px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .edit-group-title {
+      margin: 0;
+      font-size: 12px;
+      color: #5f7370;
+      font-weight: 700;
+    }
+
+    .edit-inline-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .edit-field label {
+      display: block;
+      margin: 0 0 4px;
+      color: #607371;
+      font-size: 12px;
+    }
+
+    .edit-field input,
+    .edit-field select {
+      width: 100%;
+      height: 36px;
+      border: 1px solid #d7e5e1;
+      border-radius: 9px;
+      padding: 0 10px;
+      font-size: 13px;
+      color: #163031;
+      background: #fff;
+      outline: none;
+    }
+
+    .edit-field input[readonly] {
+      background: #f7fbfa;
+    }
+
+    .edit-segment {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      padding: 5px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f5f9f8;
+    }
+
+    .edit-segment button {
+      height: 32px;
+      border-radius: 9px;
+      border: 0;
+      background: transparent;
+      color: #4d6160;
+      cursor: pointer;
+      min-width: 0;
+      font-size: 13px;
+    }
+
+    .edit-segment button.active {
+      background: #fff;
+      color: #0b7f68;
+      font-weight: 700;
+      box-shadow: 0 4px 8px rgba(17, 69, 60, 0.08);
+    }
+
+    .edit-unit-preview {
+      margin-top: 10px;
+      border: 1px solid #dcebe6;
+      border-radius: 12px;
+      background: #f8fcfb;
+      padding: 10px;
+    }
+
+    .edit-unit-preview p {
+      margin: 0;
+    }
+
+    .edit-unit-preview .k {
+      color: #627674;
+      font-size: 12px;
+    }
+
+    .edit-unit-preview .v {
+      margin-top: 4px;
+      color: #0a826b;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+
+    .modal-actions {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .btn {
+      height: 38px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: #0d9a7d;
+      color: #fff;
+    }
+
+    .btn-light {
+      background: #edf6f3;
+      color: #1b5c51;
+    }
+
+    .btn-danger {
+      background: #feecec;
+      color: #b53939;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.52;
+    }
+
+    .modal-msg {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #486260;
+      min-height: 16px;
+    }
+
+    @media (min-width: 720px) {
+      body {
+        padding: 20px;
+      }
+
+      .list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero {
+        padding: 18px;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <h1 class="title">价格比价清单</h1>
+        <button id="scanSearch" class="scan-btn" aria-label="扫码搜索">⌁</button>
+      </div>
+      <div class="search-wrap">
+        <input id="q" placeholder="搜索名称、品牌、条码" />
+        <div id="summaryChip" class="chip">0 条记录</div>
+      </div>
+    </section>
+
+    <main id="list" class="list"></main>
+
+    <nav data-active="list">
+      <a href="home.html">首页</a>
+      <a class="active" href="list.html">清单</a>
+      <a href="add.html">录入</a>
+      <a href="stores.html">店铺</a>
+      <a href="profile.html">我的</a>
+    </nav>
+  </div>
+
+  <div id="mask" class="modal-mask" role="dialog" aria-modal="true">
+    <article class="modal" id="modal"></article>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const pageParams = new URLSearchParams(location.search);
+    const storeFilterId = pageParams.get("storeId") || "";
+    const storeFilterName = pageParams.get("storeName") || "";
+    let cache = [];
+    let storesCache = null;
+    let activeProductId = null;
+    let suppressNextCardClick = false;
+    let suppressNextHistoryClick = false;
+    let longPressTimer = null;
+    let bodyScrollY = 0;
+    let modalLocked = false;
+
+    $("scanSearch").onclick = () => alert("扫码搜索将在下一版接入，当前可用文本搜索。");
+    $("mask").addEventListener("click", (e) => {
+      if (e.target === $("mask")) closeModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+
+    function unitPriceClass(price, minPrice) {
+      if (!(price > 0) || !(minPrice > 0)) return "";
+      if (price === minPrice) return "best";
+      if (price > minPrice * 1.3) return "bad";
+      return "";
+    }
+
+    function asMoney(v) {
+      return Number.isFinite(Number(v)) ? Number(v).toFixed(0) : "-";
+    }
+
+    function asUnit(v, label) {
+      if (v == null || label == null) return "-";
+      return `${Number(v).toFixed(2)} ${label}`;
+    }
+
+    function sortRecordsByDateAsc(records) {
+      return records.slice().sort((a, b) =>
+        String(a.recordDate || "").localeCompare(String(b.recordDate || "")) || Number(a.id || 0) - Number(b.id || 0)
+      );
+    }
+
+    function sortRecordsByDateDesc(records) {
+      return records.slice().sort((a, b) =>
+        String(b.recordDate || "").localeCompare(String(a.recordDate || "")) || Number(b.id || 0) - Number(a.id || 0)
+      );
+    }
+
+    function storeKeyOf(record) {
+      return String(record.storeId ?? record.storeName ?? "");
+    }
+
+    function latestRecordsByStore(records) {
+      const latest = new Map();
+      sortRecordsByDateDesc(records).forEach((record) => {
+        const key = storeKeyOf(record);
+        if (!key || latest.has(key)) return;
+        latest.set(key, record);
+      });
+      return Array.from(latest.values()).sort((a, b) =>
+        Number(a.unitPrice || Infinity) - Number(b.unitPrice || Infinity) ||
+        Number(a.priceTaxIn || Infinity) - Number(b.priceTaxIn || Infinity)
+      );
+    }
+
+    function lowestRecordsByDate(records) {
+      const byDate = new Map();
+      records.forEach((record) => {
+        if (!Number.isFinite(Number(record.priceTaxIn))) return;
+        const key = record.recordDate || "-";
+        const current = byDate.get(key);
+        if (
+          !current ||
+          Number(record.priceTaxIn) < Number(current.priceTaxIn) ||
+          (Number(record.priceTaxIn) === Number(current.priceTaxIn) && Number(record.id || 0) > Number(current.id || 0))
+        ) {
+          byDate.set(key, record);
+        }
+      });
+      return Array.from(byDate.values());
+    }
+
+    function recordsForTrend(records, mode = "lowest", storeKey = "") {
+      if (mode === "store") {
+        return records.filter((record) => storeKeyOf(record) === String(storeKey));
+      }
+      return lowestRecordsByDate(records);
+    }
+
+    function renderTrendFilters(records, activeMode = "lowest", activeStoreKey = "") {
+      const stores = latestRecordsByStore(records);
+      if (!stores.length) return "";
+      return `
+        <div class="trend-filter-row">
+          <button class="trend-filter ${activeMode === "lowest" ? "active" : ""}" type="button" data-trend-mode="lowest">最低价走势</button>
+          ${stores.map((record) => {
+            const key = storeKeyOf(record);
+            return `<button class="trend-filter ${activeMode === "store" && String(activeStoreKey) === key ? "active" : ""}" type="button" data-trend-mode="store" data-trend-store="${escapeHtml(key)}">${escapeHtml(record.storeName || "-")}</button>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderStoreRankings(records) {
+      const rankings = latestRecordsByStore(records);
+      if (!rankings.length) {
+        return `<div class="trend-card"><div class="trend-empty">暂无店铺价格数据</div></div>`;
+      }
+
+      return `
+        <div class="store-rank-list">
+          ${rankings.map((record, index) => `
+            <div class="store-rank-row ${index === 0 ? "best" : ""}" role="button" tabindex="0" data-rank-store="${escapeHtml(storeKeyOf(record))}">
+              <div>
+                <div class="store-rank-name">
+                  ${escapeHtml(record.storeName || "-")}
+                  ${index === 0 ? '<span class="rank-badge">当前最低</span>' : ""}
+                </div>
+                <div class="store-rank-meta">${escapeHtml(record.recordDate || "-")} · ${asUnit(record.unitPrice, record.unitPriceLabel)}</div>
+              </div>
+              <div class="store-rank-price">¥${asMoney(record.priceTaxIn)}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderTrend(records, mode = "lowest", storeKey = "") {
+      const series = sortRecordsByDateAsc(recordsForTrend(records, mode, storeKey))
+        .filter((r) => Number.isFinite(Number(r.priceTaxIn)))
+        .map((r) => ({
+          date: r.recordDate || "-",
+          value: Number(r.priceTaxIn)
+        }));
+
+      if (!series.length) {
+        return `<div class="trend-card"><div class="trend-empty">暂无价格走势数据</div></div>`;
+      }
+
+      const width = 320;
+      const height = 128;
+      const padX = 28;
+      const padY = 20;
+      const values = series.map((x) => x.value);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max === min ? 1 : max - min;
+      const points = series.map((item, index) => {
+        const x = series.length === 1
+          ? width / 2
+          : padX + (index * (width - padX * 2)) / (series.length - 1);
+        const y = height - padY - ((item.value - min) / range) * (height - padY * 2);
+        return { ...item, x, y };
+      });
+      const pointAttr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      const circles = points.map((p) => `
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0d9a7d" />
+      `).join("");
+      const first = points[0];
+      const last = points[points.length - 1];
+
+      return `
+        <div class="trend-card">
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="税后价格走势">
+            <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" stroke="#dbe7e3" stroke-width="1" />
+            <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${height - padY}" stroke="#dbe7e3" stroke-width="1" />
+            <text x="${padX}" y="14" fill="#607371" font-size="10">¥${asMoney(max)}</text>
+            <text x="${padX}" y="${height - 4}" fill="#607371" font-size="10">¥${asMoney(min)}</text>
+            ${points.length > 1 ? `<polyline points="${pointAttr}" fill="none" stroke="#0d9a7d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />` : ""}
+            ${circles}
+            <text x="${padX}" y="${height - 10}" fill="#607371" font-size="10">${escapeHtml(first.date)}</text>
+            <text x="${width - padX}" y="${height - 10}" fill="#607371" font-size="10" text-anchor="end">${escapeHtml(last.date)}</text>
+          </svg>
+        </div>
+      `;
+    }
+
+    function renderHistory(records) {
+      const sorted = sortRecordsByDateDesc(records);
+      if (!sorted.length) {
+        return `<div class="trend-card"><div class="trend-empty">暂无历史记录</div></div>`;
+      }
+
+      return `
+        <div class="history-list">
+          ${sorted.map((r) => `
+            <div class="history-row" data-record-id="${r.id}">
+              <div>
+                <div class="history-date">${escapeHtml(r.recordDate || "-")}</div>
+              </div>
+              <div>
+                <div class="history-price">¥${asMoney(r.priceTaxIn)}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function today() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    async function fetchJson(url, options) {
+      const res = await fetch(url, options);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("请先登录后再编辑数据。");
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "请求失败");
+      return data;
+    }
+
+    async function getStores() {
+      if (storesCache) return storesCache;
+      storesCache = await fetchJson("/api/stores");
+      return storesCache;
+    }
+
+    async function getRecordAccess(recordId) {
+      return fetchJson(`/api/price-records/${recordId}`);
+    }
+
+    function clearLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    async function deleteRecord(recordId, successText = "删除成功。") {
+      const access = await getRecordAccess(recordId);
+      if (!access.canDelete) {
+        if (access.currentUser && !access.isAdmin) {
+          throw new Error("当前账号不是管理员，只能删除自己创建的数据。请确认 Cloudflare Pages 已配置 ACCESS_ADMIN_EMAILS。");
+        }
+        throw new Error("你只能删除自己创建的数据。");
+      }
+      const ok = confirm("确认删除这条数据吗？删除后不可恢复。");
+      if (!ok) return false;
+      await fetchJson(`/api/price-records/${recordId}`, { method: "DELETE" });
+      alert(successText);
+      return true;
+    }
+
+    async function load() {
+      const q = $("q").value.trim();
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (storeFilterId) params.set("storeId", storeFilterId);
+      const query = params.toString();
+      const data = await fetch("/api/products" + (query ? `?${query}` : "")).then((r) => r.json());
+      cache = data.slice();
+      $("summaryChip").textContent = storeFilterName
+        ? `${cache.length} 条记录 · ${storeFilterName}`
+        : `${cache.length} 条记录`;
+
+      const list = $("list");
+      if (!cache.length) {
+        list.innerHTML = `<div class="empty">没有匹配商品，可以先去录入一条。</div>`;
+        return;
+      }
+
+      list.innerHTML = cache
+        .map((item) => {
+          const isBest = item.isKeywordBest;
+          const flags = [
+            item.latestIsPromo ? '<div class="flag low">限时优惠</div>' : "",
+            isBest ? '<div class="flag best">最低价</div>' : ""
+          ].filter(Boolean).join("");
+          return `
+            <article class="card ${isBest ? "best" : ""}" data-product-id="${item.productId}">
+              ${flags ? `<div class="flags">${flags}</div>` : ""}
+              <div class="thumb">
+                ${item.defaultImageUrl ? `<img src="${item.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+              </div>
+              <div class="info">
+                <h2 class="name">${item.nameZh || item.nameJa || "未命名商品"}</h2>
+                <div class="meta">最低店铺：${item.lowestStoreName || "-"}</div>
+                <div class="price-row">
+                  <div class="price">¥${asMoney(item.latestPriceTaxIn)}</div>
+                  <div class="unit ${isBest ? "best" : ""}">${asUnit(item.lowestUnitPrice, item.lowestUnitPriceLabel)}</div>
+                </div>
+                <div class="meta">${item.latestRecordDate || "-"}</div>
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+    }
+
+    async function openDetail(id) {
+      activeProductId = id;
+      const res = await fetch("/api/products/" + id);
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "加载失败");
+        return;
+      }
+
+      const top = data.records?.[0] || {};
+      const modal = $("modal");
+      if (!top.id) {
+        modal.innerHTML = `
+          <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
+          <header class="modal-head">
+            <div class="modal-img">
+              ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+            </div>
+          </header>
+          <section class="modal-body">
+            <h3 class="modal-title">${data.product.nameZh || data.product.nameJa || "未命名商品"}</h3>
+            <div class="stat"><p class="stat-v">暂无可编辑记录</p></div>
+          </section>
+        `;
+        openModal();
+        return;
+      }
+
+      let editTaxMode = Number(top.taxRate ?? 0);
+      let editUnit = top.unit || "g";
+      const initialBefore = Number(
+        top.priceTaxEx ?? (editTaxMode ? Number(top.priceTaxIn || 0) / (1 + editTaxMode / 100) : top.priceTaxIn || 0)
+      );
+
+      modal.innerHTML = `
+        <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
+        <header id="modalHead" class="modal-head">
+          <div class="modal-img compact">
+            ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+          </div>
+        </header>
+        <section class="modal-body">
+          <div id="detailView" class="detail-view">
+            <h3 class="modal-title">${data.product.nameZh || data.product.nameJa || "未命名商品"}</h3>
+            <div class="stats">
+              <div class="stat"><p class="stat-k">税后总价</p><p class="stat-v">¥${asMoney(top.priceTaxIn)}</p></div>
+              <div class="stat"><p class="stat-k">对比单价</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
+              <div class="stat"><p class="stat-k">规格</p><p class="stat-v">${top.specValue ?? "-"} ${top.unit ?? ""}</p></div>
+              <div class="stat"><p class="stat-k">购买店铺</p><p class="stat-v">${top.storeName ?? "-"}</p></div>
+              <div class="stat"><p class="stat-k">记录时间</p><p class="stat-v">${top.recordDate || "-"}</p></div>
+            </div>
+            <div class="detail-section">
+              <p class="detail-section-title">各店现价排行</p>
+              ${renderStoreRankings(data.records || [])}
+            </div>
+            <div class="detail-section">
+              <p class="detail-section-title">价格走势</p>
+              ${renderTrendFilters(data.records || [])}
+              <div id="trendMount">${renderTrend(data.records || [])}</div>
+            </div>
+            <div class="detail-section">
+              <p class="detail-section-title">历史记录</p>
+              ${renderHistory(data.records || [])}
+            </div>
+            <div class="modal-actions">
+              <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
+              <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
+              <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button">删除当前记录</button>
+            </div>
+          </div>
+          <form id="editForm" class="edit-form">
+            <p id="editModeTitle" class="edit-mode-title">修正记录</p>
+            <div class="edit-top">
+              <div class="edit-photo">
+                ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+              </div>
+              <div class="edit-name-stack">
+                <div class="edit-field">
+                  <label for="editNameZh">中文名称</label>
+                  <input id="editNameZh" value="${escapeHtml(data.product.nameZh || "")}" readonly />
+                </div>
+                <div class="edit-field">
+                  <label for="editNameJa">日文名称</label>
+                  <input id="editNameJa" value="${escapeHtml(data.product.nameJa || "")}" readonly />
+                </div>
+              </div>
+            </div>
+
+            <div class="edit-group">
+              <p class="edit-group-title">价格与规格</p>
+              <div class="edit-field">
+                <label>税率</label>
+                <div id="editTaxSegment" class="edit-segment">
+                  <button type="button" data-tax="8" class="${editTaxMode === 8 ? "active" : ""}">8%</button>
+                  <button type="button" data-tax="10" class="${editTaxMode === 10 ? "active" : ""}">10%</button>
+                  <button type="button" data-tax="0" class="${editTaxMode === 0 ? "active" : ""}">0%</button>
+                </div>
+              </div>
+
+              <div class="edit-inline-grid">
+                <div class="edit-field">
+                  <label for="editPriceTaxEx">税前价格</label>
+                  <input id="editPriceTaxEx" type="number" step="0.01" value="${Number.isFinite(initialBefore) ? initialBefore.toFixed(1) : 0}" required />
+                </div>
+                <div class="edit-field">
+                  <label for="editPriceTaxIn">税后价格</label>
+                  <input id="editPriceTaxIn" type="text" value="¥${asMoney(top.priceTaxIn)}" readonly />
+                </div>
+              </div>
+
+              <div class="edit-inline-grid">
+                <div class="edit-field">
+                  <label for="editSpecValue">规格数值</label>
+                  <input id="editSpecValue" type="number" step="0.01" value="${Number(top.specValue || 0)}" required />
+                </div>
+                <div class="edit-field">
+                  <label>规格单位</label>
+                  <div id="editUnitSegment" class="edit-segment">
+                    <button type="button" data-unit="g" class="${editUnit === "g" ? "active" : ""}">g</button>
+                    <button type="button" data-unit="ml" class="${editUnit === "ml" ? "active" : ""}">ml</button>
+                    <button type="button" data-unit="个" class="${editUnit === "个" ? "active" : ""}">个</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="edit-unit-preview">
+              <p class="k">对比单价</p>
+              <p id="editUnitPricePreview" class="v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p>
+            </div>
+
+            <div class="edit-grid">
+              <div class="edit-field">
+                <label for="editStoreId">购买店铺</label>
+                <select id="editStoreId"><option value="">登录后加载店铺</option></select>
+              </div>
+              <div class="edit-field">
+                <label id="editRecordDateLabel" for="editRecordDate">更新日期</label>
+                <input id="editRecordDate" type="date" value="${today()}" required />
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button id="editSubmitBtn" class="btn btn-primary" type="submit">保存修正</button>
+              <button id="undoEditBtn" class="btn btn-light" type="button" style="display:none;">撤回我的修改</button>
+            </div>
+            <div class="modal-actions">
+              <button id="deleteRecordBtn" class="btn btn-danger" type="button" style="display:none;">删除这条数据</button>
+              <button id="backDetailBtn" class="btn btn-light" type="button">返回详情</button>
+            </div>
+            <div id="editMsg" class="modal-msg"></div>
+          </form>
+        </section>
+      `;
+
+      const form = modal.querySelector("#editForm");
+      const modalHead = modal.querySelector("#modalHead");
+      const detailView = modal.querySelector("#detailView");
+      let editMode = "correction";
+      const detailRecords = data.records || [];
+
+      function updateTrend(mode = "lowest", storeKey = "") {
+        modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
+          const isActive = btn.dataset.trendMode === mode &&
+            (mode !== "store" || String(btn.dataset.trendStore || "") === String(storeKey));
+          btn.classList.toggle("active", isActive);
+        });
+        modal.querySelector("#trendMount").innerHTML = renderTrend(detailRecords, mode, storeKey);
+      }
+
+      modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
+        btn.onclick = () => updateTrend(btn.dataset.trendMode, btn.dataset.trendStore || "");
+      });
+      modal.querySelectorAll("[data-rank-store]").forEach((row) => {
+        const selectStoreTrend = () => updateTrend("store", row.dataset.rankStore || "");
+        row.onclick = selectStoreTrend;
+        row.onkeydown = (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectStoreTrend();
+          }
+        };
+      });
+
+      async function loadProtectedStores() {
+        const select = modal.querySelector("#editStoreId");
+        try {
+          const stores = await getStores();
+          const access = await getRecordAccess(top.id);
+          select.innerHTML = stores
+            .map((s) => `<option value="${s.id}" ${Number(s.id) === Number(top.storeId) ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
+            .join("");
+          modal.querySelector("#deleteRecordBtn").style.display =
+            editMode === "correction" && access.canDelete ? "block" : "none";
+          modal.querySelector("#undoEditBtn").style.display =
+            editMode === "correction" && access.canUndo ? "block" : "none";
+          return true;
+        } catch (err) {
+          modal.querySelector("#editMsg").textContent = "编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。";
+          modal.querySelector("#deleteRecordBtn").style.display = "none";
+          modal.querySelector("#undoEditBtn").style.display = "none";
+          return false;
+        }
+      }
+
+      function backToDetail() {
+        form.classList.remove("active");
+        modalHead.classList.remove("hidden");
+        detailView.classList.remove("hidden");
+        modal.querySelector("#editMsg").textContent = "";
+      }
+
+      async function showRecordForm(mode) {
+        editMode = mode;
+        modalHead.classList.add("hidden");
+        detailView.classList.add("hidden");
+        form.classList.add("active");
+        modal.querySelector("#editModeTitle").textContent = mode === "new" ? "新增价格记录" : "修正记录";
+        modal.querySelector("#editRecordDateLabel").textContent = mode === "new" ? "记录日期" : "更新日期";
+        modal.querySelector("#editRecordDate").value = today();
+        modal.querySelector("#editSubmitBtn").textContent = mode === "new" ? "新增价格记录" : "保存修正";
+        modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
+        const ok = await loadProtectedStores();
+        modal.querySelector("#editSubmitBtn").disabled = !ok;
+        if (ok) modal.querySelector("#editMsg").textContent = "";
+      }
+
+      modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");
+      modal.querySelector("#showEditBtn").onclick = () => showRecordForm("correction");
+      const detailDeleteBtn = modal.querySelector("#detailDeleteRecordBtn");
+      getRecordAccess(top.id)
+        .then((access) => {
+          detailDeleteBtn.disabled = !access.canDelete;
+          detailDeleteBtn.title = access.canDelete ? "" : "只能删除自己创建的数据";
+        })
+        .catch(() => {
+          detailDeleteBtn.disabled = true;
+          detailDeleteBtn.title = "请先登录后再删除";
+        });
+      detailDeleteBtn.onclick = async () => {
+        try {
+          const deleted = await deleteRecord(top.id, "删除成功，清单已刷新。");
+          if (!deleted) return;
+          storesCache = null;
+          closeModal();
+          await load();
+        } catch (err) {
+          alert(`删除失败：${err.message}`);
+        }
+      };
+      modal.querySelector("#backDetailBtn").onclick = backToDetail;
+      modal.querySelector("#deleteRecordBtn").onclick = async () => {
+        const editMsg = modal.querySelector("#editMsg");
+        try {
+          const deleted = await deleteRecord(top.id, "删除成功，清单已刷新。");
+          if (!deleted) return;
+          storesCache = null;
+          closeModal();
+          await load();
+        } catch (err) {
+          editMsg.textContent = `删除失败：${err.message}`;
+        }
+      };
+      modal.querySelector("#undoEditBtn").onclick = async () => {
+        const editMsg = modal.querySelector("#editMsg");
+        try {
+          await fetchJson(`/api/price-records/${top.id}/undo`, { method: "POST" });
+          editMsg.textContent = "已撤回你最后一次修改。";
+          storesCache = null;
+          await load();
+          await openDetail(id);
+        } catch (err) {
+          editMsg.textContent = `撤回失败：${err.message}`;
+        }
+      };
+
+      function round1(n) {
+        return Math.round(n * 10) / 10;
+      }
+
+      function calcEdit() {
+        const before = Number(modal.querySelector("#editPriceTaxEx").value || 0);
+        const spec = Number(modal.querySelector("#editSpecValue").value || 0);
+        const after = before * (editTaxMode === 0 ? 1 : 1 + editTaxMode / 100);
+        let unitPrice = 0;
+        let unitLabel = "/100g";
+        if (spec > 0) {
+          if (editUnit === "g" || editUnit === "ml") {
+            unitPrice = (after / spec) * 100;
+            unitLabel = editUnit === "g" ? "/100g" : "/100ml";
+          } else {
+            unitPrice = after / spec;
+            unitLabel = "/个";
+          }
+        }
+        modal.querySelector("#editPriceTaxIn").value = `¥${round1(after).toFixed(1)}`;
+        modal.querySelector("#editUnitPricePreview").textContent = `${round1(unitPrice).toFixed(1)} ${unitLabel}`;
+        return { before, after: round1(after) };
+      }
+
+      modal.querySelectorAll("#editTaxSegment button").forEach((btn) => {
+        btn.onclick = () => {
+          editTaxMode = Number(btn.dataset.tax);
+          modal.querySelectorAll("#editTaxSegment button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          calcEdit();
+        };
+      });
+      modal.querySelectorAll("#editUnitSegment button").forEach((btn) => {
+        btn.onclick = () => {
+          editUnit = btn.dataset.unit;
+          modal.querySelectorAll("#editUnitSegment button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          calcEdit();
+        };
+      });
+      ["editPriceTaxEx", "editSpecValue"].forEach((fieldId) => {
+        modal.querySelector(`#${fieldId}`).addEventListener("input", calcEdit);
+      });
+      calcEdit();
+
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const { before, after } = calcEdit();
+        const payload = {
+          storeId: Number(modal.querySelector("#editStoreId").value),
+          priceTaxIn: after,
+          specValue: Number(modal.querySelector("#editSpecValue").value),
+          unit: editUnit,
+          recordDate: modal.querySelector("#editRecordDate").value,
+          priceTaxEx: before,
+          taxRate: editTaxMode,
+          imageUrl: top.imageUrl ?? null,
+          note: top.note ?? null
+        };
+        const editMsg = modal.querySelector("#editMsg");
+        try {
+          const saveRes = editMode === "new"
+            ? await fetch("/api/price-records", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                product: { id: data.product.id },
+                ...payload,
+                note: payload.note || "price-change"
+              })
+            })
+            : await fetch(`/api/price-records/${top.id}`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                productId: data.product.id,
+                ...payload
+              })
+            });
+          const saveData = await saveRes.json();
+          if (!saveRes.ok) throw new Error(saveData.error || "保存失败");
+          editMsg.textContent = editMode === "new" ? "新增成功，已刷新。" : "修正成功，已刷新。";
+          await load();
+          storesCache = null;
+          await openDetail(id);
+        } catch (err) {
+          editMsg.textContent = `保存失败：${err.message}`;
+        }
+      };
+      openModal();
+    }
+
+    function lockBodyScroll() {
+      if (modalLocked) return;
+      bodyScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${bodyScrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+      modalLocked = true;
+    }
+
+    function unlockBodyScroll() {
+      if (!modalLocked) return;
+      const y = bodyScrollY;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      modalLocked = false;
+      window.scrollTo(0, y);
+    }
+
+    function openModal() {
+      lockBodyScroll();
+      $("mask").style.display = "flex";
+    }
+
+    function closeModal() {
+      $("mask").style.display = "none";
+      unlockBodyScroll();
+      activeProductId = null;
+    }
+
+    window.openDetail = openDetail;
+    window.closeModal = closeModal;
+
+    $("list").addEventListener("click", async (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      if (suppressNextCardClick) {
+        suppressNextCardClick = false;
+        return;
+      }
+      await openDetail(Number(card.dataset.productId));
+    });
+
+    $("list").addEventListener("mousedown", (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextCardClick = true;
+        try {
+          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
+          const latest = detail.records?.[0];
+          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
+          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
+          if (deleted) await load();
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    });
+    $("list").addEventListener("touchstart", (e) => {
+      const card = e.target.closest(".card[data-product-id]");
+      if (!card) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextCardClick = true;
+        try {
+          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
+          const latest = detail.records?.[0];
+          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
+          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
+          if (deleted) await load();
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    }, { passive: true });
+    ["mouseup", "mouseleave", "touchend", "touchcancel", "touchmove"].forEach((eventName) => {
+      $("list").addEventListener(eventName, clearLongPress, { passive: true });
+    });
+
+    $("modal").addEventListener("click", async (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      if (suppressNextHistoryClick) {
+        suppressNextHistoryClick = false;
+      }
+    });
+
+    $("modal").addEventListener("mousedown", (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextHistoryClick = true;
+        try {
+          const deleted = await deleteRecord(Number(row.dataset.recordId));
+          if (deleted) {
+            await load();
+            if (activeProductId) {
+              await openDetail(activeProductId);
+            } else {
+              closeModal();
+            }
+          }
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    });
+    $("modal").addEventListener("touchstart", (e) => {
+      const row = e.target.closest(".history-row[data-record-id]");
+      if (!row) return;
+      clearLongPress();
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        suppressNextHistoryClick = true;
+        try {
+          const deleted = await deleteRecord(Number(row.dataset.recordId));
+          if (deleted) {
+            await load();
+            closeModal();
+          }
+        } catch (err) {
+          alert(err.message || "删除失败");
+        }
+      }, 550);
+    }, { passive: true });
+    ["mouseup", "mouseleave", "touchend", "touchcancel", "touchmove"].forEach((eventName) => {
+      $("modal").addEventListener(eventName, clearLongPress, { passive: true });
+    });
+
+    $("q").addEventListener("input", load);
+    $("summaryChip").onclick = () => {
+      if (!storeFilterId) return;
+      const next = new URL(location.href);
+      next.searchParams.delete("storeId");
+      next.searchParams.delete("storeName");
+      location.href = next.pathname + (next.search ? next.search : "");
+    };
+    load();
+
+    setupSwipeNav();
+
+    function setupSwipeNav() {
+      const nav = document.querySelector("nav[data-active]");
+      if (!nav) return;
+      let startX = 0;
+      let startY = 0;
+      nav.addEventListener("touchstart", (event) => {
+        const touch = event.changedTouches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+      }, { passive: true });
+      nav.addEventListener("touchend", (event) => {
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        if (Math.abs(dx) < 38 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        const links = Array.from(nav.querySelectorAll("a"));
+        const current = links.findIndex((link) => link.classList.contains("active"));
+        const next = dx < 0 ? current + 1 : current - 1;
+        if (next >= 0 && next < links.length) {
+          location.href = links[next].getAttribute("href");
+        }
+      }, { passive: true });
+    }
+  </script>
+</body>
+</html>
