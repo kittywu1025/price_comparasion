@@ -34,6 +34,10 @@ export async function onRequest(context) {
       return handleCategories(request, env, auth);
     }
 
+    if (route[0] === "auth") {
+      return handleAuth(request);
+    }
+
     if (route[0] === "stores") {
       return handleStores(request, env, route, auth);
     }
@@ -58,8 +62,10 @@ export async function onRequest(context) {
 
 function requiresAccess(route, request) {
   const area = route[0];
+  if (area === "auth") return true;
   if (area === "me") return true;
-  if (area === "stores" || area === "price-records" || area === "categories") return true;
+  if (area === "stores") return request.method !== "GET";
+  if (area === "price-records" || area === "categories") return true;
   return request.method !== "GET";
 }
 
@@ -160,6 +166,13 @@ async function handleCategories(request, env) {
   }
 
   return json({ error: "Method not allowed" }, 405);
+}
+
+function handleAuth(request) {
+  const url = new URL(request.url);
+  const rawReturnTo = url.searchParams.get("return") || "/products";
+  const returnTo = rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : "/products";
+  return Response.redirect(new URL(returnTo, url.origin).href, 302);
 }
 
 async function handleStores(request, env, route, auth) {
