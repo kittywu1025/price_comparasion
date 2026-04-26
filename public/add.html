@@ -792,7 +792,7 @@
 
     <section class="card">
       <form id="form">
-        <input id="imageFile" type="file" accept="image/*" capture="environment" style="display:none" />
+        <input id="imageFile" type="file" accept="image/*" style="display:none" />
         <p class="required-note">带“必填”的项目需要填写。商品名称中文或日文填一个即可；税后价格会自动计算，不需要手动输入。</p>
 
         <div class="fields">
@@ -1430,8 +1430,15 @@
       $("sheetMask").style.display = "none";
     }
 
-    function pickImage() {
-      $("imageFile").click();
+    function pickImage(source) {
+      const input = $("imageFile");
+      input.value = "";
+      if (source === "camera") {
+        input.setAttribute("capture", "environment");
+      } else {
+        input.removeAttribute("capture");
+      }
+      input.click();
       closeSheet();
     }
 
@@ -1597,8 +1604,8 @@
       if (e.target === $("sheetMask")) closeSheet();
     });
     $("cancelSheet").onclick = closeSheet;
-    $("takePhoto").onclick = pickImage;
-    $("pickPhoto").onclick = pickImage;
+    $("takePhoto").onclick = () => pickImage("camera");
+    $("pickPhoto").onclick = () => pickImage("album");
 
     $("imageFile").onchange = (e) => {
       const file = e.target.files?.[0];
