@@ -272,13 +272,42 @@
     }
 
     .empty {
+      position: relative;
       text-align: center;
       font-size: 14px;
-      color: var(--muted);
+      color: #4d6762;
       padding: 40px 12px;
       background: var(--surface);
       border: 1px dashed #c8d8d3;
       border-radius: var(--radius-md);
+      cursor: pointer;
+      overflow: hidden;
+      min-height: 104px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.04);
+    }
+
+    .empty::before {
+      content: "+";
+      position: absolute;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -52%);
+      color: rgba(13, 154, 125, 0.08);
+      font-size: 96px;
+      line-height: 1;
+      font-weight: 800;
+      z-index: 0;
+    }
+
+    .empty span {
+      position: relative;
+      z-index: 1;
+      font-weight: 700;
+    }
+
+    .empty:active {
+      transform: translateY(1px);
     }
 
     nav {
@@ -1187,7 +1216,7 @@
 
       const list = $("list");
       if (!cache.length) {
-        list.innerHTML = `<div class="empty">没有匹配商品，可以先去录入一条。</div>`;
+        list.innerHTML = `<div class="empty" role="button" tabindex="0" data-empty-add><span>没有匹配商品，可以先去录入一条。</span></div>`;
         return;
       }
 
@@ -1632,6 +1661,11 @@
     window.closeModal = closeModal;
 
     $("list").addEventListener("click", async (e) => {
+      const emptyAdd = e.target.closest("[data-empty-add]");
+      if (emptyAdd) {
+        location.href = "add.html";
+        return;
+      }
       const card = e.target.closest(".card[data-product-id]");
       if (!card) return;
       if (suppressNextCardClick) {
@@ -1639,6 +1673,13 @@
         return;
       }
       await openDetail(Number(card.dataset.productId));
+    });
+
+    $("list").addEventListener("keydown", (e) => {
+      if (!e.target.closest("[data-empty-add]")) return;
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      location.href = "add.html";
     });
 
     $("list").addEventListener("mousedown", (e) => {
