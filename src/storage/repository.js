@@ -303,7 +303,9 @@ export function getPriceRecordAccess(recordId, auth = {}) {
     id: row.id,
     canDelete: canDeleteRow(auth, row.createdBy),
     canUndo: canUndoLatestRevision(auth, revision?.modifiedBy),
-    createdBy: row.createdBy || ""
+    createdBy: row.createdBy || "",
+    currentUser: auth?.email || "",
+    isAdmin: Boolean(auth?.isAdmin)
   };
 }
 

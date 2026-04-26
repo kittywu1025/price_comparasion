@@ -255,6 +255,7 @@
     }
 
     nav {
+      --active-index: 1;
       position: fixed;
       left: 50%;
       bottom: max(12px, env(safe-area-inset-bottom));
@@ -271,7 +272,27 @@
       z-index: 25;
     }
 
+    nav::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 20%;
+      border-radius: 999px;
+      background: #e9f7f3;
+      transform: translateX(calc(var(--active-index) * 100%));
+      transition: transform 0.22s ease;
+      z-index: 0;
+    }
+
+    nav[data-active="home"] { --active-index: 0; }
+    nav[data-active="list"] { --active-index: 1; }
+    nav[data-active="add"] { --active-index: 2; }
+    nav[data-active="stores"] { --active-index: 3; }
+    nav[data-active="profile"] { --active-index: 4; }
+
     nav a {
+      position: relative;
+      z-index: 1;
       text-align: center;
       text-decoration: none;
       color: #4f6562;
@@ -279,10 +300,11 @@
       line-height: 44px;
       height: 44px;
       font-weight: 600;
+      transition: color 0.18s ease;
     }
 
     nav a.active {
-      background: #e9f7f3;
+      background: transparent;
       color: #0c8f72;
     }
 
@@ -336,7 +358,7 @@
     }
 
     .modal-img {
-      height: 210px;
+      height: 132px;
       border: 1px solid #e4efeb;
       border-radius: 14px;
       background: #f5faf8;
@@ -345,6 +367,12 @@
       overflow: hidden;
       color: #8ca09c;
       font-size: 14px;
+    }
+
+    .modal-img.compact {
+      width: 118px;
+      height: 118px;
+      margin: 0 auto;
     }
 
     .modal-img img {
@@ -801,7 +829,7 @@
 
     <main id="list" class="list"></main>
 
-    <nav>
+    <nav data-active="list">
       <a href="/home.html">首页</a>
       <a class="active" href="/index.html">清单</a>
       <a href="/add.html">录入</a>
@@ -1059,6 +1087,9 @@
     async function deleteRecord(recordId, successText = "删除成功。") {
       const access = await getRecordAccess(recordId);
       if (!access.canDelete) {
+        if (access.currentUser && !access.isAdmin) {
+          throw new Error("当前账号不是管理员，只能删除自己创建的数据。请确认 Cloudflare Pages 已配置 ACCESS_ADMIN_EMAILS。");
+        }
         throw new Error("你只能删除自己创建的数据。");
       }
       const ok = confirm("确认删除这条数据吗？删除后不可恢复。");
@@ -1151,7 +1182,7 @@
       modal.innerHTML = `
         <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
         <header id="modalHead" class="modal-head">
-          <div class="modal-img">
+          <div class="modal-img compact">
             ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
           </div>
         </header>

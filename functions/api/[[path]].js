@@ -70,8 +70,12 @@ function hasAccessSession(request) {
 }
 
 function getAuth(request, env) {
-  const email = String(request.headers.get("cf-access-authenticated-user-email") || "").trim().toLowerCase();
-  const adminEmails = String(env.ACCESS_ADMIN_EMAILS || "")
+  const email = String(
+    request.headers.get("cf-access-authenticated-user-email") ||
+    emailFromAccessJwt(request.headers.get("cf-access-jwt-assertion")) ||
+    ""
+  ).trim().toLowerCase();
+  const adminEmails = String(env.ACCESS_ADMIN_EMAILS || env.ADMIN_EMAILS || "")
     .split(",")
     .map((x) => x.trim().toLowerCase())
     .filter(Boolean);
@@ -80,6 +84,20 @@ function getAuth(request, env) {
     email,
     isAdmin: email ? adminEmails.includes(email) : false
   };
+}
+
+function emailFromAccessJwt(token) {
+  if (!token) return "";
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return "";
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonText = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+    const data = JSON.parse(jsonText);
+    return data.email || data.sub || "";
+  } catch {
+    return "";
+  }
 }
 
 function getRoute(pathParam) {
@@ -315,7 +333,9 @@ async function handlePriceRecords(request, env, route, auth) {
       id: row.id,
       canDelete: canDeleteRow(auth, row.created_by),
       canUndo: canUndoLatestRevision(auth, latestRevision?.modified_by),
-      createdBy: row.created_by || ""
+      createdBy: row.created_by || "",
+      currentUser: auth.email || "",
+      isAdmin: Boolean(auth.isAdmin)
     });
   }
 

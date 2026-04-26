@@ -85,6 +85,7 @@
     }
 
     nav {
+      --active-index: 3;
       position: fixed;
       left: 50%;
       bottom: max(12px, env(safe-area-inset-bottom));
@@ -101,7 +102,27 @@
       z-index: 25;
     }
 
+    nav::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 20%;
+      border-radius: 999px;
+      background: #e9f7f3;
+      transform: translateX(calc(var(--active-index) * 100%));
+      transition: transform 0.22s ease;
+      z-index: 0;
+    }
+
+    nav[data-active="home"] { --active-index: 0; }
+    nav[data-active="list"] { --active-index: 1; }
+    nav[data-active="add"] { --active-index: 2; }
+    nav[data-active="stores"] { --active-index: 3; }
+    nav[data-active="profile"] { --active-index: 4; }
+
     nav a {
+      position: relative;
+      z-index: 1;
       text-align: center;
       text-decoration: none;
       color: #4f6562;
@@ -109,10 +130,11 @@
       line-height: 44px;
       height: 44px;
       font-weight: 600;
+      transition: color 0.18s ease;
     }
 
     nav a.active {
-      background: #e9f7f3;
+      background: transparent;
       color: #0c8f72;
     }
 
@@ -173,6 +195,38 @@
       color: #375a56;
       font-size: 13px;
       min-height: 18px;
+    }
+
+    .search-results {
+      display: none;
+      gap: 8px;
+    }
+
+    .search-results.show {
+      display: grid;
+    }
+
+    .result-card {
+      height: auto;
+      min-height: 52px;
+      border: 1px solid var(--line);
+      background: #f8fbfa;
+      text-align: left;
+      padding: 8px 10px;
+      display: grid;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .result-card strong {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .result-card span {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
     }
 
     .list {
@@ -291,7 +345,7 @@
       <div id="list" class="list"></div>
     </div>
 
-    <nav>
+    <nav data-active="stores">
       <a href="/home.html">首页</a>
       <a href="/index.html">清单</a>
       <a href="/add.html">录入</a>
@@ -305,8 +359,12 @@
       <button id="editorClose" class="editor-close" type="button" aria-label="关闭">×</button>
       <h1 id="formTitle">新增店铺</h1>
       <form id="form" class="form">
-        <input id="name" placeholder="店铺名称" required />
-        <input id="chainBrand" placeholder="连锁品牌（可选）" />
+        <div class="row">
+          <input id="name" placeholder="店铺名称" required />
+          <button id="searchStoreBtn" class="btn-ghost" type="button">搜索</button>
+        </div>
+        <div id="storeSearchStatus" class="hint">搜索会限定在日本广岛县东广岛市附近。</div>
+        <div id="storeSearchResults" class="search-results"></div>
         <div class="row">
           <input id="location" placeholder="位置（默认尝试GPS）" />
           <button id="detectLocation" class="btn-ghost" type="button">使用当前位置</button>
@@ -365,6 +423,12 @@
 
     function setListStatus(text) {
       $("listStatus").textContent = text;
+    }
+
+    function clearStoreSearchResults() {
+      $("storeSearchResults").classList.remove("show");
+      $("storeSearchResults").innerHTML = "";
+      $("storeSearchStatus").textContent = "搜索会限定在日本广岛县东广岛市附近。";
     }
 
     function openEditor() {
@@ -429,6 +493,7 @@
       locationManuallyEdited = false;
       setStatus("");
       setGeoStatus("");
+      clearStoreSearchResults();
       fillLocation(false);
       closeEditor();
     }
@@ -440,10 +505,10 @@
       $("cancelEditBtn").style.display = "inline-block";
       $("editActionsRow").style.display = "grid";
       $("name").value = store.name || "";
-      $("chainBrand").value = store.chainBrand || "";
       $("location").value = store.location || "";
       $("note").value = store.note || "";
       locationManuallyEdited = true;
+      clearStoreSearchResults();
       setGeoStatus("编辑模式：可手动修改位置，或点击“使用当前位置”覆盖。");
       setStatus("");
       openEditor();
@@ -480,7 +545,6 @@
         list.innerHTML = stores.map((s) => `
           <article class="card" data-id="${s.id}" data-name="${escapeHtml(s.name)}">
             <div class="name">${escapeHtml(s.name)}</div>
-            <div class="meta">品牌：${escapeHtml(s.chainBrand || "-")}</div>
             <div class="meta">位置：${escapeHtml(s.location || "-")}</div>
             <div class="meta">备注：${escapeHtml(s.note || "-")}</div>
             <div class="actions">
@@ -501,6 +565,54 @@
     });
     $("detectLocation").onclick = () => fillLocation(true);
     $("cancelEditBtn").onclick = resetForm;
+    $("searchStoreBtn").onclick = async () => {
+      const keyword = $("name").value.trim();
+      const results = $("storeSearchResults");
+      if (!keyword) {
+        $("storeSearchStatus").textContent = "请先输入店铺名称。";
+        return;
+      }
+      $("storeSearchStatus").textContent = "正在搜索东广岛市内相关店铺...";
+      results.classList.remove("show");
+      results.innerHTML = "";
+      try {
+        const params = new URLSearchParams({
+          q: `${keyword} supermarket Higashihiroshima Hiroshima Japan`,
+          format: "jsonv2",
+          limit: "5",
+          bounded: "1",
+          viewbox: "132.60,34.52,132.90,34.30",
+          "accept-language": "ja,zh-CN,en"
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+        if (!response.ok) throw new Error("搜索服务暂时不可用");
+        const data = await response.json();
+        const candidates = data.filter((item) => /東広島|Higashihiroshima|西条|Saijo|八本松|寺家|高屋/.test(item.display_name || ""));
+        if (!candidates.length) {
+          $("storeSearchStatus").textContent = "没有搜到明确结果。可以直接手动填写名称和位置后保存。";
+          return;
+        }
+        $("storeSearchStatus").textContent = "请选择一个结果确认，也可以继续手动修改。数据来源 OpenStreetMap。";
+        results.innerHTML = candidates.map((item, index) => `
+          <button class="result-card" type="button" data-index="${index}">
+            <strong>${escapeHtml(item.name || keyword)}</strong>
+            <span>${escapeHtml(item.display_name || "")}</span>
+          </button>
+        `).join("");
+        results.classList.add("show");
+        results.querySelectorAll("[data-index]").forEach((button) => {
+          button.onclick = () => {
+            const item = candidates[Number(button.dataset.index)];
+            $("name").value = item.name || keyword;
+            $("location").value = item.display_name || "";
+            locationManuallyEdited = true;
+            $("storeSearchStatus").textContent = "已带入搜索结果，可继续修改名称或位置。";
+          };
+        });
+      } catch (err) {
+        $("storeSearchStatus").textContent = `搜索失败：${err.message || "请手动填写"}`;
+      }
+    };
     $("addStoreBtn").onclick = () => {
       editingId = null;
       $("form").reset();
@@ -509,6 +621,7 @@
       $("cancelEditBtn").style.display = "none";
       $("editActionsRow").style.display = "none";
       setStatus("");
+      clearStoreSearchResults();
       fillLocation(false);
       openEditor();
     };
@@ -565,7 +678,7 @@
       e.preventDefault();
       const payload = {
         name: $("name").value.trim(),
-        chainBrand: $("chainBrand").value.trim(),
+        chainBrand: "",
         location: $("location").value.trim(),
         note: $("note").value.trim()
       };

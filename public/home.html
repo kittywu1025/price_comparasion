@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>价格收集公告</title>
+  <title>价格工具首页</title>
   <style>
     :root {
       --bg: #f2f6f5;
@@ -103,6 +103,36 @@
       gap: 10px;
     }
 
+    .steps {
+      margin: 8px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .steps li {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 8px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: #06735d;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .tag {
       display: inline-block;
       margin-bottom: 8px;
@@ -115,6 +145,7 @@
     }
 
     nav {
+      --active-index: 0;
       position: fixed;
       left: 50%;
       bottom: max(12px, env(safe-area-inset-bottom));
@@ -131,7 +162,27 @@
       z-index: 25;
     }
 
+    nav::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 20%;
+      border-radius: 999px;
+      background: #e9f7f3;
+      transform: translateX(calc(var(--active-index) * 100%));
+      transition: transform 0.22s ease;
+      z-index: 0;
+    }
+
+    nav[data-active="home"] { --active-index: 0; }
+    nav[data-active="list"] { --active-index: 1; }
+    nav[data-active="add"] { --active-index: 2; }
+    nav[data-active="stores"] { --active-index: 3; }
+    nav[data-active="profile"] { --active-index: 4; }
+
     nav a {
+      position: relative;
+      z-index: 1;
       text-align: center;
       text-decoration: none;
       color: #4f6562;
@@ -139,10 +190,11 @@
       line-height: 44px;
       height: 44px;
       font-weight: 600;
+      transition: color 0.18s ease;
     }
 
     nav a.active {
-      background: #e9f7f3;
+      background: transparent;
       color: #0c8f72;
     }
   </style>
@@ -150,44 +202,53 @@
 <body>
   <div class="app">
     <section class="hero">
-      <h1>价格收集公告</h1>
-      <p>这里放项目说明、最近更新和数据收集提醒。当前版本先以可用、免费、方便手机录入为优先。</p>
+      <h1>价格工具使用指南</h1>
+      <p>第一次使用先看这里。这个工具主要用来记录日本超市商品价格，方便以后比较哪里更便宜。</p>
     </section>
 
     <section class="quick-grid">
       <a class="quick-card" href="/add.html">
         <div>
-          <p class="quick-title">录入新价格</p>
-          <p class="quick-meta">扫码、拍照、选择店铺后保存</p>
+          <p class="quick-title">开始录入</p>
+          <p class="quick-meta">拍照、扫码、填价格和规格</p>
         </div>
       </a>
       <a class="quick-card" href="/index.html">
         <div>
-          <p class="quick-title">查看价格清单</p>
-          <p class="quick-meta">按最低价、店铺、历史走势查看</p>
+          <p class="quick-title">查看清单</p>
+          <p class="quick-meta">看最低价、店铺排行和历史价格</p>
         </div>
       </a>
     </section>
 
     <section class="notice-list">
       <article class="notice-card">
-        <span class="tag">当前重点</span>
-        <p class="notice-title">先把数据收集流程做顺</p>
-        <p class="notice-body">同条码商品会归到同一个商品下；不同店铺价格会在详情页里按店铺排行展示。</p>
+        <span class="tag">新手教程</span>
+        <p class="notice-title">怎么记录一条价格</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span><span>去“录入”页，先拍商品照片或扫码。</span></li>
+          <li><span class="step-num">2</span><span>填写中文名、价格、规格、税率和购买店铺。</span></li>
+          <li><span class="step-num">3</span><span>保存后可以在“清单”页查看同商品不同店铺的价格。</span></li>
+        </ul>
       </article>
       <article class="notice-card">
-        <span class="tag">使用建议</span>
-        <p class="notice-title">优先记录价格、规格、店铺和日期</p>
-        <p class="notice-body">图片可以后补；如果是组合规格，可以在录入页用规格计算器输入类似 100g*3。</p>
+        <span class="tag">省钱信息</span>
+        <p class="notice-title">日本羊毛优惠分享</p>
+        <p class="notice-body">这里后续会放日本生活相关优惠、注册奖励、实用活动等信息。内容会尽量只放我自己觉得靠谱、适合学生使用的。</p>
       </article>
       <article class="notice-card">
-        <span class="tag">待开发</span>
-        <p class="notice-title">联系开发者与评论反馈</p>
-        <p class="notice-body">后续会做反馈入口。免费方案优先考虑保存到 D1 的 feedback 表，开发者在后台页面查看。</p>
+        <span class="tag">邀请奖励</span>
+        <p class="notice-title">Mercari / 煤炉新人注册</p>
+        <p class="notice-body">邀请码：待填写。后续可以在这里放注册步骤、注意事项和活动有效期。</p>
+      </article>
+      <article class="notice-card">
+        <span class="tag">邀请奖励</span>
+        <p class="notice-title">PayPay 新人注册</p>
+        <p class="notice-body">邀请码：待填写。后续可以补充是否需要本人确认、活动是否限时、奖励什么时候到账。</p>
       </article>
     </section>
 
-    <nav>
+    <nav data-active="home">
       <a class="active" href="/home.html">首页</a>
       <a href="/index.html">清单</a>
       <a href="/add.html">录入</a>
