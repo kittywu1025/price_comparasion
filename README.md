@@ -91,8 +91,33 @@ node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256')
 - `/stores.html`
 - `/api/stores*`
 
+## 开发口令登录
+为了减少开发时反复收验证码，可以启用应用自己的开发口令登录。这个功能默认关闭，只有配置环境变量才可用。
+
+需要设置：
+
+- `DEV_LOGIN_EMAIL`：开发口令登录后绑定到哪个邮箱。
+- `DEV_LOGIN_PASSWORD_HASH`：开发口令的小写 SHA-256 哈希。
+- `DEV_LOGIN_SECRET`：用于签名登录 cookie 的随机长字符串，不要提交到 GitHub。
+
+生成口令哈希：
+
+```bash
+node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256').update('your-dev-password').digest('hex'))"
+```
+
+生成 cookie 签名密钥：
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+如果 Cloudflare Access 仍然保护 `/api/price-records*`、`/api/categories*`、`/api/feedback*`，开发口令登录后的请求仍会先被 Access 拦截。要使用开发口令登录，需要让这些 API 交给应用内认证处理，或在 Access 里为开发者单独配置可长期保持登录的策略。
+
 ## 接口
 - `GET /api/health`
+- `POST /api/dev-login`
+- `DELETE /api/dev-login`
 - `GET /api/me/stats`
 - `GET /api/me/profile`
 - `PUT /api/me/profile`

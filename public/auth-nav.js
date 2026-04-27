@@ -6,6 +6,7 @@
     .login-panel h2{margin:0;font-size:18px}.login-panel p{margin:0;color:#607270;font-size:13px;line-height:1.55}
     .login-panel label{display:grid;gap:6px;color:#425956;font-size:13px;font-weight:700}.login-panel input{height:40px;border:1px solid #dbe7e3;border-radius:12px;padding:0 10px;font:inherit;color:#1f2a2b;background:#f8fbfa;outline:none}
     .login-msg{min-height:18px;color:#607270;font-size:12px;line-height:1.4}
+    .dev-login-box{border-top:1px solid #edf3f1;padding-top:10px;display:grid;gap:8px}
     .login-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}.login-actions a,.login-actions button{height:40px;border-radius:12px;border:0;font:inherit;font-weight:700;text-decoration:none;display:grid;place-items:center;cursor:pointer}
     .login-primary{background:#0d9a7d;color:#fff}.login-secondary{background:#edf6f3;color:#1a5950}
     .login-actions.single{grid-template-columns:1fr}
@@ -56,12 +57,45 @@ function showLoginModal() {
         <button class="login-secondary" type="button" id="loginBack">返回</button>
         <a class="login-primary" href="${loginUrl}">去登录</a>
       </div>
+      <div class="dev-login-box">
+        <p>开发测试可以使用口令登录。这个入口只有后端配置了开发口令时才可用。</p>
+        <label>
+          开发口令
+          <input id="devLoginPassword" type="password" autocomplete="current-password" />
+        </label>
+        <button id="devLoginSubmit" class="login-secondary" type="button">使用口令登录</button>
+        <p id="devLoginMsg" class="login-msg"></p>
+      </div>
     </section>
   `;
   document.body.append(mask);
   mask.querySelector("#loginBack").onclick = () => {
     if (history.length > 1) history.back();
     else location.href = "products";
+  };
+  mask.querySelector("#devLoginSubmit").onclick = async () => {
+    const password = mask.querySelector("#devLoginPassword").value;
+    const msg = mask.querySelector("#devLoginMsg");
+    const button = mask.querySelector("#devLoginSubmit");
+    if (!password) {
+      msg.textContent = "请输入开发口令。";
+      return;
+    }
+    button.disabled = true;
+    msg.textContent = "正在登录...";
+    try {
+      const res = await fetch("/api/dev-login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "登录失败");
+      location.reload();
+    } catch (err) {
+      msg.textContent = err.message || "登录失败";
+      button.disabled = false;
+    }
   };
 }
 

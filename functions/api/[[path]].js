@@ -22,11 +22,15 @@ export async function onRequest(context) {
       return getImage(env, route.slice(1));
     }
 
+    if (route[0] === "dev-login") {
+      return handleDevLogin(request, env);
+    }
+
     if (!env.DB) {
       return json({ error: "Cloudflare D1 binding DB is missing" }, 500);
     }
 
-    if (requiresAccess(route, request) && !hasAccessSession(request)) {
+    if (requiresAccess(route, request) && !auth.email) {
       return json({ error: "login required" }, 401);
     }
 
@@ -74,14 +78,12 @@ function requiresAccess(route, request) {
   return request.method !== "GET";
 }
 
-function hasAccessSession(request) {
-  return Boolean(request.headers.get("cf-access-authenticated-user-email") || getAccessJwt(request));
-}
-
 async function getAuth(request, env) {
+  const devSession = await devSessionFromCookie(request, env);
   const email = String(
     request.headers.get("cf-access-authenticated-user-email") ||
     emailFromAccessJwt(getAccessJwt(request)) ||
+    devSession?.email ||
     ""
   ).trim().toLowerCase();
   const adminEmails = String(env.ACCESS_ADMIN_EMAILS || env.ADMIN_EMAILS || "")
@@ -108,6 +110,106 @@ async function sha256Hex(value) {
 
 function getAccessJwt(request) {
   return request.headers.get("cf-access-jwt-assertion") || cookieValue(request, "CF_Authorization");
+}
+
+async function handleDevLogin(request, env) {
+  if (request.method === "DELETE") {
+    return json(
+      { ok: true },
+      200,
+      { "set-cookie": "price_dev_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax" }
+    );
+  }
+
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const email = cleanDevEmail(env.DEV_LOGIN_EMAIL || env.DEV_AUTH_EMAIL || "");
+  const passwordHash = String(env.DEV_LOGIN_PASSWORD_HASH || env.DEV_AUTH_PASSWORD_HASH || "").trim().toLowerCase();
+  const secret = String(env.DEV_LOGIN_SECRET || env.DEV_AUTH_SECRET || "").trim();
+  if (!email || !passwordHash || !secret) {
+    return json({ error: "developer password login is not configured" }, 404);
+  }
+
+  const body = await readJson(request);
+  const password = String(body.password || "");
+  const candidateHash = await sha256Hex(password);
+  if (candidateHash !== passwordHash) {
+    return json({ error: "password is incorrect" }, 401);
+  }
+
+  const maxAge = 60 * 60 * 24 * 14;
+  const exp = Math.floor(Date.now() / 1000) + maxAge;
+  const token = await signDevSession({ email, exp }, secret);
+  return json(
+    { ok: true, email },
+    200,
+    { "set-cookie": `price_dev_session=${token}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax` }
+  );
+}
+
+async function devSessionFromCookie(request, env) {
+  const token = cookieValue(request, "price_dev_session");
+  const secret = String(env.DEV_LOGIN_SECRET || env.DEV_AUTH_SECRET || "").trim();
+  if (!token || !secret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [payloadText, signature] = parts;
+  const expected = await hmacSha256Base64Url(secret, payloadText);
+  if (!constantTimeEqual(signature, expected)) return null;
+  try {
+    const payload = JSON.parse(base64UrlDecode(payloadText));
+    if (!payload.email || Number(payload.exp || 0) < Math.floor(Date.now() / 1000)) return null;
+    return { email: cleanDevEmail(payload.email) };
+  } catch {
+    return null;
+  }
+}
+
+async function signDevSession(payload, secret) {
+  const payloadText = base64UrlEncode(JSON.stringify(payload));
+  const signature = await hmacSha256Base64Url(secret, payloadText);
+  return `${payloadText}.${signature}`;
+}
+
+async function hmacSha256Base64Url(secret, value) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+  return bytesToBase64Url(new Uint8Array(signed));
+}
+
+function base64UrlEncode(value) {
+  return bytesToBase64Url(new TextEncoder().encode(value));
+}
+
+function base64UrlDecode(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function constantTimeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i += 1) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+
+function cleanDevEmail(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function cookieValue(request, name) {
@@ -139,8 +241,8 @@ function getRoute(pathParam) {
   return [pathParam].filter(Boolean);
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { ...JSON_HEADERS, ...extraHeaders } });
 }
 
 async function readJson(request) {
