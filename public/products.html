@@ -1188,6 +1188,13 @@
         .replaceAll("'", "&#39;");
     }
 
+    function actorLabel(name, email, fallback = "-") {
+      const cleanName = String(name || "").trim();
+      const cleanEmail = String(email || "").trim();
+      if (cleanName && cleanEmail && cleanName !== cleanEmail) return `${cleanName} / ${cleanEmail}`;
+      return cleanName || cleanEmail || fallback;
+    }
+
     function renderEditImages(imageUrls) {
       const preview = $("modal").querySelector("#editPhotoPreview");
       const strip = $("modal").querySelector("#editPhotoStrip");
@@ -1372,7 +1379,7 @@
               <div class="stat"><p class="stat-k">购买店铺</p><p class="stat-v">${top.storeName ?? "-"}</p></div>
               <div class="stat"><p class="stat-k">记录时间</p><p class="stat-v">${top.recordDate || "-"}</p></div>
             </div>
-            <p class="audit-line">创建：${escapeHtml(top.createdByName || top.createdBy || "-")}；最后修改：${escapeHtml(top.lastModifiedByName || top.lastModifiedBy || "暂无修改")}</p>
+            <p class="audit-line">创建：${escapeHtml(actorLabel(top.createdByName, top.createdBy))}；最后修改：${escapeHtml(actorLabel(top.lastModifiedByName, top.lastModifiedBy, "暂无修改"))}</p>
             <div class="detail-section">
               <p class="detail-section-title">各店现价排行</p>
               ${renderStoreRankings(data.records || [])}

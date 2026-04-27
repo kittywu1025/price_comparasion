@@ -405,7 +405,7 @@
         currentStats = data;
 
         const displayName = data.user?.displayName || "";
-        $("userLine").textContent = `${displayName || data.user?.email || "未登录"}${data.user?.isAdmin ? " · 管理员" : ""}`;
+        renderUserLine(data.user);
         $("displayNameInput").value = displayName;
         setText("myRecords", data.mine?.priceRecords ?? 0);
         setText("myProducts", data.mine?.products ?? 0);
@@ -440,7 +440,7 @@
         msg.textContent = "已保存。";
         if (currentStats?.user) {
           currentStats.user.displayName = data.displayName || "";
-          $("userLine").textContent = `${data.displayName || currentStats.user.email}${currentStats.user.isAdmin ? " · 管理员" : ""}`;
+          renderUserLine(currentStats.user);
         }
       } catch (err) {
         msg.textContent = err.message || "保存失败";
@@ -523,7 +523,7 @@
         }
         mount.innerHTML = data.map((item) => `
           <article class="feedback-item">
-            <p class="feedback-meta">${escapeHtml(item.createdByName || item.createdBy || "未知用户")} · ${escapeHtml(item.createdAt || "-")}</p>
+            <p class="feedback-meta">${escapeHtml(actorLabel(item.createdByName, item.createdBy, "未知用户"))} · ${escapeHtml(item.createdAt || "-")}</p>
             <p class="feedback-message">${escapeHtml(item.message || "")}</p>
           </article>
         `).join("");
@@ -533,6 +533,27 @@
     }
 
     setupSwipeNav();
+
+    window.addEventListener("profile-updated", (event) => {
+      if (!currentStats?.user) return;
+      currentStats.user.displayName = event.detail?.displayName || "";
+      $("displayNameInput").value = currentStats.user.displayName;
+      renderUserLine(currentStats.user);
+    });
+
+    function renderUserLine(user = {}) {
+      const name = user.displayName || "未设置";
+      const email = user.email || "未登录";
+      $("userLine").innerHTML =
+        `用户名：${escapeHtml(name)}${user.isAdmin ? " · 管理员" : ""}<br />绑定邮箱：${escapeHtml(email)}`;
+    }
+
+    function actorLabel(name, email, fallback = "-") {
+      const cleanName = String(name || "").trim();
+      const cleanEmail = String(email || "").trim();
+      if (cleanName && cleanEmail && cleanName !== cleanEmail) return `${cleanName} / ${cleanEmail}`;
+      return cleanName || cleanEmail || fallback;
+    }
 
     function setupSwipeNav() {
       const nav = document.querySelector("nav[data-active]");
