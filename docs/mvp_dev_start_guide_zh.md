@@ -1,99 +1,101 @@
-# 日本超市价格比价工具：MVP 开发落地指南
+# 日本超市价格比价工具：当前开发指南
 
-> 目标：把 PRD 直接转换成可执行的开发计划，按最短路径上线 V1.0。
+> 本文档按当前代码状态维护。早期 Next.js / Supabase 方案已经废弃，当前项目使用 Cloudflare Pages + Pages Functions + D1 + R2。
 
-## 1. 先定技术方案（建议）
-- 前端：Next.js（App Router）+ TypeScript + Tailwind CSS（移动端优先）。
-- 后端：Next.js Route Handlers（或独立 Nest/FastAPI，MVP 推荐前后端同仓）。
-- 数据库：PostgreSQL（建议 Supabase 托管，含鉴权和对象存储）。
-- 图片：对象存储（Supabase Storage / S3 兼容），上传前压缩到 1280px。
-- 鉴权：邮箱登录（magic link 或 email+password）。
+## 1. 当前技术方案
 
-这样选的原因：
-1. 1–5 人使用规模，部署和维护成本最低。
-2. 数据+鉴权+文件在一个平台，开发速度快。
-3. 后续可平滑升级到 PWA 或原生 App。
+- 前端：`public/` 下原生 HTML / CSS / JavaScript，移动端优先。
+- 本地开发：`server.js` 提供静态页面和本地 JSON API。
+- 本地数据：`data/app.json`，通过 `src/storage/*` 读写。
+- 线上运行：Cloudflare Pages 托管静态页面。
+- 线上 API：`functions/api/[[path]].js`，由 Cloudflare Pages Functions 执行。
+- 线上数据库：Cloudflare D1，binding 名为 `DB`。
+- 图片存储：Cloudflare R2，binding 名为 `IMAGES`。
+- 登录来源：Cloudflare Access 邮箱登录，或开发口令登录。
 
-## 2. 先做的 4 个里程碑
+## 2. 本地开发
 
-### M1：数据层跑通（1–2 天）
-- 建库建表（见 `db/schema.sql`）。
-- 初始化基础分类、店铺。
-- 完成单位价格计算函数（服务端和前端都复用同一套规则）。
-
-### M2：核心录入流程（2–4 天）
-- 登录。
-- 添加价格记录页（必填项优先）。
-- 图片上传（失败不阻塞保存文字记录）。
-- 保存后回首页。
-
-### M3：查询比价流程（2–3 天）
-- 首页（商品聚合卡片，展示当前最低单位价）。
-- 搜索（中文名/日文名/品牌/条形码）。
-- 分类、店铺筛选。
-- 商品详情页（同商品多店铺多时间记录，最低单位价高亮）。
-
-### M4：收尾上线（1–2 天）
-- 空状态/错误状态文案。
-- 移动端适配（iPhone SE 到 Pro Max）。
-- 导入 20 条真实数据回归验证。
-
-## 3. 必须先实现的单位价格规则
-
-```text
-重量类：g、kg -> 统一换算为每 100g
-容量类：ml、L -> 统一换算为每 100ml
-数量类：个、袋、包、盒、枚、本、瓶、罐、卷 -> 每 1 单位
+```bash
+npm run init-db
+npm run seed   # 可选
+npm start
 ```
 
-计算口径：
-- 统一使用税后价格 `price_tax_in`。
-- `spec_value` 必须 > 0。
-- 前端输入时实时计算，后端保存时再次计算并覆盖，避免脏数据。
+常用页面：
 
-## 4. API 最小集合（MVP）
-1. `POST /api/auth/login` 邮箱登录。
-2. `GET /api/products` 商品列表（支持 q/category/store）。
-3. `GET /api/products/:id` 商品详情 + 历史价格。
-4. `POST /api/price-records` 新增价格记录（核心接口）。
-5. `GET /api/stores` / `POST /api/stores` 店铺管理。
-6. `GET /api/categories` 分类列表。
-7. `POST /api/upload` 图片上传。
+- 首页：`http://localhost:3000/home.html`
+- 清单：`http://localhost:3000/products`
+- 录入：`http://localhost:3000/add.html`
+- 店铺：`http://localhost:3000/stores.html`
+- 我的：`http://localhost:3000/profile.html`
+- 日语读音标注：`http://localhost:3000/kana.html`
 
-## 5. 页面开发顺序（不要反）
-1. 登录页。
-2. 添加页（先纯文字，再接图片上传）。
-3. 首页列表（先按最近记录，后加聚合最低价）。
-4. 商品详情页。
-5. 店铺管理页。
-6. 我的页面（最后做简版统计）。
+## 3. 当前页面结构
 
-## 6. 每天都要跑的验收清单
-- 能新增一条价格记录。
-- 单位价格计算正确。
-- 同一商品可出现多条历史记录。
-- 商品详情能看出“最低单位价是哪家店、哪天记录”。
-- 手机端输入不费劲（单手可操作，关键按钮可点）。
+- `home.html`：新手教程、优惠信息、快捷入口。
+- `products.html`：商品清单、搜索、商品详情、编辑和删除价格记录。
+- `add.html`：录入商品价格、扫码、拍照/相册、快速填入、重复商品提示。
+- `stores.html`：店铺列表、新增、编辑、删除、点击店铺进入该店商品。
+- `profile.html`：个人贡献、用户名、反馈入口、开发者模式。
+- `kana.html`：日语句子汉字读音标注和本地生词表。
+- `auth-nav.js`：登录弹窗、用户名弹窗、开发口令登录。
 
-## 7. 第一周任务分配建议（单人开发版）
-- Day 1：建表 + 登录 + 分类/店铺初始化。
-- Day 2：添加记录表单 + 单位价格实时计算。
-- Day 3：保存价格记录 + 图片上传。
-- Day 4：首页搜索筛选。
-- Day 5：商品详情最低价高亮 + 回归测试。
+## 4. 当前核心功能
 
-## 8. 风险与规避
-- 风险：商品重复（无条形码）。
-  - 规避：保存时给出“可能同商品”提示，不自动合并。
-- 风险：图片上传失败影响录入。
-  - 规避：图片为可选；上传失败允许先保存文字。
-- 风险：单位混乱导致计算错误。
-  - 规避：单位必须从枚举选择，不允许自由输入。
+- 商品价格记录新增、修正、删除。
+- 商品按名称/条码聚合展示。
+- 最低价标记：按关键词包含关系计算“最低价”；同条码或同中文名用于“同产品”逻辑，但同产品最低价暂不强调展示。
+- 价格走势：详情页使用税后价格走势。
+- 历史记录：简化展示记录日期和税后价格。
+- 店铺管理：店铺页公开可看；修改、新增、删除需要登录。
+- 权限：管理员可删除全部数据；普通用户只能删除自己创建的数据，可以修改别人数据；撤回只能撤回自己修改或管理员操作。
+- 图片：前端压缩，最多 4 张，随价格记录提交；线上保存到 R2。
+- 个人主页：首次登录设置用户名，显示用户名和绑定邮箱。
+- 反馈：普通用户提交，管理员打开开发者模式后查看。
 
-## 9. 现在可以立刻开始的动作
-1. 先执行 `db/schema.sql` 建库。
-2. 初始化 5 个分类、5 个店铺。
-3. 搭建“登录 + 添加记录页 + 保存接口”。
-4. 用真实商品录入 10 条，验证单位价格和最低价逻辑。
+## 5. 单位价格规则
 
-> 按以上顺序开发，通常 7–10 天可以交付可用 MVP。
+统一使用税后价格计算。
+
+```text
+g / kg  -> 每 100g
+ml / L  -> 每 100ml
+个      -> 每个
+```
+
+后端保存时会再次计算并覆盖前端提交值，避免脏数据。
+
+## 6. 数据库初始化
+
+新 D1 数据库执行：
+
+```bash
+npx wrangler d1 execute price-comparison --remote --file db/cloudflare-d1-schema.sql
+```
+
+`db/cloudflare-d1-store-ownership.sql` 是早期线上库的兼容迁移脚本，只在旧库缺少 `stores.created_by` 或 revision 表时使用。新库不要重复执行这个迁移。
+
+## 7. Cloudflare 环境变量
+
+普通变量由 `wrangler.toml` 管理，例如：
+
+```toml
+[vars]
+ACCESS_ADMIN_EMAIL_HASHES = "your-lowercase-email-sha256"
+```
+
+机密变量使用 Pages secret，不写进 GitHub：
+
+```bash
+npx wrangler pages secret put DEV_LOGIN_EMAIL --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_PASSWORD_HASH --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_SECRET --project-name price-comparasion
+```
+
+## 8. 开发注意事项
+
+- `reference/` 只读，不修改、不提交。
+- 每次推送代码前同步更新 README。
+- `data/app.json` 可能会被本地服务自动补字段，除非明确要更新本地种子数据，否则不要混入提交。
+- 功能优先保持免费方案；涉及付费 API 或不可控额度前先确认。
+- 页面改动需要考虑手机端安全区、底部导航和小屏宽度。

@@ -1,163 +1,184 @@
 # Cloudflare 部署步骤
 
-这个项目的 Cloudflare 目标结构：
+当前线上结构：
 
-- `public/`：静态页面，由 Cloudflare Pages 托管。
-- `functions/api/[[path]].js`：API，由 Cloudflare Pages Functions 执行。
-- D1 `DB`：存商品、店铺、分类、价格历史。
-- R2 `IMAGES`：存商品图片。
-- Cloudflare Access：限制只有允许的人能打开页面。
+- `public/`：Cloudflare Pages 静态页面。
+- `functions/api/[[path]].js`：Cloudflare Pages Functions API。
+- D1 binding `DB`：商品、店铺、价格记录、用户资料、反馈。
+- R2 binding `IMAGES`：商品图片。
+- Cloudflare Access：只作为邮箱登录入口，不建议拦截整个网站。
 
-## 1. 创建 D1 数据库
+## 1. 检查 `wrangler.toml`
+
+当前项目通过 `wrangler.toml` 管理普通环境变量和绑定：
+
+```toml
+name = "price-comparasion"
+pages_build_output_dir = "public"
+
+[vars]
+ACCESS_ADMIN_EMAIL_HASHES = "your-lowercase-email-sha256"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "price-comparison"
+database_id = "..."
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "price-comparison-images"
+```
+
+Cloudflare 控制台提示“环境变量由 wrangler.toml 管理”是正常现象。普通变量改 `wrangler.toml`；机密变量用 Pages secret。
+
+## 2. 创建 D1 数据库
 
 1. 打开 Cloudflare Dashboard。
-2. 进入 `Workers & Pages`。
-3. 左侧找到 `D1 SQL Database`。
-4. 点击 `Create database`。
-5. 数据库名填：`price-comparison`。
-6. 创建完成后复制 `database_id`。
-7. 打开项目里的 `wrangler.toml`，把：
-   `REPLACE_WITH_D1_DATABASE_ID`
-   替换成刚才复制的 `database_id`。
+2. 进入 `Workers & Pages` 或 `Storage & Databases`。
+3. 找到 D1。
+4. 创建数据库：`price-comparison`。
+5. 复制 `database_id`，填入 `wrangler.toml`。
 
-## 2. 创建 R2 图片桶
-
-1. 打开 Cloudflare Dashboard。
-2. 进入 `R2 Object Storage`。
-3. 点击 `Create bucket`。
-4. Bucket 名称填：`price-comparison-images`。
-5. 如果你之后想本地预览也测图片上传，可以再建一个：
-   `price-comparison-images-dev`。
-
-## 3. 初始化 D1 表结构
-
-在项目根目录运行：
+初始化新数据库：
 
 ```bash
 npx wrangler login
 npx wrangler d1 execute price-comparison --remote --file db/cloudflare-d1-schema.sql
 ```
 
-执行成功后，D1 里会有这些表：
+注意：`db/cloudflare-d1-store-ownership.sql` 是旧库迁移脚本。新数据库执行 `cloudflare-d1-schema.sql` 即可，不要重复执行旧迁移。
 
-- `categories`
-- `stores`
-- `products`
-- `price_records`
+## 3. 创建 R2 图片桶
 
-## 4. 导入当前本地数据
+1. 打开 Cloudflare Dashboard。
+2. 进入 R2。
+3. 创建 bucket：`price-comparison-images`。
+4. 可选创建开发 bucket：`price-comparison-images-dev`。
+5. 确认 `wrangler.toml` 中 binding 名为 `IMAGES`。
 
-先把当前本地 JSON 数据导出成 D1 SQL：
+## 4. 创建 Pages 项目
+
+1. 进入 Cloudflare `Workers & Pages`。
+2. 点击 `Create application`。
+3. 选择 `Pages`。
+4. 连接 GitHub 仓库。
+5. 构建设置：
+   - Framework preset：`None`
+   - Build command：留空
+   - Build output directory：`public`
+6. 保存并部署。
+
+如果项目由 GitHub 自动部署，后续推送 `main` 后等待 Pages 自动部署完成即可。
+
+## 5. 绑定 D1 和 R2
+
+如果 `wrangler.toml` 已正确提交，Pages 会按配置读取绑定。也可以在 Pages 项目设置里检查：
+
+- D1 binding：`DB` -> `price-comparison`
+- R2 binding：`IMAGES` -> `price-comparison-images`
+
+binding 名必须严格是 `DB` 和 `IMAGES`。
+
+## 6. 管理员配置
+
+不要把真实邮箱写进公开仓库。使用邮箱小写后的 SHA-256：
+
+```bash
+node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256').update('your-email@example.com'.toLowerCase()).digest('hex'))"
+```
+
+然后填入 `wrangler.toml`：
+
+```toml
+[vars]
+ACCESS_ADMIN_EMAIL_HASHES = "生成的哈希"
+```
+
+推送后等待 Cloudflare Pages 重新部署。
+
+## 7. 开发口令登录 secret
+
+开发口令不要写入 `wrangler.toml`，使用 Pages secret：
+
+```bash
+node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256').update('你的开发口令').digest('hex'))"
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+依次设置：
+
+```bash
+npx wrangler pages secret put DEV_LOGIN_EMAIL --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_PASSWORD_HASH --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_SECRET --project-name price-comparasion
+```
+
+设置后重新部署 Pages。
+
+## 8. Cloudflare Access 推荐配置
+
+当前应用已经有自己的登录弹窗和 API 权限判断。推荐 Access 只保护登录入口：
+
+- `/api/auth*`
+
+不要保护这些页面，否则用户看不到应用内登录弹窗：
+
+- `/add.html`
+- `/profile.html`
+- `/stores.html`
+- `/products`
+- `/home.html`
+
+也不建议保护写入 API，否则开发口令登录会被 Access 提前拦截：
+
+- `/api/price-records*`
+- `/api/categories*`
+- `/api/feedback*`
+- 非 GET 的 `/api/stores*`
+
+这些接口未登录时会由应用返回 `401 login required`。
+
+如果你坚持用 Access 保护写入 API，也可以，但开发口令登录不能绕过这些路径，需要继续收 Access 验证码或把 Access 会话时间调长。
+
+## 9. 导入本地数据
+
+导出本地 JSON：
 
 ```bash
 node scripts/export-local-json-to-d1-sql.mjs
 ```
 
-会生成：
-
-```text
-tmp/cloudflare-import.sql
-```
-
-然后执行：
+导入远端 D1：
 
 ```bash
 npx wrangler d1 execute price-comparison --remote --file tmp/cloudflare-import.sql
 ```
 
-注意：本地 JSON 里如果有 base64 图片，导入脚本会自动跳过这些图片，因为 D1 不应该存图片正文。之后新增图片会存到 R2。
+从飞书导出的参考表格生成导入 SQL：
 
-## 5. 创建 Cloudflare Pages 项目
-
-1. 打开 Cloudflare Dashboard。
-2. 进入 `Workers & Pages`。
-3. 点击 `Create application`。
-4. 选择 `Pages`。
-5. 选择 `Connect to Git`。
-6. 选择这个 GitHub 仓库。
-7. 构建设置：
-   - Framework preset：`None`
-   - Build command：留空
-   - Build output directory：`public`
-8. 保存并部署。
-
-## 6. 绑定 D1 和 R2
-
-进入刚创建的 Pages 项目：
-
-1. 打开 `Settings`。
-2. 打开 `Bindings`。
-3. 添加 D1 binding：
-   - Variable name：`DB`
-   - D1 database：`price-comparison`
-4. 添加 R2 binding：
-   - Variable name：`IMAGES`
-   - R2 bucket：`price-comparison-images`
-5. 保存后重新部署一次项目。
-
-绑定名必须严格叫 `DB` 和 `IMAGES`，否则 API 会报 binding missing。
-
-## 7. 配置 Cloudflare Access
-
-Access 用来控制谁能新增、修改、上传数据。推荐配置为：
-
-- 清单页公开可看。
-- 录入页、店铺页、写入相关 API 必须登录。
-
-不要继续用 `*` 保护整个网站，否则清单页也会要求登录。
-
-1. 进入 Cloudflare `Zero Trust`。
-2. 如果第一次使用，先创建 Team name。
-3. 进入 `Access` > `Applications`。
-4. 点击 `Add an application`。
-5. 选择 `Self-hosted`。
-6. Application name 填：`price-comparison`。
-7. Application domain 填：`price-comparasion.pages.dev`。
-8. 在 Target / 目标里添加这些路径：
-   - `/add.html`
-   - `/stores.html`
-   - `/api/stores*`
-   - `/api/price-records*`
-   - `/api/categories*`
-9. Policy 创建：
-   - Action：`Allow`
-   - Include：`Emails`
-   - 填你自己和允许使用的朋友邮箱
-10. 保存。
-
-配置完后，别人可以直接打开清单页查看；只有进入录入、店铺管理，或调用写入 API 时才需要邮箱验证。
-
-## 8. 自定义登录页文案
-
-默认 Cloudflare Access 登录页是英文，不够直观。可以改成更像“请登录”的页面。
-
-1. 进入 Cloudflare `Zero Trust`。
-2. 打开 `Reusable components`。
-3. 打开 `Custom pages`。
-4. 找到 `Access login page`。
-5. 点击 `Manage`。
-6. 建议这样填写：
-   - Organization name：`价格比价工具`
-   - Header：`请登录`
-   - Footer：`输入已授权的邮箱，系统会发送验证码。未授权邮箱无法新增、修改或上传数据。`
-   - Background color：选择接近当前应用的浅绿色或白色
-7. 保存。
-
-注意：Cloudflare 默认按钮文案可能仍显示英文，例如 `Send me a code`。如果之后需要完全中文化，可以再做 Custom HTML 登录页。
-
-## 9. 验证
-
-部署完成后打开：
-
-```text
-https://你的-pages域名/index.html
+```bash
+python3 scripts/reference_xlsx_to_d1_import.py
+npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-import.sql
 ```
 
-检查：
+`reference/` 只读，不修改、不提交。
 
-1. 清单页能打开。
-2. 店铺页能看到 D1 里的店铺。
-3. 录入页能新增商品。
-4. 拍照/上传图片后，图片能在清单和详情里显示。
-5. D1 的 `price_records` 表新增了记录。
-6. R2 桶里新增了图片对象。
+## 10. 验证
+
+部署完成后检查：
+
+- `https://price-comparasion.pages.dev/home.html`
+- `https://price-comparasion.pages.dev/products`
+- `https://price-comparasion.pages.dev/add.html`
+- `https://price-comparasion.pages.dev/stores.html`
+- `https://price-comparasion.pages.dev/profile.html`
+- `https://price-comparasion.pages.dev/kana.html`
+
+重点验证：
+
+1. 清单和店铺页未登录可查看。
+2. 录入页和我的页面未登录会显示应用内登录弹窗。
+3. 登录后可新增价格记录。
+4. 图片上传后可通过 `/api/images/...` 显示。
+5. D1 新增 `price_records`。
+6. R2 新增图片对象。
