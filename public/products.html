@@ -1317,7 +1317,7 @@
       const access = await getRecordAccess(recordId);
       if (!access.canDelete) {
         if (access.currentUser && !access.isAdmin) {
-          throw new Error("当前账号不是管理员，只能删除自己创建的数据。请确认 Cloudflare Pages 已配置 ACCESS_ADMIN_EMAILS。");
+          throw new Error("当前账号不是管理员，只能删除自己创建的数据。请确认 Cloudflare Pages 已配置 ACCESS_ADMIN_EMAIL_HASHES。");
         }
         throw new Error("你只能删除自己创建的数据。");
       }

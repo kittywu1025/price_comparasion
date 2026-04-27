@@ -45,6 +45,7 @@ npm start
 - 录入：http://localhost:3000/add.html
 - 店铺：http://localhost:3000/stores.html
 - 我的：http://localhost:3000/profile.html
+- 日语读音标注：http://localhost:3000/kana.html
 
 ## Cloudflare 数据导入
 从参考表格生成 SQL：
@@ -80,18 +81,21 @@ node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256')
 如果没有配置该变量，登录用户只能删除自己创建的数据，不能删除别人创建或导入的数据。
 
 ## Cloudflare Access 路径建议
-为了让公开浏览和应用内登录弹窗同时生效，Access 应只保护登录入口和写入 API：
+为了让公开浏览、应用内登录弹窗和开发口令登录同时生效，Access 建议只保护登录入口：
 
 - `/api/auth*`
+
+不要保护这些页面或接口，否则用户看不到应用内登录弹窗，开发口令登录也无法绕过 Access：
+
+- `/add.html`
+- `/profile.html`
+- `/stores.html`
+- `/api/stores*`
 - `/api/price-records*`
 - `/api/categories*`
 - `/api/feedback*`
 
-不要保护这些页面或接口，否则用户看不到应用内登录弹窗或公开店铺列表：
-
-- `/add.html`
-- `/stores.html`
-- `/api/stores*`
+这些写入接口未登录时会由应用自身返回 `401 login required`。
 
 ## 开发口令登录
 为了减少开发时反复收验证码，可以启用应用自己的开发口令登录。这个功能默认关闭，只有配置环境变量才可用。
