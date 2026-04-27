@@ -9,6 +9,7 @@
 
 ## 当前功能
 - 首页：新手教程、快速入口、生活优惠与邀请码教程。
+- 学习工具：首页快捷入口可进入日语读音标注工具；输入日语句子后识别含汉字词，显示/隐藏假名读音，删除后加入熟知列表并默认不再标注。
 - 底部导航：五个主页面统一使用滑块式 tabbar，支持在底部导航区域左右滑动切换页面。
 - 商品清单：按商品聚合展示价格，支持全部/名称/店铺范围搜索、店铺筛选、最低价标记、限时优惠标记；卡片上的价格、店铺和单价统一来自该商品的最新记录，最低价只作为标记展示；空结果会显示可点击的录入引导。
 - 商品详情：头部左侧显示紧凑商品图，右侧显示中文名和日文名；查看税后总价、规格、店铺、记录时间、创建者、最后修改者、各店现价排行、历史记录、税后价格走势。
@@ -95,7 +96,9 @@ node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256')
 ## 开发口令登录
 为了减少开发时反复收验证码，可以启用应用自己的开发口令登录。这个功能默认关闭，只有配置环境变量才可用。
 
-需要设置：
+这个项目的普通环境变量由 `wrangler.toml` 管理，所以 Cloudflare 控制台会禁止直接保存普通变量。开发口令相关信息不要写进 `wrangler.toml`，统一作为加密 secret 设置。
+
+需要设置 3 个 secret：
 
 - `DEV_LOGIN_EMAIL`：开发口令登录后绑定到哪个邮箱。
 - `DEV_LOGIN_PASSWORD_HASH`：开发口令的小写 SHA-256 哈希。
@@ -112,6 +115,16 @@ node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256')
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+设置到 Cloudflare Pages：
+
+```bash
+npx wrangler pages secret put DEV_LOGIN_EMAIL --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_PASSWORD_HASH --project-name price-comparasion
+npx wrangler pages secret put DEV_LOGIN_SECRET --project-name price-comparasion
+```
+
+每条命令运行后，把对应值粘贴进去确认即可。设置 secret 后，需要重新部署一次 Pages，线上环境才会读到新值。
 
 如果 Cloudflare Access 仍然保护 `/api/price-records*`、`/api/categories*`、`/api/feedback*`，开发口令登录后的请求仍会先被 Access 拦截。要使用开发口令登录，需要让这些 API 交给应用内认证处理，或在 Access 里为开发者单独配置可长期保持登录的策略。
 

@@ -190,6 +190,17 @@
       line-height: 1.5;
     }
 
+    .tool-card {
+      grid-column: 1 / -1;
+      min-height: 72px;
+      border-style: dashed;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .tool-card .tag {
+      margin-bottom: 6px;
+    }
+
     nav {
       --active-index: 0;
       position: fixed;
@@ -277,6 +288,13 @@
         <div>
           <p class="quick-title">查看清单</p>
           <p class="quick-meta">看最低价、店铺排行和历史价格</p>
+        </div>
+      </a>
+      <a class="quick-card tool-card" href="kana.html">
+        <div>
+          <span class="tag">学习工具</span>
+          <p class="quick-title">日语读音标注</p>
+          <p class="quick-meta">输入日语句子，自动标注汉字假名读音</p>
         </div>
       </a>
     </section>

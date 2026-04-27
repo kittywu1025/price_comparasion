@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>日语读音标注</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #fff;
+      --soft: #f7fbfa;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --danger: #c93f3f;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(20px + env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Hiragino Sans", "Noto Sans JP", "Noto Sans SC", sans-serif;
+    }
+
+    .app {
+      width: min(760px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 8px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .back-link {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.05);
+      display: grid;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 118px;
+      resize: vertical;
+      padding: 10px;
+      line-height: 1.65;
+    }
+
+    input {
+      height: 40px;
+      padding: 0 10px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    button {
+      height: 40px;
+      border: 0;
+      border-radius: 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-light { background: #edf6f3; color: #1a5950; padding: 0 12px; }
+    .btn-danger { background: #feecec; color: var(--danger); padding: 0 12px; }
+    .btn-active { background: #def5ee; color: #05715b; box-shadow: inset 0 0 0 1px #9ad8c8; }
+
+    .result {
+      min-height: 112px;
+      border: 1px dashed #c9ddd7;
+      border-radius: var(--radius-md);
+      background: #fbfefd;
+      padding: 12px;
+      font-size: 18px;
+      line-height: 2.05;
+      word-break: break-word;
+    }
+
+    .word {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
+      margin: 0 2px;
+      border: 1px solid #cce5dd;
+      border-radius: 10px;
+      background: #f3fbf8;
+      padding: 1px 6px;
+      color: #102f2b;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    .word.hidden-reading .reading,
+    .reading-global-hidden .word .reading { display: none; }
+    .word.selected { border-color: var(--primary); background: #dff6ef; box-shadow: 0 0 0 2px rgba(13, 154, 125, 0.16); }
+    .reading { color: #0b7f68; font-size: 0.76em; font-weight: 700; }
+    .missing { color: #b17200; }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .list { display: grid; gap: 8px; }
+
+    .vocab-row {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      padding: 9px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .vocab-word {
+      font-size: 15px;
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    .vocab-reading {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .empty {
+      border: 1px dashed #c9ddd7;
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .editor-mask {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      background: rgba(7, 19, 18, 0.46);
+      z-index: 30;
+    }
+
+    .editor-mask.show { display: flex; }
+
+    .editor-panel {
+      width: min(420px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      border-radius: 18px;
+      border: 1px solid #dceae6;
+      background: #fff;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 10px;
+    }
+
+    .editor-panel h2 { margin: 0; font-size: 16px; }
+
+    @media (max-width: 420px) {
+      .hero { padding: 14px 12px; }
+      .hero h1 { font-size: 19px; }
+      .actions { grid-template-columns: 1fr; }
+      .result { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <h1>日语读音标注</h1>
+        <a class="back-link" href="home.html">返回首页</a>
+      </div>
+      <p>输入日语句子后，会识别含汉字的词并显示假名。删除的词会进入熟知列表，之后默认不再标注。</p>
+    </section>
+
+    <section class="panel">
+      <label>
+        日语句子
+        <textarea id="sourceText" placeholder="例：私は広島大学の学生です。今日スーパーで商品価格を確認します。"></textarea>
+      </label>
+      <div class="actions">
+        <button id="analyzeBtn" class="btn-primary" type="button">识别标注</button>
+        <button id="clearBtn" class="btn-light" type="button">清空输入</button>
+      </div>
+      <p class="hint">单击词块显示/隐藏读音；长按词块进入多选。未命中的读音可点“补读音”。</p>
+    </section>
+
+    <section class="panel">
+      <div class="mini-actions">
+        <button id="toggleAllBtn" class="btn-light" type="button">隐藏全部读音</button>
+        <button id="selectModeBtn" class="btn-light" type="button">多选</button>
+        <button id="hideSelectedBtn" class="btn-light" type="button">隐藏所选</button>
+        <button id="showSelectedBtn" class="btn-light" type="button">显示所选</button>
+        <button id="deleteSelectedBtn" class="btn-danger" type="button">删除所选</button>
+      </div>
+      <div id="result" class="result"></div>
+    </section>
+
+    <section class="panel">
+      <div class="mini-actions">
+        <button id="restoreKnownBtn" class="btn-light" type="button">恢复熟知词</button>
+        <button id="exportBtn" class="btn-light" type="button">导出生词</button>
+      </div>
+      <p class="hint">当前被标注的词会自动加入生词表；删除代表已经熟知，之后不会再显示，直到你点击“恢复熟知词”。</p>
+      <div id="vocabList" class="list"></div>
+    </section>
+  </div>
+
+  <div id="editorMask" class="editor-mask">
+    <section class="editor-panel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <h2 id="editorTitle">补充读音</h2>
+      <label>单词<input id="editWord" readonly /></label>
+      <label>假名读音<input id="editReading" placeholder="例如 がくせい" /></label>
+      <div class="actions">
+        <button id="saveReadingBtn" class="btn-primary" type="button">保存</button>
+        <button id="cancelReadingBtn" class="btn-light" type="button">取消</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const VOCAB_KEY = "kanaTool:vocab";
+    const KNOWN_KEY = "kanaTool:known";
+    const TEXT_KEY = "kanaTool:lastText";
+    const DICTIONARY = {
+      "私": "わたし", "今日": "きょう", "明日": "あした", "昨日": "きのう", "日本": "にほん",
+      "広島": "ひろしま", "東広島": "ひがしひろしま", "西条": "さいじょう", "大学": "だいがく",
+      "広島大学": "ひろしまだいがく", "学生": "がくせい", "先生": "せんせい", "学校": "がっこう",
+      "勉強": "べんきょう", "授業": "じゅぎょう", "宿題": "しゅくだい", "試験": "しけん",
+      "友達": "ともだち", "家": "いえ", "部屋": "へや", "駅": "えき", "電車": "でんしゃ",
+      "自転車": "じてんしゃ", "店": "みせ", "店員": "てんいん", "商品": "しょうひん",
+      "価格": "かかく", "値段": "ねだん", "税": "ぜい", "税込": "ぜいこみ", "税抜": "ぜいぬき",
+      "円": "えん", "安い": "やすい", "高い": "たかい", "買う": "かう", "買い物": "かいもの",
+      "確認": "かくにん", "入力": "にゅうりょく", "登録": "とうろく", "追加": "ついか",
+      "削除": "さくじょ", "表示": "ひょうじ", "写真": "しゃしん", "画像": "がぞう",
+      "名前": "なまえ", "中国語": "ちゅうごくご", "日本語": "にほんご", "英語": "えいご",
+      "読む": "よむ", "書く": "かく", "食べる": "たべる", "飲む": "のむ", "行く": "いく",
+      "来る": "くる", "帰る": "かえる", "見る": "みる", "聞く": "きく", "話す": "はなす",
+      "新しい": "あたらしい", "古い": "ふるい", "大きい": "おおきい", "小さい": "ちいさい",
+      "多い": "おおい", "少ない": "すくない", "時間": "じかん", "生活": "せいかつ",
+      "便利": "べんり", "必要": "ひつよう", "無料": "むりょう", "有料": "ゆうりょう",
+      "割引": "わりびき", "限定": "げんてい", "特売": "とくばい", "野菜": "やさい",
+      "果物": "くだもの", "牛乳": "ぎゅうにゅう", "卵": "たまご", "肉": "にく",
+      "魚": "さかな", "米": "こめ", "洗剤": "せんざい", "冷凍": "れいとう", "食品": "しょくひん"
+    };
+
+    const dictionaryKeys = Object.keys(DICTIONARY).sort((a, b) => b.length - a.length);
+    let vocab = loadJson(VOCAB_KEY, {});
+    let known = new Set(loadJson(KNOWN_KEY, []));
+    let tokens = [];
+    let readingGlobalVisible = true;
+    let selectMode = false;
+    let editingWord = "";
+    let longPressTimer = null;
+    const $ = (id) => document.getElementById(id);
+
+    $("sourceText").value = localStorage.getItem(TEXT_KEY) || "";
+    $("analyzeBtn").addEventListener("click", analyze);
+    $("clearBtn").addEventListener("click", clearInput);
+    $("toggleAllBtn").addEventListener("click", toggleAll);
+    $("selectModeBtn").addEventListener("click", toggleSelectMode);
+    $("hideSelectedBtn").addEventListener("click", () => setSelectedVisible(false));
+    $("showSelectedBtn").addEventListener("click", () => setSelectedVisible(true));
+    $("deleteSelectedBtn").addEventListener("click", deleteSelected);
+    $("restoreKnownBtn").addEventListener("click", restoreKnown);
+    $("exportBtn").addEventListener("click", exportVocab);
+    $("saveReadingBtn").addEventListener("click", saveReading);
+    $("cancelReadingBtn").addEventListener("click", closeEditor);
+    $("editorMask").addEventListener("click", (event) => {
+      if (event.target === $("editorMask")) closeEditor();
+    });
+    renderResult();
+    renderVocab();
+
+    function analyze() {
+      const text = $("sourceText").value.trim();
+      localStorage.setItem(TEXT_KEY, text);
+      tokens = tokenize(text);
+      tokens.forEach((token) => {
+        if (token.type !== "word") return;
+        vocab[token.word] ??= { word: token.word, reading: token.reading || "", createdAt: new Date().toISOString() };
+        if (!vocab[token.word].reading && token.reading) vocab[token.word].reading = token.reading;
+      });
+      saveState();
+      renderResult();
+      renderVocab();
+    }
+
+    function tokenize(text) {
+      const result = [];
+      let index = 0;
+      while (index < text.length) {
+        const rest = text.slice(index);
+        const matched = dictionaryKeys.find((key) => rest.startsWith(key));
+        if (matched && hasKanji(matched)) {
+          pushWordOrPlain(result, matched, DICTIONARY[matched]);
+          index += matched.length;
+          continue;
+        }
+        const char = text[index];
+        if (isKanji(char)) {
+          let end = index + 1;
+          while (end < text.length && isKanji(text[end])) end += 1;
+          const word = text.slice(index, end);
+          pushWordOrPlain(result, word, vocab[word]?.reading || DICTIONARY[word] || "");
+          index = end;
+          continue;
+        }
+        result.push({ type: "text", text: char });
+        index += 1;
+      }
+      return mergePlain(result);
+    }
+
+    function pushWordOrPlain(result, word, reading) {
+      if (known.has(word)) result.push({ type: "text", text: word });
+      else result.push({ type: "word", word, reading, visible: true, selected: false });
+    }
+
+    function mergePlain(items) {
+      const merged = [];
+      items.forEach((item) => {
+        const last = merged[merged.length - 1];
+        if (item.type === "text" && last?.type === "text") last.text += item.text;
+        else merged.push(item);
+      });
+      return merged;
+    }
+
+    function renderResult() {
+      const result = $("result");
+      result.classList.toggle("reading-global-hidden", !readingGlobalVisible);
+      if (!tokens.length) {
+        result.innerHTML = `<span class="hint">输入句子后点击“识别标注”。</span>`;
+        return;
+      }
+      result.innerHTML = tokens.map((token, index) => {
+        if (token.type === "text") return escapeHtml(token.text);
+        const reading = token.reading || vocab[token.word]?.reading || "";
+        const classes = ["word", token.visible ? "" : "hidden-reading", token.selected ? "selected" : "", reading ? "" : "missing"].filter(Boolean).join(" ");
+        const readingText = reading ? `（${escapeHtml(reading)}）` : "（读音待补）";
+        return `<span class="${classes}" data-index="${index}">${escapeHtml(token.word)}<span class="reading">${readingText}</span></span>`;
+      }).join("");
+      bindWordEvents();
+    }
+
+    function bindWordEvents() {
+      $("result").querySelectorAll(".word").forEach((node) => {
+        const index = Number(node.dataset.index);
+        node.addEventListener("click", () => {
+          const token = tokens[index];
+          if (!token) return;
+          if (selectMode) token.selected = !token.selected;
+          else if (!token.reading && !vocab[token.word]?.reading) return openEditor(token.word);
+          else token.visible = !token.visible;
+          renderResult();
+        });
+        node.addEventListener("dblclick", () => openEditor(tokens[index]?.word));
+        node.addEventListener("touchstart", () => startLongPress(index), { passive: true });
+        node.addEventListener("mousedown", () => startLongPress(index));
+        ["touchend", "touchmove", "mouseup", "mouseleave"].forEach((eventName) => {
+          node.addEventListener(eventName, clearLongPress, { passive: true });
+        });
+      });
+    }
+
+    function startLongPress(index) {
+      clearLongPress();
+      longPressTimer = setTimeout(() => {
+        selectMode = true;
+        $("selectModeBtn").classList.add("btn-active");
+        tokens[index].selected = true;
+        renderResult();
+      }, 520);
+    }
+
+    function clearLongPress() {
+      if (!longPressTimer) return;
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    function toggleAll() {
+      readingGlobalVisible = !readingGlobalVisible;
+      $("toggleAllBtn").textContent = readingGlobalVisible ? "隐藏全部读音" : "显示全部读音";
+      renderResult();
+    }
+
+    function toggleSelectMode() {
+      selectMode = !selectMode;
+      $("selectModeBtn").classList.toggle("btn-active", selectMode);
+      if (!selectMode) tokens.forEach((token) => token.selected = false);
+      renderResult();
+    }
+
+    function setSelectedVisible(visible) {
+      tokens.forEach((token) => {
+        if (token.type === "word" && token.selected) {
+          token.visible = visible;
+          token.selected = false;
+        }
+      });
+      selectMode = false;
+      $("selectModeBtn").classList.remove("btn-active");
+      renderResult();
+    }
+
+    function deleteSelected() {
+      const selectedWords = tokens.filter((token) => token.type === "word" && token.selected).map((token) => token.word);
+      if (!selectedWords.length) return;
+      selectedWords.forEach((word) => {
+        known.add(word);
+        delete vocab[word];
+      });
+      tokens = mergePlain(tokens.map((token) => token.type === "word" && selectedWords.includes(token.word) ? { type: "text", text: token.word } : token));
+      selectMode = false;
+      $("selectModeBtn").classList.remove("btn-active");
+      saveState();
+      renderResult();
+      renderVocab();
+    }
+
+    function restoreKnown() {
+      known = new Set();
+      saveState();
+      analyze();
+    }
+
+    function renderVocab() {
+      const rows = Object.values(vocab).sort((a, b) => a.word.localeCompare(b.word, "ja"));
+      $("vocabList").innerHTML = rows.length ? rows.map((item) => `
+        <div class="vocab-row">
+          <div>
+            <div class="vocab-word">${escapeHtml(item.word)}</div>
+            <div class="vocab-reading">${item.reading ? escapeHtml(item.reading) : "读音待补"}</div>
+          </div>
+          <button class="btn-light" type="button" data-edit="${escapeAttr(item.word)}">补读音</button>
+        </div>
+      `).join("") : `<div class="empty">暂无生词。标注句子后会自动记录。</div>`;
+      $("vocabList").querySelectorAll("[data-edit]").forEach((button) => {
+        button.addEventListener("click", () => openEditor(button.dataset.edit));
+      });
+    }
+
+    function openEditor(word) {
+      if (!word) return;
+      editingWord = word;
+      $("editWord").value = word;
+      $("editReading").value = vocab[word]?.reading || DICTIONARY[word] || "";
+      $("editorMask").classList.add("show");
+      $("editReading").focus();
+    }
+
+    function closeEditor() {
+      $("editorMask").classList.remove("show");
+      editingWord = "";
+    }
+
+    function saveReading() {
+      const reading = $("editReading").value.trim();
+      if (!editingWord || !reading) return;
+      vocab[editingWord] = { word: editingWord, reading, createdAt: vocab[editingWord]?.createdAt || new Date().toISOString() };
+      tokens.forEach((token) => {
+        if (token.type === "word" && token.word === editingWord) token.reading = reading;
+      });
+      saveState();
+      closeEditor();
+      renderResult();
+      renderVocab();
+    }
+
+    function exportVocab() {
+      const rows = Object.values(vocab).sort((a, b) => a.word.localeCompare(b.word, "ja")).map((item) => `${item.word}\t${item.reading || ""}`);
+      if (!rows.length) return;
+      navigator.clipboard?.writeText(rows.join("\n"));
+      $("exportBtn").textContent = "已复制";
+      setTimeout(() => $("exportBtn").textContent = "导出生词", 1200);
+    }
+
+    function clearInput() {
+      $("sourceText").value = "";
+      localStorage.removeItem(TEXT_KEY);
+      tokens = [];
+      renderResult();
+    }
+
+    function saveState() {
+      localStorage.setItem(VOCAB_KEY, JSON.stringify(vocab));
+      localStorage.setItem(KNOWN_KEY, JSON.stringify(Array.from(known)));
+    }
+
+    function loadJson(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+      catch { return fallback; }
+    }
+
+    function isKanji(char) { return /[\u3400-\u9fff]/u.test(char); }
+    function hasKanji(text) { return /[\u3400-\u9fff]/u.test(text); }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, "&#96;"); }
+  </script>
+</body>
+</html>
