@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>我的贡献</title>
   <style>
     :root {
@@ -20,10 +20,21 @@
 
     * { box-sizing: border-box; }
 
+    html {
+      min-height: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      padding: 14px 14px 76px;
+      min-height: 100dvh;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(88px + env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      overflow-x: hidden;
       background:
         radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
         radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
@@ -33,7 +44,7 @@
     }
 
     .app {
-      width: min(760px, 100%);
+      width: min(760px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
       margin: 0 auto;
       display: grid;
       gap: 12px;
@@ -261,9 +272,9 @@
       --active-index: 4;
       position: fixed;
       left: 50%;
-      bottom: max(12px, env(safe-area-inset-bottom));
+      bottom: calc(10px + env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      width: min(520px, calc(100% - 28px));
+      width: min(520px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #d8e7e1;
       border-radius: 999px;
@@ -309,6 +320,20 @@
     nav a.active {
       background: transparent;
       color: #0c8f72;
+    }
+
+    @media (max-width: 420px) {
+      .hero {
+        padding: 14px 12px;
+      }
+
+      .hero h1 {
+        font-size: 19px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>

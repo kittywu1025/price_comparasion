@@ -1,8 +1,8 @@
 (async () => {
   const style = document.createElement("style");
   style.textContent = `
-    .login-mask{position:fixed;inset:0;background:rgba(7,19,18,.48);display:flex;align-items:center;justify-content:center;z-index:80;padding:16px}
-    .login-panel{width:min(360px,100%);border-radius:18px;background:#fff;border:1px solid #dbe7e3;box-shadow:0 14px 28px rgba(14,63,56,.18);padding:16px;display:grid;gap:10px;color:#1f2a2b}
+    .login-mask{position:fixed;inset:0;background:rgba(7,19,18,.48);display:flex;align-items:center;justify-content:center;z-index:80;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+    .login-panel{width:min(360px,calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);overflow-y:auto;border-radius:18px;background:#fff;border:1px solid #dbe7e3;box-shadow:0 14px 28px rgba(14,63,56,.18);padding:16px;display:grid;gap:10px;color:#1f2a2b}
     .login-panel h2{margin:0;font-size:18px}.login-panel p{margin:0;color:#607270;font-size:13px;line-height:1.55}
     .login-panel label{display:grid;gap:6px;color:#425956;font-size:13px;font-weight:700}.login-panel input{height:40px;border:1px solid #dbe7e3;border-radius:12px;padding:0 10px;font:inherit;color:#1f2a2b;background:#f8fbfa;outline:none}
     .login-msg{min-height:18px;color:#607270;font-size:12px;line-height:1.4}

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>价格比价清单</title>
   <style>
     :root {
@@ -26,6 +26,11 @@
       box-sizing: border-box;
     }
 
+    html {
+      min-height: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       margin: 0;
       background:
@@ -35,11 +40,17 @@
       color: var(--text);
       font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
       min-height: 100vh;
-      padding: 14px 14px 76px;
+      min-height: 100dvh;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(88px + env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      overflow-x: hidden;
     }
 
     .app {
-      width: min(960px, 100%);
+      width: min(960px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
       margin: 0 auto;
       display: grid;
       gap: 12px;
@@ -139,6 +150,10 @@
       align-items: center;
       justify-content: center;
       white-space: nowrap;
+      min-width: 0;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .list {
@@ -314,9 +329,9 @@
       --active-index: 1;
       position: fixed;
       left: 50%;
-      bottom: max(12px, env(safe-area-inset-bottom));
+      bottom: calc(10px + env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      width: min(520px, calc(100% - 28px));
+      width: min(520px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #d8e7e1;
       border-radius: 999px;
@@ -373,13 +388,18 @@
       align-items: flex-end;
       justify-content: center;
       z-index: 30;
-      padding: 12px;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
     }
 
     .modal {
       position: relative;
-      width: min(520px, 100%);
-      max-height: 88vh;
+      width: min(520px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
       overflow-y: auto;
       border-radius: 18px;
       background: var(--surface);
@@ -940,6 +960,41 @@
         padding: 18px;
       }
 
+    }
+
+    @media (max-width: 420px) {
+      .hero {
+        padding: 14px 12px;
+      }
+
+      .search-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .chip {
+        width: 100%;
+        max-width: none;
+      }
+
+      .card {
+        grid-template-columns: 68px 1fr;
+        gap: 8px;
+      }
+
+      .thumb {
+        width: 68px;
+        height: 68px;
+      }
+
+      .modal-product-head {
+        grid-template-columns: 82px 1fr;
+        min-height: 82px;
+      }
+
+      .modal-img.compact {
+        width: 82px;
+        height: 82px;
+      }
     }
   </style>
 </head>

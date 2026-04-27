@@ -29,6 +29,7 @@
 - 本地开发：Node.js 原生 `http` 服务 + JSON 文件存储。
 - 线上部署：Cloudflare Pages Functions + Cloudflare D1。
 - 前端：原生 HTML/CSS/JavaScript，移动端优先。
+- 手机端适配：主要页面使用 `viewport-fit=cover`、安全区 padding、`100dvh` 和横向溢出限制，避免 iPhone 浏览器中内容被左右边缘、顶部或底部导航遮挡。
 
 ## 本地运行
 ```bash
