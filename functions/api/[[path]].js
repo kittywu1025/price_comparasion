@@ -7,7 +7,7 @@ const JSON_HEADERS = {
 export async function onRequest(context) {
   const { request, env } = context;
   const route = getRoute(context.params?.path);
-  const auth = getAuth(request, env);
+  const auth = await getAuth(request, env);
 
   try {
     if (request.method === "OPTIONS") {
@@ -78,7 +78,7 @@ function hasAccessSession(request) {
   return Boolean(request.headers.get("cf-access-authenticated-user-email") || getAccessJwt(request));
 }
 
-function getAuth(request, env) {
+async function getAuth(request, env) {
   const email = String(
     request.headers.get("cf-access-authenticated-user-email") ||
     emailFromAccessJwt(getAccessJwt(request)) ||
@@ -88,11 +88,22 @@ function getAuth(request, env) {
     .split(",")
     .map((x) => x.trim().toLowerCase())
     .filter(Boolean);
+  const adminEmailHashes = String(env.ACCESS_ADMIN_EMAIL_HASHES || env.ADMIN_EMAIL_HASHES || "")
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+  const emailHash = email ? await sha256Hex(email) : "";
 
   return {
     email,
-    isAdmin: email ? adminEmails.includes(email) : false
+    isAdmin: Boolean(email && (adminEmails.includes(email) || adminEmailHashes.includes(emailHash)))
   };
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function getAccessJwt(request) {

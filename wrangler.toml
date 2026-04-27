@@ -3,7 +3,7 @@ compatibility_date = "2026-04-25"
 pages_build_output_dir = "public"
 
 [vars]
-ACCESS_ADMIN_EMAILS = "873818496@qq.com"
+ACCESS_ADMIN_EMAIL_HASHES = "1fe40b5aebd8708574791175896f5e20ebeb48510ae85062ad48675d18050249"
 
 [[d1_databases]]
 binding = "DB"

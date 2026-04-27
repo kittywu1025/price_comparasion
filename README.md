@@ -8,7 +8,7 @@
 - 代码推送到 GitHub 前，同步更新 README。
 
 ## 当前功能
-- 首页：新手教程、快速入口、生活优惠与邀请码信息占位。
+- 首页：新手教程、快速入口、生活优惠与邀请码教程。
 - 底部导航：五个主页面统一使用滑块式 tabbar，支持在底部导航区域左右滑动切换页面。
 - 商品清单：按商品聚合展示价格，支持全部/名称/店铺范围搜索、店铺筛选、最低价标记、限时优惠标记；卡片上的价格、店铺和单价统一来自该商品的最新记录，最低价只作为标记展示；空结果会显示可点击的录入引导。
 - 商品详情：头部左侧显示紧凑商品图，右侧显示中文名和日文名；查看税后总价、规格、店铺、记录时间、创建者、最后修改者、各店现价排行、历史记录、税后价格走势。
@@ -56,16 +56,23 @@ npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-impo
 ```
 
 ## Cloudflare 管理员权限
-删除全体数据依赖 Pages 环境变量：
+删除全体数据依赖 Pages 环境变量。公开仓库不要直接写真实邮箱，优先使用邮箱 SHA-256 哈希：
 
-- `ACCESS_ADMIN_EMAILS`：填写开发者邮箱，多个邮箱用英文逗号分隔。
+- `ACCESS_ADMIN_EMAIL_HASHES`：填写开发者邮箱的小写 SHA-256 哈希，多个用英文逗号分隔。
+- `ACCESS_ADMIN_EMAILS`：兼容明文邮箱配置，但不建议提交到公开仓库。
 - 兼容别名：`ADMIN_EMAILS`。
 
 当前项目通过 `wrangler.toml` 管理环境变量，所以 Cloudflare 控制台里会提示“此项目的环境变量在 wrangler.toml 中管理”，不能直接在页面保存。需要改 `wrangler.toml`：
 
 ```toml
 [vars]
-ACCESS_ADMIN_EMAILS = "873818496@qq.com"
+ACCESS_ADMIN_EMAIL_HASHES = "your-lowercase-email-sha256"
+```
+
+本地生成哈希：
+
+```bash
+node -e "const crypto=require('crypto'); console.log(crypto.createHash('sha256').update('your-email@example.com'.toLowerCase()).digest('hex'))"
 ```
 
 如果没有配置该变量，登录用户只能删除自己创建的数据，不能删除别人创建或导入的数据。
