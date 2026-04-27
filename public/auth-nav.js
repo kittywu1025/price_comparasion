@@ -1,8 +1,6 @@
 (async () => {
   const style = document.createElement("style");
   style.textContent = `
-    nav.no-profile{grid-template-columns:repeat(4,1fr)}
-    nav.no-profile::before{width:25%}
     .login-mask{position:fixed;inset:0;background:rgba(7,19,18,.48);display:flex;align-items:center;justify-content:center;z-index:80;padding:16px}
     .login-panel{width:min(360px,100%);border-radius:18px;background:#fff;border:1px solid #dbe7e3;box-shadow:0 14px 28px rgba(14,63,56,.18);padding:16px;display:grid;gap:10px;color:#1f2a2b}
     .login-panel h2{margin:0;font-size:18px}.login-panel p{margin:0;color:#607270;font-size:13px;line-height:1.55}
@@ -14,24 +12,20 @@
   `;
   document.head.append(style);
 
-  const authOnlyLinks = Array.from(document.querySelectorAll("[data-auth-only='true']"));
   const requiresAuth = document.body?.dataset.requireAuth === "true";
-  if (!authOnlyLinks.length && !requiresAuth) return;
+  const shouldCheckAuth = requiresAuth || Boolean(document.querySelector("nav"));
+  if (!shouldCheckAuth) return;
 
   const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
   const session = await checkLogin(isLocal);
 
   if (session.loggedIn) {
-    document.querySelectorAll("nav").forEach((nav) => nav.classList.remove("no-profile"));
-    authOnlyLinks.forEach((link) => { link.hidden = false; });
     if (session.user && !String(session.user.displayName || "").trim()) {
       showUsernameModal(session.user);
     }
     return;
   }
 
-  document.querySelectorAll("nav").forEach((nav) => nav.classList.add("no-profile"));
-  authOnlyLinks.forEach((link) => link.remove());
   if (requiresAuth) showLoginModal();
 })();
 
