@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>日本发快递测试</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #fff;
+      --soft: #f7fbfa;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --primary-soft: #e2f7f1;
+      --pink: #fff0f2;
+      --yellow: #fff7dc;
+      --blue: #edf6ff;
+      --danger: #c93f3f;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(20px + env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Hiragino Sans", "Noto Sans JP", "Noto Sans SC", sans-serif;
+    }
+
+    .app {
+      width: min(920px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 8px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .back-link {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.05);
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .quick-chart {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .ship-group {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--soft);
+      overflow: hidden;
+    }
+
+    .ship-head {
+      padding: 10px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .ship-head.jp { background: #e95f66; }
+    .ship-head.ymt { background: #efb11f; color: #25312f; }
+    .ship-head.post { background: #2f9bd3; }
+
+    .method {
+      padding: 10px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 4px;
+      background: #fff;
+    }
+
+    .method strong {
+      font-size: 14px;
+    }
+
+    .method span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .price {
+      color: #c94343;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .quiz-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 10px;
+      background: var(--soft);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #76c5b1;
+      box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
+    }
+
+    .seg {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--soft);
+    }
+
+    .seg button,
+    .main-btn {
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .seg button {
+      background: transparent;
+      color: #536866;
+      font-size: 12px;
+    }
+
+    .seg button.active {
+      background: #fff;
+      color: var(--primary);
+      box-shadow: 0 4px 10px rgba(14, 63, 56, 0.08);
+    }
+
+    .main-btn {
+      background: var(--primary);
+      color: #fff;
+      width: 100%;
+    }
+
+    .result-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .result-card {
+      border: 1px solid #cfe5de;
+      border-radius: 14px;
+      background: #fbfefd;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .result-card.best {
+      border-color: #74c8b4;
+      background: #effaf6;
+    }
+
+    .result-name {
+      margin: 0;
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .result-meta {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .result-price {
+      color: #c94343;
+      font-size: 18px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .steps li {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--primary-soft);
+      color: #06735d;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .sources a {
+      display: block;
+      color: #176f60;
+      font-size: 12px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    @media (max-width: 760px) {
+      .quick-chart,
+      .quiz-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .result-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <h1>日本发快递速查</h1>
+        <a class="back-link" href="home.html">返回首页</a>
+      </div>
+      <p>按匿名/实名、尺寸、重量、追踪和补偿需求，快速判断适合寄什么。价格按你提供的新版资料整理，运费会调整，最终以 Mercari / 日本邮便 / ヤマト结算页为准。</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">重新整理版速查图</h2>
+      <p class="hint">这不是原图截图，是根据资料重画的可维护版本。适合先粗略判断，再用下面测试器细筛。</p>
+      <div class="quick-chart">
+        <div class="ship-group">
+          <div class="ship-head jp">ゆうゆうメルカリ便 / 日本郵便</div>
+          <div class="method"><strong>ゆうパケットポスト mini</strong><span>内寸 21.1×16.8cm，约 3cm，2kg 内。专用封筒 20円。</span><div class="price">160円 + 20円</div></div>
+          <div class="method"><strong>ゆうパケットポスト</strong><span>3边合计 60cm 内，长边 34cm 内，2kg 内。箱或発送シール。</span><div class="price">215円 + 资材</div></div>
+          <div class="method"><strong>ゆうパケットプラス</strong><span>17×24×7cm，2kg 内。中型小物。</span><div class="price">455円 + 箱65円</div></div>
+          <div class="method"><strong>ゆうパック</strong><span>60-170 サイズ，25kg 内。</span><div class="price">750円 - 1,900円</div></div>
+        </div>
+
+        <div class="ship-group">
+          <div class="ship-head ymt">らくらくメルカリ便 / ヤマト</div>
+          <div class="method"><strong>ネコポス</strong><span>23-31.2×11.5-22.8×3cm，1kg 内。小型薄物。</span><div class="price">210円</div></div>
+          <div class="method"><strong>宅急便コンパクト</strong><span>专用 BOX / 薄型 BOX。中小型厚物。</span><div class="price">450円 + 箱70円</div></div>
+          <div class="method"><strong>宅急便</strong><span>60/80/100/120/140/160/180/200 サイズ。</span><div class="price">750円 - 2,500円</div></div>
+        </div>
+
+        <div class="ship-group">
+          <div class="ship-head post">普通邮寄 / 日本郵便</div>
+          <div class="method"><strong>ミニレター</strong><span>25g 内，小纸片/票据类。</span><div class="price">85円</div></div>
+          <div class="method"><strong>スマートレター</strong><span>25×17cm，厚 2cm，1kg 内。</span><div class="price">210円</div></div>
+          <div class="method"><strong>クリックポスト</strong><span>34×25cm，厚 3cm，1kg 内。需要 Yahoo! / Amazon Pay。</span><div class="price">185円</div></div>
+          <div class="method"><strong>レターパック</strong><span>Light 430円，Plus 600円。追踪あり。</span><div class="price">430円 / 600円</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">一步一步测试</h2>
+      <div class="quiz-grid">
+        <label>使用场景
+          <select id="platform">
+            <option value="mercari">Mercari 出售</option>
+            <option value="normal">普通寄件</option>
+          </select>
+        </label>
+        <label>是否需要匿名
+          <select id="anonymous">
+            <option value="yes">需要匿名</option>
+            <option value="no">不需要匿名</option>
+          </select>
+        </label>
+        <label>是否需要追踪
+          <select id="tracking">
+            <option value="yes">需要</option>
+            <option value="no">不需要</option>
+          </select>
+        </label>
+        <label>是否需要补偿
+          <select id="compensation">
+            <option value="no">不需要</option>
+            <option value="yes">需要</option>
+          </select>
+        </label>
+        <label>长 cm<input id="length" type="number" min="0" step="0.1" placeholder="例如 21" /></label>
+        <label>宽 cm<input id="width" type="number" min="0" step="0.1" placeholder="例如 16" /></label>
+        <label>厚 cm<input id="thickness" type="number" min="0" step="0.1" placeholder="例如 2.5" /></label>
+        <label>重量 g<input id="weight" type="number" min="0" step="1" placeholder="例如 300" /></label>
+      </div>
+      <div class="seg" id="modeSeg">
+        <button class="active" type="button" data-mode="cheap">优先便宜</button>
+        <button type="button" data-mode="easy">优先方便</button>
+        <button type="button" data-mode="safe">优先安心</button>
+      </div>
+      <button id="calcBtn" class="main-btn" type="button">开始测试</button>
+      <div id="result" class="result-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">怎么用</h2>
+      <ul class="steps">
+        <li><span class="num">1</span><span>先量包装后的长、宽、厚，不是商品本体尺寸。</span></li>
+        <li><span class="num">2</span><span>如果 Mercari 想匿名，优先从 ゆうゆう / らくらく メルカリ便里选。</span></li>
+        <li><span class="num">3</span><span>薄、小、轻：先看 mini / クリックポスト / ネコポス。</span></li>
+        <li><span class="num">4</span><span>厚一点但不大：看 ゆうパケットプラス 或 宅急便コンパクト。</span></li>
+        <li><span class="num">5</span><span>更大更重：按 3 边合计进入 ゆうパック / 宅急便。</span></li>
+      </ul>
+    </section>
+
+    <section class="panel sources">
+      <h2 class="panel-title">参考来源</h2>
+      <a href="https://help.jp.mercari.com/guide/articles/1479/">Mercari：ゆうパケットポストmini</a>
+      <a href="https://help.jp.mercari.com/guide/articles/135/">Mercari：宅急便コンパクト</a>
+      <a href="https://help.jp.mercari.com/guide/articles/136/">Mercari：宅急便</a>
+      <a href="https://www.post.japanpost.jp/service/clickpost/">日本郵便：クリックポスト</a>
+      <p class="hint">注意：部分价格来自你提供的资料图，官方页面调整时需要同步更新本页。</p>
+    </section>
+  </div>
+
+  <script>
+    const methods = [
+      { name: "ゆうパケットポスト mini", price: 180, base: 160, material: "封筒20円", platform: "mercari", anonymous: true, tracking: true, compensation: false, easy: 4, maxL: 21.1, maxW: 16.8, maxT: 3, maxG: 2000, note: "最适合小本子、卡片、饰品。只能用专用封筒。" },
+      { name: "クリックポスト", price: 185, platform: "normal", anonymous: false, tracking: true, compensation: false, easy: 2, maxL: 34, maxW: 25, maxT: 3, maxG: 1000, note: "便宜、有追踪；需要网上支付和打印/标签环境。" },
+      { name: "ネコポス", price: 210, platform: "mercari", anonymous: true, tracking: true, compensation: true, easy: 4, minL: 23, maxL: 31.2, minW: 11.5, maxW: 22.8, maxT: 3, maxG: 1000, note: "Mercari 薄物常用，ヤマト/便利店可寄。" },
+      { name: "スマートレター", price: 210, platform: "normal", anonymous: false, tracking: false, compensation: false, easy: 3, maxL: 25, maxW: 17, maxT: 2, maxG: 1000, note: "不匿名、无追踪；普通小物可用。" },
+      { name: "ゆうパケットポスト", price: 220, platform: "mercari", anonymous: true, tracking: true, compensation: false, easy: 5, maxSum: 60, maxL: 34, maxG: 2000, note: "可投邮筒，箱/贴纸另计；厚度需能投函。" },
+      { name: "ゆうパケットプラス", price: 520, base: 455, material: "箱65円", platform: "mercari", anonymous: true, tracking: true, compensation: true, easy: 3, maxL: 24, maxW: 17, maxT: 7, maxG: 2000, note: "厚度到 7cm 的中小型物品。" },
+      { name: "宅急便コンパクト", price: 520, base: 450, material: "箱70円", platform: "mercari", anonymous: true, tracking: true, compensation: true, easy: 4, maxL: 34, maxW: 25, maxT: 5, maxG: 30000, note: "比ゆうパケットプラス更适合需要ヤマト渠道的中小型物品。" },
+      { name: "レターパックライト", price: 430, platform: "normal", anonymous: false, tracking: true, compensation: false, easy: 3, maxL: 34, maxW: 24.8, maxT: 3, maxG: 4000, note: "追踪あり，投递到邮筒。" },
+      { name: "レターパックプラス", price: 600, platform: "normal", anonymous: false, tracking: true, compensation: false, easy: 3, maxL: 34, maxW: 24.8, maxG: 4000, note: "追踪あり，面对面递送；厚度不限但需封口。" },
+      { name: "宅急便 / ゆうパック 60サイズ", price: 750, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 60, maxG: 2000, note: "超过小型配送时的第一档。" },
+      { name: "宅急便 / ゆうパック 80サイズ", price: 850, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 80, maxG: 5000, note: "中型物品。" },
+      { name: "宅急便 / ゆうパック 100サイズ", price: 1050, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 100, maxG: 10000, note: "稍大的盒子。" },
+      { name: "宅急便 / ゆうパック 120サイズ", price: 1200, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 120, maxG: 15000, note: "大件。" },
+      { name: "宅急便 / ゆうパック 140サイズ", price: 1450, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 140, maxG: 20000, note: "大件。" },
+      { name: "宅急便 / ゆうパック 160サイズ", price: 1700, platform: "any", anonymous: true, tracking: true, compensation: true, easy: 3, maxSum: 160, maxG: 25000, note: "大件上限附近。" },
+      { name: "宅急便 180サイズ", price: 2100, platform: "mercari", anonymous: true, tracking: true, compensation: true, easy: 2, maxSum: 180, maxG: 30000, note: "更大件，らくらくメルカリ便。" },
+      { name: "宅急便 200サイズ", price: 2500, platform: "mercari", anonymous: true, tracking: true, compensation: true, easy: 2, maxSum: 200, maxG: 30000, note: "大型物品。" }
+    ];
+
+    let mode = "cheap";
+    const $ = (id) => document.getElementById(id);
+
+    document.querySelectorAll("#modeSeg button").forEach((button) => {
+      button.addEventListener("click", () => {
+        mode = button.dataset.mode;
+        document.querySelectorAll("#modeSeg button").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+    $("calcBtn").addEventListener("click", calculate);
+
+    function calculate() {
+      const input = {
+        platform: $("platform").value,
+        anonymous: $("anonymous").value === "yes",
+        tracking: $("tracking").value === "yes",
+        compensation: $("compensation").value === "yes",
+        l: Number($("length").value || 0),
+        w: Number($("width").value || 0),
+        t: Number($("thickness").value || 0),
+        g: Number($("weight").value || 0)
+      };
+
+      if (!input.l || !input.w || !input.t || !input.g) {
+        $("result").innerHTML = `<p class="hint">请先填写长、宽、厚和重量。尺寸按包装完成后的外尺寸填写。</p>`;
+        return;
+      }
+
+      const candidates = methods
+        .filter((method) => fits(method, input))
+        .map((method) => ({ ...method, score: score(method, input) }))
+        .sort((a, b) => a.score - b.score || a.price - b.price)
+        .slice(0, 5);
+
+      if (!candidates.length) {
+        $("result").innerHTML = `<p class="hint">目前没有匹配项。请确认尺寸重量是否过大；大件可能需要普通宅急便、ゆうパック或梱包・発送たのメル便。</p>`;
+        return;
+      }
+
+      $("result").innerHTML = candidates.map((item, index) => `
+        <article class="result-card ${index === 0 ? "best" : ""}">
+          <div>
+            <p class="result-name">${index === 0 ? "推荐：" : ""}${item.name}</p>
+            <p class="result-meta">${item.note}${item.material ? ` 资材：${item.material}。` : ""}</p>
+          </div>
+          <div class="result-price">约 ${item.price}円</div>
+        </article>
+      `).join("");
+    }
+
+    function fits(method, input) {
+      if (input.platform === "normal" && input.anonymous) return false;
+      if (input.platform === "mercari" && method.platform === "normal") return false;
+      if (input.platform === "normal" && method.platform === "mercari") return false;
+      if (input.anonymous && !method.anonymous) return false;
+      if (input.tracking && !method.tracking) return false;
+      if (input.compensation && !method.compensation) return false;
+
+      const dims = [input.l, input.w, input.t].sort((a, b) => b - a);
+      const maxDims = [method.maxL || Infinity, method.maxW || Infinity, method.maxT || Infinity].sort((a, b) => b - a);
+      const minL = method.minL || 0;
+      const minW = method.minW || 0;
+      const sum = input.l + input.w + input.t;
+
+      return input.g <= (method.maxG || Infinity)
+        && sum <= (method.maxSum || Infinity)
+        && dims.every((value, index) => value <= maxDims[index])
+        && dims[0] >= minL
+        && dims[1] >= minW;
+    }
+
+    function score(method, input) {
+      let value = method.price;
+      if (mode === "easy") value -= method.easy * 55;
+      if (mode === "safe") {
+        if (method.compensation) value -= 180;
+        if (method.tracking) value -= 80;
+      }
+      if (input.platform === "mercari" && method.anonymous) value -= 20;
+      return value;
+    }
+  </script>
+</body>
+</html>
