@@ -121,6 +121,100 @@
       gap: 10px;
     }
 
+    .icon-grid,
+    .visual-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .icon-card,
+    .visual-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      min-height: 96px;
+    }
+
+    .icon-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      min-width: 34px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      padding: 0 8px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .logo.post { background: #d71920; }
+    .logo.yamato { background: #f0c400; color: #182925; }
+    .logo.seven { background: #19a05f; }
+    .logo.family { background: #2f9bd3; }
+    .logo.lawson { background: #2d64b3; }
+    .logo.smini { background: #7b8794; }
+
+    .icon-title,
+    .visual-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .icon-meta,
+    .visual-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .visual {
+      height: 74px;
+      border: 1px solid #cfded9;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #fff, #f8fbfa);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .visual::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 2px solid currentColor;
+      border-radius: 6px;
+      opacity: 0.28;
+    }
+
+    .visual::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 10px;
+      bottom: 8px;
+      color: currentColor;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .visual.mini { color: #5d8fc7; }
+    .visual.smart { color: #c9414b; }
+    .visual.click { color: #d14b56; }
+    .visual.light { color: #2568a8; }
+    .visual.plus { color: #d33e64; }
+    .visual.box { color: #e0a31a; }
+
     .ship-group {
       border: 1px solid var(--line);
       border-radius: var(--radius-md);
@@ -314,7 +408,9 @@
 
     @media (max-width: 760px) {
       .quick-chart,
-      .quiz-grid {
+      .quiz-grid,
+      .icon-grid,
+      .visual-grid {
         grid-template-columns: 1fr;
       }
 
@@ -337,6 +433,51 @@
     <section class="panel">
       <h2 class="panel-title">重新整理版速查图</h2>
       <p class="hint">这不是原图截图，是根据资料重画的可维护版本。适合先粗略判断，再用下面测试器细筛。</p>
+      <div class="icon-grid">
+        <div class="icon-card">
+          <div class="icon-row"><span class="logo post">〒</span><span class="logo lawson">LAW</span><span class="logo smini">Smari</span></div>
+          <p class="icon-title">ゆうゆうメルカリ便</p>
+          <p class="icon-meta">日本郵便。邮局、邮筒、Lawson、Smari 等渠道。</p>
+        </div>
+        <div class="icon-card">
+          <div class="icon-row"><span class="logo yamato">ヤマト</span><span class="logo seven">7</span><span class="logo family">F</span></div>
+          <p class="icon-title">らくらくメルカリ便</p>
+          <p class="icon-meta">ヤマト。便利店、PUDO、ヤマト营业所等渠道。</p>
+        </div>
+        <div class="icon-card">
+          <div class="icon-row"><span class="logo post">POST</span><span class="logo post">〒</span></div>
+          <p class="icon-title">普通邮寄</p>
+          <p class="icon-meta">ミニレター、スマートレター、クリックポスト、レターパック。</p>
+        </div>
+        <div class="icon-card">
+          <div class="icon-row"><span class="logo post">追踪</span><span class="logo yamato">补偿</span></div>
+          <p class="icon-title">先看需求</p>
+          <p class="icon-meta">需要匿名/追踪/补偿时，普通邮寄不一定适合。</p>
+        </div>
+      </div>
+
+      <div class="visual-grid">
+        <div class="visual-card">
+          <div class="visual mini" data-label="ミニレター"></div>
+          <p class="visual-title">ミニレター 85円</p>
+          <p class="visual-meta">25g 内，轻薄纸片类。</p>
+        </div>
+        <div class="visual-card">
+          <div class="visual smart" data-label="スマートレター"></div>
+          <p class="visual-title">スマートレター 210円</p>
+          <p class="visual-meta">25×17cm，厚 2cm，1kg 内。</p>
+        </div>
+        <div class="visual-card">
+          <div class="visual click" data-label="クリックポスト"></div>
+          <p class="visual-title">クリックポスト 185円</p>
+          <p class="visual-meta">34×25cm，厚 3cm，1kg 内。</p>
+        </div>
+        <div class="visual-card">
+          <div class="visual light" data-label="レターパック"></div>
+          <p class="visual-title">レターパック</p>
+          <p class="visual-meta">Light 430円 / Plus 600円，追踪あり。</p>
+        </div>
+      </div>
       <div class="quick-chart">
         <div class="ship-group">
           <div class="ship-head jp">ゆうゆうメルカリ便 / 日本郵便</div>
