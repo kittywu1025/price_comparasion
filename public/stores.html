@@ -235,6 +235,7 @@
     }
 
     .card {
+      position: relative;
       border: 1px solid var(--line);
       border-radius: 12px;
       background: #fff;
@@ -242,6 +243,11 @@
       display: grid;
       gap: 6px;
       cursor: pointer;
+    }
+
+    .card.menu-open {
+      border-color: #9bd6c9;
+      box-shadow: 0 8px 16px rgba(12, 107, 89, 0.12);
     }
 
     .name {
@@ -257,9 +263,14 @@
     }
 
     .actions {
-      display: flex;
+      display: none;
       gap: 8px;
       justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    .card.menu-open .actions {
+      display: flex;
     }
 
     .actions button {
@@ -286,6 +297,12 @@
       background: #f2f5f4;
       color: #94a3a0;
       cursor: default;
+    }
+
+    .menu-hint {
+      color: #8aa09c;
+      font-size: 11px;
+      text-align: right;
     }
 
     .btn-undo {
@@ -388,6 +405,9 @@
     const $ = (id) => document.getElementById(id);
     let editingId = null;
     let locationManuallyEdited = false;
+    let storePressTimer = null;
+    let storeTouchStartX = 0;
+    let storeTouchStartY = 0;
 
     function escapeHtml(str) {
       return String(str ?? "")
@@ -423,6 +443,25 @@
 
     function setListStatus(text) {
       $("listStatus").textContent = text;
+    }
+
+    function closeStoreMenus(exceptCard = null) {
+      document.querySelectorAll(".card.menu-open").forEach((card) => {
+        if (card !== exceptCard) card.classList.remove("menu-open");
+      });
+    }
+
+    function openStoreMenu(card) {
+      if (!card) return;
+      closeStoreMenus(card);
+      card.classList.add("menu-open");
+    }
+
+    function clearStorePressTimer() {
+      if (storePressTimer) {
+        clearTimeout(storePressTimer);
+        storePressTimer = null;
+      }
     }
 
     function pageUrl(path, params = new URLSearchParams()) {
@@ -557,6 +596,7 @@
             <div class="name">${escapeHtml(s.name)}</div>
             <div class="meta">位置：${escapeHtml(s.location || "-")}</div>
             <div class="meta">备注：${escapeHtml(s.note || "-")}</div>
+            <div class="menu-hint">长按或左滑管理</div>
             <div class="actions">
               <button class="btn-edit" data-action="edit" data-id="${s.id}">编辑</button>
               ${s.canDelete
@@ -656,6 +696,10 @@
       if (!btn) {
         const card = e.target.closest(".card[data-id]");
         if (card) {
+          if (card.classList.contains("menu-open")) {
+            card.classList.remove("menu-open");
+            return;
+          }
           location.href = pageUrl("/products", new URLSearchParams({
             storeId: card.dataset.id,
             storeName: card.dataset.name
@@ -670,6 +714,7 @@
 
       if (action === "edit") {
         e.stopPropagation();
+        closeStoreMenus();
         const stores = await fetchJson("/api/stores");
         const store = stores.find((x) => x.id === id);
         if (!store) {
@@ -682,9 +727,60 @@
 
       if (action === "delete") {
         e.stopPropagation();
+        closeStoreMenus();
         await removeStore(id);
         return;
       }
+    });
+
+    $("list").addEventListener("mousedown", (e) => {
+      const card = e.target.closest(".card[data-id]");
+      if (!card || e.target.closest("button")) return;
+      clearStorePressTimer();
+      storePressTimer = setTimeout(() => {
+        storePressTimer = null;
+        openStoreMenu(card);
+      }, 420);
+    });
+
+    ["mouseup", "mouseleave", "dragstart"].forEach((eventName) => {
+      $("list").addEventListener(eventName, clearStorePressTimer);
+    });
+
+    $("list").addEventListener("touchstart", (e) => {
+      const card = e.target.closest(".card[data-id]");
+      if (!card || e.target.closest("button")) return;
+      const touch = e.changedTouches[0];
+      storeTouchStartX = touch.clientX;
+      storeTouchStartY = touch.clientY;
+      clearStorePressTimer();
+      storePressTimer = setTimeout(() => {
+        storePressTimer = null;
+        openStoreMenu(card);
+      }, 420);
+    }, { passive: true });
+
+    $("list").addEventListener("touchend", (e) => {
+      const card = e.target.closest(".card[data-id]");
+      clearStorePressTimer();
+      if (!card) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - storeTouchStartX;
+      const dy = touch.clientY - storeTouchStartY;
+      if (dx < -38 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        openStoreMenu(card);
+      }
+    }, { passive: true });
+
+    $("list").addEventListener("touchmove", (e) => {
+      const touch = e.changedTouches[0];
+      if (Math.abs(touch.clientX - storeTouchStartX) > 12 || Math.abs(touch.clientY - storeTouchStartY) > 12) {
+        clearStorePressTimer();
+      }
+    }, { passive: true });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#list .card")) closeStoreMenus();
     });
 
     $("form").onsubmit = async (e) => {
