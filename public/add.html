@@ -1071,7 +1071,9 @@
       duplicateTimer: null,
       scanTimer: null,
       scanStream: null,
-      scanner: null
+      scanner: null,
+      zxingControls: null,
+      zxingPromise: null
     };
     const $ = (id) => document.getElementById(id);
 
@@ -1556,6 +1558,14 @@
         clearInterval(state.scanTimer);
         state.scanTimer = null;
       }
+      if (state.zxingControls) {
+        try {
+          state.zxingControls.stop();
+        } catch (_) {
+          // ignore cleanup errors
+        }
+        state.zxingControls = null;
+      }
       if (state.scanStream) {
         state.scanStream.getTracks().forEach((t) => t.stop());
         state.scanStream = null;
@@ -1565,8 +1575,12 @@
     }
 
     async function openScanner() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        $("msg").textContent = "当前浏览器无法调用摄像头。请确认使用 https 页面，并允许相机权限。";
+        return;
+      }
       if (!("BarcodeDetector" in window)) {
-        $("msg").textContent = "当前浏览器不支持扫码，请使用 Chrome 或 Edge。";
+        await openZxingScanner();
         return;
       }
       try {
@@ -1604,6 +1618,73 @@
         $("msg").textContent = `无法打开摄像头：${err.message || "请检查权限"}`;
         stopScanner();
       }
+    }
+
+    async function openZxingScanner() {
+      try {
+        $("scannerMask").style.display = "flex";
+        $("scannerHint").textContent = "正在加载扫码组件...";
+        await loadZxing();
+        if (!window.ZXingBrowser?.BrowserMultiFormatReader) {
+          throw new Error("扫码组件加载失败");
+        }
+
+        const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
+        const video = $("scannerVideo");
+        $("scannerHint").textContent = "将条码放入画面中央，尽量横向对齐";
+
+        const onResult = (result) => {
+          const value = String(result?.getText?.() || result?.text || "").trim();
+          if (!value) return;
+          state.barcode = value;
+          updateBarcodeNote();
+          checkBarcodeProduct();
+          $("scannerHint").textContent = `已识别：${state.barcode}`;
+          stopScanner();
+        };
+
+        if (reader.decodeFromConstraints) {
+          state.zxingControls = await reader.decodeFromConstraints(
+            {
+              video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: false
+            },
+            video,
+            (result) => {
+              if (result) onResult(result);
+            }
+          );
+        } else {
+          state.zxingControls = await reader.decodeFromVideoDevice(
+            undefined,
+            video,
+            (result) => {
+              if (result) onResult(result);
+            }
+          );
+        }
+      } catch (err) {
+        $("msg").textContent = `无法启动扫码：${err.message || "请检查相机权限"}`;
+        stopScanner();
+      }
+    }
+
+    function loadZxing() {
+      if (window.ZXingBrowser?.BrowserMultiFormatReader) return Promise.resolve();
+      if (state.zxingPromise) return state.zxingPromise;
+      state.zxingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js";
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("网络无法加载扫码组件"));
+        document.head.append(script);
+      });
+      return state.zxingPromise;
     }
 
     function handleScanClick() {
