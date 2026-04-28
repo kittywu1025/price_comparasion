@@ -748,10 +748,12 @@
       background: #f7fbfa;
       display: grid;
       place-items: center;
+      position: relative;
       overflow: hidden;
       color: #708280;
       font-size: 12px;
       text-align: center;
+      cursor: pointer;
     }
 
     .edit-photo img {
@@ -762,9 +764,26 @@
       background: #fff;
     }
 
+    .edit-photo.has-image {
+      border-style: solid;
+    }
+
+    .edit-photo-tip {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #fff;
+      background: rgba(21, 32, 32, 0.58);
+      white-space: nowrap;
+    }
+
     .edit-photo-tools {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 8px;
       margin-top: 8px;
     }
@@ -1254,7 +1273,10 @@
       const preview = $("modal").querySelector("#editPhotoPreview");
       const strip = $("modal").querySelector("#editPhotoStrip");
       if (!preview || !strip) return;
-      preview.innerHTML = imageUrls[0] ? `<img src="${imageUrls[0]}" alt="商品图" />` : "暂无图片";
+      preview.classList.toggle("has-image", Boolean(imageUrls[0]));
+      preview.innerHTML = imageUrls[0]
+        ? `<img src="${imageUrls[0]}" alt="商品图" /><span class="edit-photo-tip">拍照/上传</span>`
+        : "<span>拍照/上传</span>";
       strip.innerHTML = imageUrls.length > 1
         ? imageUrls.map((url) => `<img src="${url}" alt="商品图缩略图" />`).join("")
         : "";
@@ -1458,9 +1480,8 @@
             <p id="editModeTitle" class="edit-mode-title">修正记录</p>
             <div class="edit-top">
               <div>
-                <div id="editPhotoPreview" class="edit-photo"></div>
+                <div id="editPhotoPreview" class="edit-photo" role="button" tabindex="0" aria-label="拍照或上传商品图片"></div>
                 <div class="edit-photo-tools">
-                  <button id="replaceEditPhoto" type="button">更换图片</button>
                   <button id="clearEditPhoto" type="button">删除图片</button>
                 </div>
                 <div id="editPhotoStrip" class="edit-photo-strip"></div>
@@ -1474,6 +1495,10 @@
                 <div class="edit-field">
                   <label for="editNameJa">日文名称</label>
                   <input id="editNameJa" value="${escapeHtml(data.product.nameJa || "")}" readonly />
+                </div>
+                <div class="edit-field">
+                  <label for="editBarcode">条形码（可选）</label>
+                  <input id="editBarcode" value="${escapeHtml(data.product.barcode || "")}" inputmode="numeric" placeholder="可补充或修改条形码" />
                 </div>
               </div>
             </div>
@@ -1709,7 +1734,14 @@
         modal.querySelector(`#${fieldId}`).addEventListener("input", calcEdit);
       });
       renderEditImages(editImageUrls);
-      modal.querySelector("#replaceEditPhoto").onclick = () => modal.querySelector("#editImageFile").click();
+      const editPhotoPreview = modal.querySelector("#editPhotoPreview");
+      editPhotoPreview.onclick = () => modal.querySelector("#editImageFile").click();
+      editPhotoPreview.onkeydown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          modal.querySelector("#editImageFile").click();
+        }
+      };
       modal.querySelector("#clearEditPhoto").onclick = () => {
         editImageUrls = [];
         renderEditImages(editImageUrls);
@@ -1738,6 +1770,10 @@
         e.preventDefault();
         const { before, after } = calcEdit();
         const payload = {
+          product: {
+            id: data.product.id,
+            barcode: modal.querySelector("#editBarcode").value.trim()
+          },
           storeId: Number(modal.querySelector("#editStoreId").value),
           priceTaxIn: after,
           specValue: Number(modal.querySelector("#editSpecValue").value),
@@ -1755,7 +1791,6 @@
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({
-                product: { id: data.product.id },
                 ...payload,
                 note: payload.note || "price-change"
               })

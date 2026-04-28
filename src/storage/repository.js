@@ -339,6 +339,7 @@ export function createPriceRecord(input, auth = {}) {
 
   let productId = input.product?.id ? Number(input.product.id) : null;
   const barcode = String(input.product?.barcode || "").trim();
+  const hasBarcodeInput = Boolean(input.product && Object.prototype.hasOwnProperty.call(input.product, "barcode"));
   if (!productId && barcode) {
     const existingProduct = db.products.find((product) => String(product.barcode || "").trim() === barcode);
     if (existingProduct) {
@@ -347,6 +348,22 @@ export function createPriceRecord(input, auth = {}) {
         existingProduct.defaultImageUrl = imageUrls[0];
         existingProduct.updatedAt = nowDate();
       }
+    }
+  }
+  if (productId) {
+    const existingProduct = db.products.find((product) => product.id === productId);
+    if (!existingProduct) throw new Error("product not found");
+    if (hasBarcodeInput) {
+      const duplicate = barcode
+        ? db.products.find((product) => product.id !== productId && String(product.barcode || "").trim() === barcode)
+        : null;
+      if (duplicate) throw new Error("这个条形码已经属于另一个商品");
+      existingProduct.barcode = barcode || "";
+      existingProduct.updatedAt = nowDate();
+    }
+    if (imageUrls[0] && !existingProduct.defaultImageUrl) {
+      existingProduct.defaultImageUrl = imageUrls[0];
+      existingProduct.updatedAt = nowDate();
     }
   }
   if (!productId) {
@@ -448,6 +465,14 @@ export function updatePriceRecord(recordId, input, auth = {}) {
   row.note = input.note || null;
   const product = db.products.find((item) => item.id === row.productId);
   if (product) {
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "barcode")) {
+      const barcode = String(input.product.barcode || "").trim();
+      const duplicate = barcode
+        ? db.products.find((item) => item.id !== product.id && String(item.barcode || "").trim() === barcode)
+        : null;
+      if (duplicate) throw new Error("这个条形码已经属于另一个商品");
+      product.barcode = barcode || "";
+    }
     product.defaultImageUrl = parseImageUrls(row.imageUrl)[0] || null;
     product.updatedAt = nowDate();
   }

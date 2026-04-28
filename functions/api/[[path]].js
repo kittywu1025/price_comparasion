@@ -840,7 +840,7 @@ async function updatePriceRecord(env, recordId, input, auth) {
       recordId
     ]
   );
-  await run(env, "update products set default_image_url = ?, updated_at = datetime('now') where id = ?", [imageUrls[0] || null, payload.productId]);
+  await updateProductMetadata(env, payload.productId, input.product, imageUrls[0] || null, { setDefaultImage: true });
 
   const row = await first(env, "select * from price_records where id = ?", [recordId]);
   return toPriceRecord(row);
@@ -850,9 +850,7 @@ async function resolveProductId(env, productInput = {}, imageUrl = null, auth) {
   if (productInput.id) {
     const product = await first(env, "select id, default_image_url from products where id = ?", [Number(productInput.id)]);
     if (!product) throw new Error("product not found");
-    if (imageUrl && !product.default_image_url) {
-      await run(env, "update products set default_image_url = ?, updated_at = datetime('now') where id = ?", [imageUrl, product.id]);
-    }
+    await updateProductMetadata(env, product.id, productInput, imageUrl, { setDefaultImage: Boolean(imageUrl && !product.default_image_url) });
     return product.id;
   }
 
@@ -886,6 +884,31 @@ async function resolveProductId(env, productInput = {}, imageUrl = null, auth) {
     ]
   );
   return result.meta.last_row_id;
+}
+
+async function updateProductMetadata(env, productId, productInput = {}, imageUrl = null, options = {}) {
+  const updates = [];
+  const params = [];
+  const hasBarcode = productInput && Object.prototype.hasOwnProperty.call(productInput, "barcode");
+  if (hasBarcode) {
+    const barcode = clean(productInput.barcode);
+    if (barcode) {
+      const duplicate = await first(env, "select id from products where barcode = ? and id <> ?", [barcode, Number(productId)]);
+      if (duplicate) throw new Error("这个条形码已经属于另一个商品");
+      updates.push("barcode = ?");
+      params.push(barcode);
+    } else {
+      updates.push("barcode = ?");
+      params.push(null);
+    }
+  }
+  if (options.setDefaultImage) {
+    updates.push("default_image_url = ?");
+    params.push(imageUrl || null);
+  }
+  if (!updates.length) return;
+  updates.push("updated_at = datetime('now')");
+  await run(env, `update products set ${updates.join(", ")} where id = ?`, [...params, Number(productId)]);
 }
 
 async function normalizeImageUrl(env, imageUrl) {
