@@ -77,7 +77,18 @@ function serveStatic(res, pathname) {
   if (!filePath.startsWith(PUBLIC_DIR)) return false;
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
   const ext = path.extname(filePath);
-  const type = ext === ".html" ? "text/html; charset=utf-8" : "text/plain; charset=utf-8";
+  const types = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp"
+  };
+  const type = types[ext] || "text/plain; charset=utf-8";
   res.writeHead(200, { "content-type": type });
   res.end(fs.readFileSync(filePath));
   return true;
