@@ -552,14 +552,6 @@
       color: #4f6562;
     }
 
-    .audit-line {
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-      word-break: break-word;
-    }
-
     .trend-card {
       border: 1px solid #e4efeb;
       border-radius: 12px;
@@ -604,6 +596,13 @@
       font-size: 13px;
       font-weight: 700;
       color: #1f2a2b;
+    }
+
+    .history-actor {
+      margin-top: 3px;
+      color: #607371;
+      font-size: 12px;
+      word-break: break-word;
     }
 
     .history-meta {
@@ -1355,6 +1354,7 @@
             <div class="history-row" data-record-id="${r.id}">
               <div>
                 <div class="history-date">${escapeHtml(r.recordDate || "-")}</div>
+                <div class="history-actor">记录人：${escapeHtml(actorLabel(r.createdByName, r.createdBy))}</div>
               </div>
               <div>
                 <div class="history-price">¥${asMoney(r.priceTaxIn)}</div>
@@ -1700,9 +1700,7 @@
               <div class="stat"><p class="stat-k">对比单价</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
               <div class="stat"><p class="stat-k">规格</p><p class="stat-v">${top.specValue ?? "-"} ${top.unit ?? ""}</p></div>
               <div class="stat"><p class="stat-k">购买店铺</p><p class="stat-v">${top.storeName ?? "-"}</p></div>
-              <div class="stat"><p class="stat-k">记录时间</p><p class="stat-v">${top.recordDate || "-"}</p></div>
             </div>
-            <p class="audit-line">创建：${escapeHtml(actorLabel(top.createdByName, top.createdBy))}；最后修改：${escapeHtml(actorLabel(top.lastModifiedByName, top.lastModifiedBy, "暂无修改"))}</p>
             <div class="detail-section">
               <p class="detail-section-title">各店现价排行</p>
               ${renderStoreRankings(data.records || [])}
