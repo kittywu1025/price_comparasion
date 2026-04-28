@@ -868,6 +868,41 @@
       background: #f7fbfa;
     }
 
+    .edit-barcode-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .edit-barcode-display {
+      min-width: 0;
+      height: 36px;
+      border: 1px solid #d7e5e1;
+      border-radius: 9px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      color: #163031;
+      background: #f7fbfa;
+      font-size: 13px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .edit-barcode-scan {
+      height: 36px;
+      border: 0;
+      border-radius: 9px;
+      padding: 0 12px;
+      background: var(--primary-soft);
+      color: #0b7f68;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     .edit-segment {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -966,6 +1001,58 @@
       min-height: 16px;
     }
 
+    .scanner-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(6, 18, 17, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .scanner {
+      width: min(420px, 100%);
+      border-radius: 18px;
+      overflow: hidden;
+      background: #10211f;
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .scanner-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      font-weight: 700;
+    }
+
+    .scanner-head button {
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+    }
+
+    .scanner video {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: #000;
+      display: block;
+    }
+
+    .scanner-foot {
+      padding: 10px 14px 14px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.76);
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -1049,6 +1136,16 @@
   <div id="mask" class="modal-mask" role="dialog" aria-modal="true">
     <article class="modal" id="modal"></article>
   </div>
+  <div id="scannerMask" class="scanner-mask">
+    <div class="scanner">
+      <div class="scanner-head">
+        <span>扫描条形码</span>
+        <button type="button" onclick="stopBarcodeScanner()" aria-label="关闭扫码">×</button>
+      </div>
+      <video id="scannerVideo" autoplay playsinline muted></video>
+      <div id="scannerHint" class="scanner-foot">将条码放入画面中央</div>
+    </div>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -1064,12 +1161,27 @@
     let longPressTimer = null;
     let bodyScrollY = 0;
     let modalLocked = false;
+    const scannerState = {
+      timer: null,
+      stream: null,
+      detector: null,
+      controls: null,
+      zxingPromise: null,
+      onResult: null
+    };
 
     $("scanSearch").onclick = () => alert("扫码搜索将在下一版接入，当前可用文本搜索。");
     $("mask").addEventListener("click", (e) => {
       if (e.target === $("mask")) closeModal();
     });
+    $("scannerMask").addEventListener("click", (e) => {
+      if (e.target === $("scannerMask")) stopBarcodeScanner();
+    });
     document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $("scannerMask").style.display === "flex") {
+        stopBarcodeScanner();
+        return;
+      }
       if (e.key === "Escape") closeModal();
     });
 
@@ -1280,6 +1392,140 @@
       strip.innerHTML = imageUrls.length > 1
         ? imageUrls.map((url) => `<img src="${url}" alt="商品图缩略图" />`).join("")
         : "";
+    }
+
+    function renderEditBarcode(value) {
+      const display = $("modal").querySelector("#editBarcodeDisplay");
+      if (!display) return;
+      const barcode = String(value || "").trim();
+      display.textContent = barcode ? `已记录：${barcode}` : "未记录条形码";
+      display.title = barcode || "";
+    }
+
+    function stopBarcodeScanner() {
+      if (scannerState.timer) {
+        clearInterval(scannerState.timer);
+        scannerState.timer = null;
+      }
+      if (scannerState.controls) {
+        try {
+          scannerState.controls.stop();
+        } catch (_) {
+          // ignore cleanup errors
+        }
+        scannerState.controls = null;
+      }
+      if (scannerState.stream) {
+        scannerState.stream.getTracks().forEach((track) => track.stop());
+        scannerState.stream = null;
+      }
+      $("scannerVideo").srcObject = null;
+      $("scannerMask").style.display = "none";
+    }
+
+    function finishBarcodeScan(value) {
+      const barcode = String(value || "").trim();
+      if (!barcode) return;
+      const onResult = scannerState.onResult;
+      scannerState.onResult = null;
+      stopBarcodeScanner();
+      if (onResult) onResult(barcode);
+    }
+
+    async function openBarcodeScanner(onResult) {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("当前浏览器无法调用摄像头。请确认使用 https 页面，并允许相机权限。");
+      }
+      scannerState.onResult = onResult;
+      $("scannerMask").style.display = "flex";
+      $("scannerHint").textContent = "正在启动摄像头...";
+      if (!("BarcodeDetector" in window)) {
+        await openZxingBarcodeScanner();
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        scannerState.stream = stream;
+        $("scannerVideo").srcObject = stream;
+        $("scannerHint").textContent = "将条码放入画面中央";
+        if (!scannerState.detector) {
+          scannerState.detector = new BarcodeDetector({
+            formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"]
+          });
+        }
+        scannerState.timer = setInterval(async () => {
+          if (!$("scannerVideo").srcObject) return;
+          try {
+            const codes = await scannerState.detector.detect($("scannerVideo"));
+            if (!codes.length) return;
+            finishBarcodeScan(codes[0].rawValue);
+          } catch (_) {
+            // ignore scanning frame errors
+          }
+        }, 280);
+      } catch (err) {
+        stopBarcodeScanner();
+        throw err;
+      }
+    }
+
+    async function openZxingBarcodeScanner() {
+      $("scannerHint").textContent = "正在加载扫码组件...";
+      await loadZxing();
+      if (!window.ZXingBrowser?.BrowserMultiFormatReader) {
+        throw new Error("扫码组件加载异常");
+      }
+      const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
+      const video = $("scannerVideo");
+      $("scannerHint").textContent = "将条码放入画面中央，尽量横向对齐";
+      const onFrame = (result) => {
+        const value = String(result?.getText?.() || result?.text || "").trim();
+        if (value) finishBarcodeScan(value);
+      };
+      if (reader.decodeFromConstraints) {
+        scannerState.controls = await reader.decodeFromConstraints(
+          {
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
+          },
+          video,
+          (result) => {
+            if (result) onFrame(result);
+          }
+        );
+      } else {
+        scannerState.controls = await reader.decodeFromVideoDevice(
+          undefined,
+          video,
+          (result) => {
+            if (result) onFrame(result);
+          }
+        );
+      }
+    }
+
+    function loadZxing() {
+      if (window.ZXingBrowser?.BrowserMultiFormatReader) return Promise.resolve();
+      if (scannerState.zxingPromise) return scannerState.zxingPromise;
+      scannerState.zxingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "/vendor/zxing-browser.min.js";
+        script.async = true;
+        script.onload = () => {
+          if (window.ZXingBrowser?.BrowserMultiFormatReader) resolve();
+          else reject(new Error("扫码组件加载异常"));
+        };
+        script.onerror = () => reject(new Error("无法加载本地扫码组件"));
+        document.head.append(script);
+      });
+      return scannerState.zxingPromise;
     }
 
     async function compressImageFile(file) {
@@ -1497,8 +1743,11 @@
                   <input id="editNameJa" value="${escapeHtml(data.product.nameJa || "")}" readonly />
                 </div>
                 <div class="edit-field">
-                  <label for="editBarcode">条形码（可选）</label>
-                  <input id="editBarcode" value="${escapeHtml(data.product.barcode || "")}" inputmode="numeric" placeholder="可补充或修改条形码" />
+                  <label>条形码（可选）</label>
+                  <div class="edit-barcode-row">
+                    <div id="editBarcodeDisplay" class="edit-barcode-display"></div>
+                    <button id="editBarcodeScanBtn" class="edit-barcode-scan" type="button">重新扫码</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1574,6 +1823,7 @@
       const detailView = modal.querySelector("#detailView");
       let editMode = "correction";
       const detailRecords = data.records || [];
+      let editBarcode = String(data.product.barcode || "").trim();
 
       function updateTrend(mode = "lowest", storeKey = "") {
         modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
@@ -1734,6 +1984,21 @@
         modal.querySelector(`#${fieldId}`).addEventListener("input", calcEdit);
       });
       renderEditImages(editImageUrls);
+      renderEditBarcode(editBarcode);
+      modal.querySelector("#editBarcodeScanBtn").onclick = async () => {
+        const editMsg = modal.querySelector("#editMsg");
+        editMsg.textContent = "请允许摄像头权限，然后对准条形码。";
+        try {
+          await openBarcodeScanner((barcode) => {
+            editBarcode = barcode;
+            renderEditBarcode(editBarcode);
+            editMsg.textContent = `已识别条形码：${barcode}`;
+          });
+        } catch (err) {
+          editMsg.textContent = `无法启动扫码：${err.message || "请检查相机权限"}`;
+          stopBarcodeScanner();
+        }
+      };
       const editPhotoPreview = modal.querySelector("#editPhotoPreview");
       editPhotoPreview.onclick = () => modal.querySelector("#editImageFile").click();
       editPhotoPreview.onkeydown = (event) => {
@@ -1772,7 +2037,7 @@
         const payload = {
           product: {
             id: data.product.id,
-            barcode: modal.querySelector("#editBarcode").value.trim()
+            barcode: editBarcode
           },
           storeId: Number(modal.querySelector("#editStoreId").value),
           priceTaxIn: after,
