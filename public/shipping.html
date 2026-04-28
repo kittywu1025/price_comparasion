@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>日本发快递测试</title>
+  <title>日本发快递预估价格</title>
   <style>
     :root {
       --bg: #f2f6f5;
@@ -271,8 +271,7 @@
       font-weight: 700;
     }
 
-    input,
-    select {
+    input {
       width: 100%;
       height: 40px;
       border: 1px solid var(--line);
@@ -284,22 +283,42 @@
       outline: none;
     }
 
-    input:focus,
-    select:focus {
+    input:focus {
       border-color: #76c5b1;
       box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
     }
 
+    .choice-slider,
     .seg {
+      --items: 2;
+      --active: 0;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(var(--items), minmax(0, 1fr));
       gap: 4px;
       padding: 4px;
       border: 1px solid var(--line);
       border-radius: 999px;
       background: var(--soft);
+      position: relative;
+      overflow: hidden;
     }
 
+    .choice-slider::before,
+    .seg::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 4px;
+      width: calc((100% - 8px) / var(--items));
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(14, 63, 56, 0.08);
+      transform: translateX(calc(var(--active) * 100%));
+      transition: transform 160ms ease;
+    }
+
+    .choice-slider button,
     .seg button,
     .main-btn {
       height: 38px;
@@ -310,16 +329,18 @@
       cursor: pointer;
     }
 
+    .choice-slider button,
     .seg button {
       background: transparent;
       color: #536866;
       font-size: 12px;
+      position: relative;
+      z-index: 1;
     }
 
+    .choice-slider button.active,
     .seg button.active {
-      background: #fff;
       color: var(--primary);
-      box-shadow: 0 4px 10px rgba(14, 63, 56, 0.08);
     }
 
     .main-btn {
@@ -339,7 +360,7 @@
       background: #fbfefd;
       padding: 10px;
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 72px 1fr auto;
       gap: 8px;
       align-items: center;
     }
@@ -353,6 +374,16 @@
       margin: 0;
       font-weight: 900;
       font-size: 15px;
+    }
+
+    .result-visual {
+      width: 72px;
+      height: 54px;
+      border-radius: 12px;
+      border: 1px solid #d4e4df;
+      background: #fff;
+      object-fit: cover;
+      box-shadow: 0 4px 10px rgba(14, 63, 56, 0.06);
     }
 
     .result-meta {
@@ -416,6 +447,11 @@
 
       .result-card {
         grid-template-columns: 1fr;
+      }
+
+      .result-visual {
+        width: 100%;
+        height: 82px;
       }
     }
   </style>
@@ -505,43 +541,43 @@
     </section>
 
     <section class="panel">
-      <h2 class="panel-title">一步一步测试</h2>
+      <h2 class="panel-title">预估价格</h2>
       <div class="quiz-grid">
         <label>使用场景
-          <select id="platform">
-            <option value="mercari">Mercari 出售</option>
-            <option value="normal">普通寄件</option>
-          </select>
+          <div class="choice-slider" data-field="platform" style="--items: 2; --active: 0;">
+            <button class="active" type="button" data-value="mercari">Mercari 出售</button>
+            <button type="button" data-value="normal">普通寄件</button>
+          </div>
         </label>
         <label>是否需要匿名
-          <select id="anonymous">
-            <option value="yes">需要匿名</option>
-            <option value="no">不需要匿名</option>
-          </select>
+          <div class="choice-slider" data-field="anonymous" style="--items: 2; --active: 0;">
+            <button class="active" type="button" data-value="yes">需要匿名</button>
+            <button type="button" data-value="no">不需要匿名</button>
+          </div>
         </label>
         <label>是否需要追踪
-          <select id="tracking">
-            <option value="yes">需要</option>
-            <option value="no">不需要</option>
-          </select>
+          <div class="choice-slider" data-field="tracking" style="--items: 2; --active: 0;">
+            <button class="active" type="button" data-value="yes">需要</button>
+            <button type="button" data-value="no">不需要</button>
+          </div>
         </label>
         <label>是否需要补偿
-          <select id="compensation">
-            <option value="no">不需要</option>
-            <option value="yes">需要</option>
-          </select>
+          <div class="choice-slider" data-field="compensation" style="--items: 2; --active: 0;">
+            <button class="active" type="button" data-value="no">不需要</button>
+            <button type="button" data-value="yes">需要</button>
+          </div>
         </label>
         <label>长 cm<input id="length" type="number" min="0" step="0.1" placeholder="例如 21" /></label>
         <label>宽 cm<input id="width" type="number" min="0" step="0.1" placeholder="例如 16" /></label>
         <label>厚 cm<input id="thickness" type="number" min="0" step="0.1" placeholder="例如 2.5" /></label>
         <label>重量 g<input id="weight" type="number" min="0" step="1" placeholder="例如 300" /></label>
       </div>
-      <div class="seg" id="modeSeg">
+      <div class="seg" id="modeSeg" style="--items: 3; --active: 0;">
         <button class="active" type="button" data-mode="cheap">优先便宜</button>
         <button type="button" data-mode="easy">优先方便</button>
         <button type="button" data-mode="safe">优先安心</button>
       </div>
-      <button id="calcBtn" class="main-btn" type="button">开始测试</button>
+      <button id="calcBtn" class="main-btn" type="button">预估价格</button>
       <div id="result" class="result-list"></div>
     </section>
 
@@ -588,23 +624,51 @@
     ];
 
     let mode = "cheap";
+    const choiceState = {
+      platform: "mercari",
+      anonymous: "yes",
+      tracking: "yes",
+      compensation: "no"
+    };
     const $ = (id) => document.getElementById(id);
+    const courierImages = {
+      postMini: courierSvg("#d71920", "#fff6f6", "〒", "MINI", "专用封筒"),
+      postPacket: courierSvg("#d71920", "#fff6f6", "〒", "POST", "ポスト投函"),
+      postPlus: courierSvg("#d71920", "#fff6f6", "〒", "PLUS", "厚さ7cm"),
+      yamato: courierSvg("#f0c400", "#fff9db", "ヤ", "YAMATO", "宅急便"),
+      letter: courierSvg("#2f9bd3", "#eef7ff", "JP", "LETTER", "邮便封筒"),
+      box: courierSvg("#0d9a7d", "#eafff8", "BOX", "SIZE", "宅配箱")
+    };
+
+    document.querySelectorAll(".choice-slider").forEach((slider) => {
+      const buttons = Array.from(slider.querySelectorAll("button"));
+      buttons.forEach((button, index) => {
+        button.addEventListener("click", () => {
+          choiceState[slider.dataset.field] = button.dataset.value;
+          buttons.forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          slider.style.setProperty("--active", index);
+        });
+      });
+    });
 
     document.querySelectorAll("#modeSeg button").forEach((button) => {
       button.addEventListener("click", () => {
         mode = button.dataset.mode;
-        document.querySelectorAll("#modeSeg button").forEach((item) => item.classList.remove("active"));
+        const buttons = Array.from(document.querySelectorAll("#modeSeg button"));
+        buttons.forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
+        $("modeSeg").style.setProperty("--active", buttons.indexOf(button));
       });
     });
     $("calcBtn").addEventListener("click", calculate);
 
     function calculate() {
       const input = {
-        platform: $("platform").value,
-        anonymous: $("anonymous").value === "yes",
-        tracking: $("tracking").value === "yes",
-        compensation: $("compensation").value === "yes",
+        platform: choiceState.platform,
+        anonymous: choiceState.anonymous === "yes",
+        tracking: choiceState.tracking === "yes",
+        compensation: choiceState.compensation === "yes",
         l: Number($("length").value || 0),
         w: Number($("width").value || 0),
         t: Number($("thickness").value || 0),
@@ -629,6 +693,7 @@
 
       $("result").innerHTML = candidates.map((item, index) => `
         <article class="result-card ${index === 0 ? "best" : ""}">
+          <img class="result-visual" src="${courierImages[imageKey(item)]}" alt="${item.name} 示意图" />
           <div>
             <p class="result-name">${index === 0 ? "推荐：" : ""}${item.name}</p>
             <p class="result-meta">${item.note}${item.material ? ` 资材：${item.material}。` : ""}</p>
@@ -668,6 +733,31 @@
       }
       if (input.platform === "mercari" && method.anonymous) value -= 20;
       return value;
+    }
+
+    function imageKey(method) {
+      if (method.name.includes("mini")) return "postMini";
+      if (method.name.includes("ゆうパケットポスト")) return "postPacket";
+      if (method.name.includes("ゆうパケットプラス")) return "postPlus";
+      if (method.name.includes("ネコポス") || method.name.includes("宅急便コンパクト")) return "yamato";
+      if (method.name.includes("レターパック") || method.name.includes("クリックポスト") || method.name.includes("スマートレター")) return "letter";
+      return "box";
+    }
+
+    function courierSvg(primary, bg, mark, title, subtitle) {
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 108">
+          <rect width="144" height="108" rx="18" fill="${bg}"/>
+          <rect x="18" y="24" width="108" height="62" rx="10" fill="#fff" stroke="${primary}" stroke-width="5"/>
+          <rect x="18" y="24" width="108" height="18" rx="8" fill="${primary}"/>
+          <circle cx="39" cy="72" r="13" fill="${primary}"/>
+          <circle cx="105" cy="72" r="13" fill="${primary}"/>
+          <text x="72" y="38" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="14" font-weight="700">${title}</text>
+          <text x="72" y="66" text-anchor="middle" fill="${primary}" font-family="Arial, sans-serif" font-size="24" font-weight="900">${mark}</text>
+          <text x="72" y="96" text-anchor="middle" fill="#607270" font-family="Arial, sans-serif" font-size="12" font-weight="700">${subtitle}</text>
+        </svg>
+      `;
+      return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
     }
   </script>
 </body>
