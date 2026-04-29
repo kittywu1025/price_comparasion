@@ -26,6 +26,30 @@
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   }
 
+  function tsvCell(value) {
+    return String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
+  }
+
+  function utf16LeBlob(text) {
+    const bytes = new Uint8Array(2 + text.length * 2);
+    bytes[0] = 0xff;
+    bytes[1] = 0xfe;
+    for (let i = 0; i < text.length; i += 1) {
+      const code = text.charCodeAt(i);
+      bytes[2 + i * 2] = code & 0xff;
+      bytes[3 + i * 2] = code >> 8;
+    }
+    return new Blob([bytes], { type: "text/tab-separated-values;charset=utf-16le" });
+  }
+
+  async function readTextFile(file) {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes.subarray(2));
+    if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes.subarray(2));
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+
   function protectSpreadsheetText(value) {
     const text = String(value ?? "").trim();
     return text ? `\t${text}` : "";
@@ -111,36 +135,49 @@
     return state.stores;
   }
 
-  function splitDelimitedLine(line, delimiter) {
-    const cells = [];
+  function detectDelimiter(text) {
+    const firstLine = String(text || "").split(/\r?\n/, 1)[0] || "";
+    return firstLine.includes("\t") ? "\t" : ",";
+  }
+
+  function splitDelimitedRows(text, delimiter) {
+    const rows = [];
+    let row = [];
     let cell = "";
     let quoted = false;
-    for (let i = 0; i < line.length; i += 1) {
-      const ch = line[i];
+    const normalizedText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    for (let i = 0; i < normalizedText.length; i += 1) {
+      const ch = normalizedText[i];
       if (ch === '"') {
-        if (quoted && line[i + 1] === '"') {
+        if (quoted && normalizedText[i + 1] === '"') {
           cell += '"';
           i += 1;
         } else {
           quoted = !quoted;
         }
       } else if (ch === delimiter && !quoted) {
-        cells.push(cell);
+        row.push(cell.trim());
+        cell = "";
+      } else if (ch === "\n" && !quoted) {
+        row.push(cell.trim());
+        if (row.some((value) => value.trim())) rows.push(row);
+        row = [];
         cell = "";
       } else {
         cell += ch;
       }
     }
-    cells.push(cell);
-    return cells.map((x) => x.trim());
+    row.push(cell.trim());
+    if (row.some((value) => value.trim())) rows.push(row);
+    return rows;
   }
 
   function parseDelimitedText(text) {
-    const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    const cleanText = String(text || "").replace(/^\uFEFF/, "").trim();
     if (!cleanText) throw new Error("文件里没有可导入的数据");
-    const lines = cleanText.split("\n").filter((line) => line.trim());
-    const delimiter = lines[0].includes("\t") ? "\t" : ",";
-    const rawRows = lines.map((line) => splitDelimitedLine(line, delimiter));
+    const delimiter = detectDelimiter(cleanText);
+    const rawRows = splitDelimitedRows(cleanText, delimiter);
+    if (!rawRows.length) throw new Error("文件里没有可导入的数据");
     const headers = rawRows[0].map((x) => x.trim());
     const aliases = {
       nameZh: ["中文名", "商品中文名", "nameZh", "name_zh"],
@@ -349,7 +386,7 @@
     }
     try {
       await loadStores();
-      const rows = parseDelimitedText(await file.text());
+      const rows = parseDelimitedText(await readTextFile(file));
       if (!rows.length) throw new Error("没有解析到有效记录");
       openImportPreview(rows, file.name);
       notify("解析完成，请先预览确认。", "success");
@@ -546,7 +583,7 @@
   }
 
   async function exportAllRecordsCsv() {
-    const ok = window.confirm("确认导出所有价格记录 CSV 吗？文件会下载到本机。");
+    const ok = window.confirm("确认导出所有价格记录表格吗？文件会下载到本机。");
     if (!ok) return;
     const headers = [
       "recordId", "productId", "中文名", "日文名", "条码", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
@@ -558,7 +595,7 @@
       row.productId,
       row.nameZh,
       row.nameJa,
-      protectSpreadsheetText(row.barcode),
+      row.barcode,
       row.storeId,
       row.storeName,
       row.priceTaxIn,
@@ -573,12 +610,12 @@
       row.createdBy,
       row.createdAt
     ]);
-    const csv = `\uFEFF${[headers, ...lines].map((row) => row.map(csvEscape).join(",")).join("\n")}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const tsv = [headers, ...lines].map((row) => row.map(tsvCell).join("\t")).join("\r\n");
+    const blob = utf16LeBlob(tsv);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `price-records-export-${today()}.csv`;
+    link.download = `price-records-export-${today()}.tsv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -587,11 +624,11 @@
   }
 
   function parseDeveloperRows(text) {
-    const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    const cleanText = String(text || "").replace(/^\uFEFF/, "").trim();
     if (!cleanText) throw new Error("文件里没有可更新的数据");
-    const lines = cleanText.split("\n").filter((line) => line.trim());
-    const delimiter = lines[0].includes("\t") ? "\t" : ",";
-    const rawRows = lines.map((line) => splitDelimitedLine(line, delimiter));
+    const delimiter = detectDelimiter(cleanText);
+    const rawRows = splitDelimitedRows(cleanText, delimiter);
+    if (!rawRows.length) throw new Error("文件里没有可更新的数据");
     const headers = rawRows[0].map((x) => x.trim());
     const aliases = {
       recordId: ["recordId", "记录ID"],
@@ -686,14 +723,14 @@
   async function applyDeveloperCsv(file) {
     if (!file) return;
     if (/\.(xlsx|xls)$/i.test(file.name)) {
-      notify("请把 Excel 另存为 CSV 后再上传。", "error", { sticky: true });
+      notify("请把 Excel 另存为 TSV 或 CSV 后再上传。", "error", { sticky: true });
       return;
     }
     const ok = window.confirm("会按 recordId 批量更新数据。建议先导出备份。确认继续吗？");
     if (!ok) return;
     try {
       await loadStores();
-      const rows = parseDeveloperRows(await file.text());
+      const rows = parseDeveloperRows(await readTextFile(file));
       if (!rows.length) throw new Error("没有解析到有效记录");
       const checks = rows.map((row) => ({ row, ...validateDeveloperRow(row) }));
       const invalid = checks.filter((item) => item.errors.length);
@@ -728,7 +765,7 @@
     mount.innerHTML = `
       <section class="developer-data-tools" aria-label="开发者数据整理">
         <p class="panel-title">数据整理</p>
-        <p class="panel-body">导出所有价格记录为 CSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。</p>
+        <p class="panel-body">导出所有价格记录为 Excel 兼容 TSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。</p>
         <div class="developer-data-actions">
           <button id="exportAllRecordsBtn" class="primary" type="button">导出所有数据</button>
           <button id="applyEditedRecordsBtn" type="button">上传修改表格</button>
