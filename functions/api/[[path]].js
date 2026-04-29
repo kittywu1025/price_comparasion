@@ -889,6 +889,18 @@ async function resolveProductId(env, productInput = {}, imageUrl = null, auth) {
 async function updateProductMetadata(env, productId, productInput = {}, imageUrl = null, options = {}) {
   const updates = [];
   const params = [];
+  if (productInput && Object.prototype.hasOwnProperty.call(productInput, "nameZh")) {
+    updates.push("name_zh = ?");
+    params.push(clean(productInput.nameZh));
+  }
+  if (productInput && Object.prototype.hasOwnProperty.call(productInput, "nameJa")) {
+    updates.push("name_ja = ?");
+    params.push(clean(productInput.nameJa));
+  }
+  if (productInput && Object.prototype.hasOwnProperty.call(productInput, "brand")) {
+    updates.push("brand = ?");
+    params.push(clean(productInput.brand));
+  }
   const hasBarcode = productInput && Object.prototype.hasOwnProperty.call(productInput, "barcode");
   if (hasBarcode) {
     const barcode = clean(productInput.barcode);

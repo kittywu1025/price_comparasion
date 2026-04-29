@@ -465,6 +465,15 @@ export function updatePriceRecord(recordId, input, auth = {}) {
   row.note = input.note || null;
   const product = db.products.find((item) => item.id === row.productId);
   if (product) {
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "nameZh")) {
+      product.nameZh = String(input.product.nameZh || "").trim();
+    }
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "nameJa")) {
+      product.nameJa = String(input.product.nameJa || "").trim();
+    }
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "brand")) {
+      product.brand = String(input.product.brand || "").trim();
+    }
     if (input.product && Object.prototype.hasOwnProperty.call(input.product, "barcode")) {
       const barcode = String(input.product.barcode || "").trim();
       const duplicate = barcode

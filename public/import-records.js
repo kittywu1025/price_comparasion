@@ -52,6 +52,9 @@
       .price-import-row-error{margin-top:4px;color:#ca3f3f;font-size:11px;line-height:1.35}
       .price-import-foot{border-top:1px solid #e6efec;border-bottom:0;background:#fff}
       .price-import-foot-actions{display:flex;gap:8px;align-items:center}
+      .developer-data-tools{display:grid;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e6efec}
+      .developer-data-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .developer-data-actions button{height:42px}
     `;
     document.head.appendChild(style);
   }
@@ -148,6 +151,18 @@
 
   function isPromoValue(value) {
     return /^(是|yes|y|true|1|限时|优惠)$/i.test(String(value || "").trim());
+  }
+
+  function stripPromoNote(note) {
+    return String(note || "").replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "").trim();
+  }
+
+  function parsePromoNote(note) {
+    const match = String(note || "").match(/^\[\[promo(?::(\d{4}-\d{2}-\d{2}))?\]\]\s*/i);
+    return {
+      isPromo: Boolean(match),
+      promoUntil: match?.[1] || ""
+    };
   }
 
   function validateImportRow(row) {
@@ -420,5 +435,235 @@
     }).catch(() => {
       // Loading stores is retried when the user downloads a template or imports a file.
     });
+  };
+
+  async function fetchAllRecordRows() {
+    const stores = await loadStores();
+    const storeById = new Map(stores.map((store) => [Number(store.id), store]));
+    const products = await fetch("/api/products").then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "商品读取失败");
+      return data;
+    });
+    const rows = [];
+    for (const product of products) {
+      const detail = await fetch(`/api/products/${product.productId}`).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `商品 #${product.productId} 详情读取失败`);
+        return data;
+      });
+      for (const record of detail.records || []) {
+        const promo = parsePromoNote(record.note);
+        rows.push({
+          recordId: record.id,
+          productId: detail.product.id,
+          nameZh: detail.product.nameZh || "",
+          nameJa: detail.product.nameJa || "",
+          barcode: detail.product.barcode || "",
+          storeId: record.storeId,
+          storeName: storeById.get(Number(record.storeId))?.name || record.storeName || "",
+          priceTaxIn: record.priceTaxIn ?? "",
+          priceTaxEx: record.priceTaxEx ?? "",
+          taxRate: record.taxRate ?? "",
+          specValue: record.specValue ?? "",
+          unit: record.unit || "",
+          recordDate: record.recordDate || "",
+          isPromo: promo.isPromo ? "是" : "否",
+          promoUntil: promo.promoUntil,
+          note: stripPromoNote(record.note),
+          createdBy: record.createdBy || "",
+          createdAt: record.createdAt || ""
+        });
+      }
+    }
+    return rows.sort((a, b) =>
+      String(b.recordDate || "").localeCompare(String(a.recordDate || "")) ||
+      Number(b.recordId || 0) - Number(a.recordId || 0)
+    );
+  }
+
+  async function exportAllRecordsCsv() {
+    const headers = [
+      "recordId", "productId", "中文名", "日文名", "条码", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
+      "日期", "限时优惠", "优惠截止日期", "备注", "createdBy", "createdAt"
+    ];
+    const rows = await fetchAllRecordRows();
+    const lines = rows.map((row) => [
+      row.recordId,
+      row.productId,
+      row.nameZh,
+      row.nameJa,
+      row.barcode,
+      row.storeId,
+      row.storeName,
+      row.priceTaxIn,
+      row.priceTaxEx,
+      row.taxRate,
+      row.specValue,
+      row.unit,
+      row.recordDate,
+      row.isPromo,
+      row.promoUntil,
+      row.note,
+      row.createdBy,
+      row.createdAt
+    ]);
+    const csv = `\uFEFF${[headers, ...lines].map((row) => row.map(csvEscape).join(",")).join("\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `price-records-export-${today()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    notify(`已导出 ${rows.length} 条价格记录。`, "success");
+  }
+
+  function parseDeveloperRows(text) {
+    const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    if (!cleanText) throw new Error("文件里没有可更新的数据");
+    const lines = cleanText.split("\n").filter((line) => line.trim());
+    const delimiter = lines[0].includes("\t") ? "\t" : ",";
+    const rawRows = lines.map((line) => splitDelimitedLine(line, delimiter));
+    const headers = rawRows[0].map((x) => x.trim());
+    const aliases = {
+      recordId: ["recordId", "记录ID"],
+      productId: ["productId", "商品ID"],
+      nameZh: ["中文名", "商品中文名", "nameZh", "name_zh"],
+      nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
+      barcode: ["条码", "barcode", "JAN"],
+      storeId: ["storeId", "店铺ID"],
+      storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
+      priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
+      priceTaxEx: ["税前价", "税前价格", "不含税价格", "priceTaxEx"],
+      taxRate: ["税率", "taxRate"],
+      specValue: ["规格", "规格数值", "spec", "specValue"],
+      unit: ["单位", "规格单位", "unit"],
+      recordDate: ["日期", "记录日期", "recordDate"],
+      isPromo: ["限时优惠", "是否限时优惠", "isPromo"],
+      promoUntil: ["优惠截止日期", "限时优惠截止日期", "promoUntil"],
+      note: ["备注", "note"]
+    };
+    const indexOf = (keys) => headers.findIndex((header) => keys.some((key) => header.toLowerCase() === String(key).toLowerCase()));
+    const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
+    if (indexes.recordId < 0 && indexes.productId < 0) throw new Error("缺少 recordId/productId，不能安全更新");
+    return rawRows.slice(1).map((row, index) => ({
+      selected: true,
+      sourceIndex: index + 2,
+      recordId: row[indexes.recordId] || "",
+      productId: row[indexes.productId] || "",
+      nameZh: row[indexes.nameZh] || "",
+      nameJa: row[indexes.nameJa] || "",
+      barcode: row[indexes.barcode] || "",
+      storeId: row[indexes.storeId] || "",
+      storeName: row[indexes.storeName] || "",
+      priceTaxIn: row[indexes.priceTaxIn] || "",
+      priceTaxEx: row[indexes.priceTaxEx] || "",
+      taxRate: row[indexes.taxRate] || "8",
+      specValue: row[indexes.specValue] || "",
+      unit: row[indexes.unit] || "g",
+      recordDate: row[indexes.recordDate] || today(),
+      isPromo: row[indexes.isPromo] || "否",
+      promoUntil: row[indexes.promoUntil] || "",
+      note: row[indexes.note] || ""
+    })).filter((row) => Object.values(row).some((value) => typeof value === "string" && value.trim()));
+  }
+
+  function resolveDeveloperStore(row) {
+    if (row.storeId) {
+      const byId = state.stores.find((store) => Number(store.id) === Number(row.storeId));
+      if (byId) return byId;
+    }
+    return findStoreByName(row.storeName);
+  }
+
+  function validateDeveloperRow(row) {
+    const checkRow = { ...row, storeName: row.storeName || state.stores.find((store) => Number(store.id) === Number(row.storeId))?.name || "" };
+    const base = validateImportRow(checkRow);
+    const errors = [...base.errors];
+    const store = resolveDeveloperStore(row);
+    if (!store && !errors.includes("店铺未匹配")) errors.push("店铺未匹配");
+    if (row.recordId && !Number.isFinite(Number(row.recordId))) errors.push("recordId 必须是数字");
+    if (row.productId && !Number.isFinite(Number(row.productId))) errors.push("productId 必须是数字");
+    if (!row.recordId && !row.productId && !String(row.nameZh || row.nameJa).trim()) errors.push("新增行需要商品名");
+    return { errors, store };
+  }
+
+  function buildDeveloperPayload(row, store) {
+    const payload = buildImportPayload(row, store);
+    if (row.productId) payload.productId = Number(row.productId);
+    payload.product = {
+      id: row.productId ? Number(row.productId) : undefined,
+      nameZh: String(row.nameZh || "").trim(),
+      nameJa: String(row.nameJa || "").trim(),
+      barcode: String(row.barcode || "").trim()
+    };
+    return payload;
+  }
+
+  async function applyDeveloperCsv(file) {
+    if (!file) return;
+    if (/\.(xlsx|xls)$/i.test(file.name)) {
+      notify("请把 Excel 另存为 CSV 后再上传。", "error", { sticky: true });
+      return;
+    }
+    const ok = window.confirm("会按 recordId 批量更新数据。建议先导出备份。确认继续吗？");
+    if (!ok) return;
+    try {
+      await loadStores();
+      const rows = parseDeveloperRows(await file.text());
+      if (!rows.length) throw new Error("没有解析到有效记录");
+      const checks = rows.map((row) => ({ row, ...validateDeveloperRow(row) }));
+      const invalid = checks.filter((item) => item.errors.length);
+      if (invalid.length) {
+        const first = invalid[0];
+        throw new Error(`第 ${first.row.sourceIndex} 行需要修改：${first.errors.join("；")}`);
+      }
+      let updated = 0;
+      let created = 0;
+      for (const item of checks) {
+        const recordId = Number(item.row.recordId);
+        const res = await fetch(recordId ? `/api/price-records/${recordId}` : "/api/price-records", {
+          method: recordId ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(buildDeveloperPayload(item.row, item.store))
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(`第 ${item.row.sourceIndex} 行保存失败：${data.error || "未知错误"}`);
+        if (recordId) updated += 1;
+        else created += 1;
+      }
+      notify(`已更新 ${updated} 条，新增 ${created} 条。`, "success", { duration: 4200 });
+    } catch (err) {
+      notify(err.message || "批量更新失败", "error", { sticky: true });
+    }
+  }
+
+  window.setupDeveloperDataTools = function setupDeveloperDataTools(mountId) {
+    const mount = document.getElementById(mountId);
+    if (!mount) return;
+    ensureStyles();
+    mount.innerHTML = `
+      <section class="developer-data-tools" aria-label="开发者数据整理">
+        <p class="panel-title">数据整理</p>
+        <p class="panel-body">导出所有价格记录为 CSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。</p>
+        <div class="developer-data-actions">
+          <button id="exportAllRecordsBtn" class="primary" type="button">导出所有数据</button>
+          <button id="applyEditedRecordsBtn" type="button">上传修改表格</button>
+        </div>
+        <input id="developerImportFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" style="display:none" />
+      </section>
+    `;
+    document.getElementById("exportAllRecordsBtn").onclick = () => {
+      exportAllRecordsCsv().catch((err) => notify(err.message || "导出失败", "error", { sticky: true }));
+    };
+    document.getElementById("applyEditedRecordsBtn").onclick = () => {
+      const input = document.getElementById("developerImportFile");
+      input.value = "";
+      input.click();
+    };
+    document.getElementById("developerImportFile").onchange = (event) => applyDeveloperCsv((event.target.files || [])[0]);
   };
 }());

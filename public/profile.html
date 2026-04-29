@@ -498,10 +498,12 @@
       const devMode = $("devModeToggle")?.checked;
       if (isAdmin && devMode) {
         panel.innerHTML = `
+          <div id="developerDataTools"></div>
           <p class="panel-title">用户反馈</p>
           <p class="panel-body">这里显示别人提交给开发者的建议。回退管理入口后续也放在开发者模式里。</p>
           <div id="feedbackList" class="feedback-list"><p class="panel-body">正在读取...</p></div>
         `;
+        setupDeveloperDataTools("developerDataTools");
         loadAdminFeedback();
         return;
       }
