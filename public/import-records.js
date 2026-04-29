@@ -261,6 +261,8 @@
   }
 
   function downloadImportTemplate() {
+    const ok = window.confirm("确认下载价格导入模板文件吗？");
+    if (!ok) return;
     const rows = [
       ["中文名", "日文名", "条码", "店铺", "税后价", "税前价", "税率", "规格", "单位", "日期", "限时优惠", "优惠截止日期", "备注"],
       ["牛奶", "牛乳", "4900000000000", state.stores[0]?.name || "请填写已有店铺名", "198", "", "8", "1000", "ml", today(), "是", today(), "可选"]
@@ -483,6 +485,8 @@
   }
 
   async function exportAllRecordsCsv() {
+    const ok = window.confirm("确认导出所有价格记录 CSV 吗？文件会下载到本机。");
+    if (!ok) return;
     const headers = [
       "recordId", "productId", "中文名", "日文名", "条码", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
       "日期", "限时优惠", "优惠截止日期", "备注", "createdBy", "createdAt"

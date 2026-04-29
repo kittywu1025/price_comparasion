@@ -578,6 +578,8 @@
     function exportVocab() {
       const rows = Object.values(vocab).sort((a, b) => a.word.localeCompare(b.word, "ja")).map((item) => `${item.word}\t${item.reading || ""}`);
       if (!rows.length) return;
+      const ok = window.confirm("确认导出生词内容吗？内容会复制到剪贴板。");
+      if (!ok) return;
       navigator.clipboard?.writeText(rows.join("\n"));
       $("exportBtn").textContent = "已复制";
       setTimeout(() => $("exportBtn").textContent = "导出生词", 1200);
