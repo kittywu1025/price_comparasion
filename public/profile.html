@@ -58,10 +58,22 @@
       box-shadow: var(--shadow);
     }
 
+    .profile-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .profile-title {
+      min-width: 0;
+    }
+
     .hero h1 {
       margin: 0;
       font-size: 21px;
       line-height: 1.25;
+      word-break: break-word;
     }
 
     .hero p {
@@ -70,6 +82,41 @@
       font-size: 13px;
       line-height: 1.5;
       word-break: break-word;
+    }
+
+    .hero-action {
+      height: 34px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      padding: 0 12px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .hero-edit {
+      display: none;
+      margin-top: 12px;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .hero-edit.show {
+      display: grid;
+    }
+
+    .hero-edit input {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(255, 255, 255, 0.7);
+    }
+
+    .hero-edit button {
+      background: #fff;
+      color: #0b7f68;
     }
 
     .stats-grid {
@@ -170,6 +217,19 @@
       color: var(--text);
       font: inherit;
       outline: none;
+    }
+
+    .link-button {
+      margin-top: 10px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 13px;
     }
 
     .dev-row {
@@ -331,7 +391,15 @@
         font-size: 19px;
       }
 
+      .profile-head {
+        gap: 8px;
+      }
+
       .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-edit {
         grid-template-columns: 1fr;
       }
     }
@@ -340,8 +408,18 @@
 <body data-require-auth="true">
   <div class="app">
     <section class="hero">
-      <h1>我的贡献</h1>
-      <p id="userLine">正在读取贡献数据...</p>
+      <div class="profile-head">
+        <div class="profile-title">
+          <h1 id="profileName">我的贡献</h1>
+          <p id="userLine">正在读取贡献数据...</p>
+        </div>
+        <button id="editProfileNameBtn" class="hero-action" type="button">修改用户名</button>
+      </div>
+      <div id="profileNameEditor" class="hero-edit">
+        <input id="displayNameInput" maxlength="40" placeholder="例如：Kitty" />
+        <button id="saveProfileBtn" type="button">保存</button>
+      </div>
+      <p id="profileMsg" class="inline-msg"></p>
     </section>
 
     <section class="stats-grid">
@@ -371,18 +449,9 @@
     <div id="priceImportMount"></div>
 
     <section class="panel">
-      <p class="panel-title">github</p>
-      <p id="totalLine" class="panel-body">https://github.com/kittywu1025/price_comparasion.git</p>
-    </section>
-
-    <section class="panel">
-      <p class="panel-title">用户名设置</p>
-      <p class="panel-body">用户名会显示在你提交的建议、创建记录和修改记录里。没有设置时显示登录邮箱。</p>
-      <div class="form-row">
-        <input id="displayNameInput" maxlength="40" placeholder="例如：Kitty" />
-        <button id="saveProfileBtn" class="primary" type="button">保存</button>
-      </div>
-      <p id="profileMsg" class="inline-msg"></p>
+      <p class="panel-title">GitHub</p>
+      <p class="panel-body">项目源码和发布记录在 GitHub 仓库中维护。</p>
+      <a class="link-button" href="https://github.com/kittywu1025/price_comparasion.git" target="_blank" rel="noopener">访问 GitHub 仓库</a>
       <div id="devModeRow" class="dev-row">
         <div>
           <p class="panel-title">开发者模式</p>
@@ -455,6 +524,11 @@
     loadStats();
     setupPriceImport("priceImportMount");
 
+    $("editProfileNameBtn").onclick = () => {
+      $("profileNameEditor").classList.toggle("show");
+      if ($("profileNameEditor").classList.contains("show")) $("displayNameInput").focus();
+    };
+
     $("saveProfileBtn").onclick = async () => {
       const button = $("saveProfileBtn");
       const msg = $("profileMsg");
@@ -473,6 +547,7 @@
           currentStats.user.displayName = data.displayName || "";
           renderUserLine(currentStats.user);
         }
+        $("profileNameEditor").classList.remove("show");
       } catch (err) {
         msg.textContent = "";
         showToast(err.message || "保存失败", { type: "error" });
@@ -580,8 +655,9 @@
     function renderUserLine(user = {}) {
       const name = user.displayName || "未设置";
       const email = user.email || "未登录";
+      $("profileName").textContent = name;
       $("userLine").innerHTML =
-        `用户名：${escapeHtml(name)}${user.isAdmin ? " · 管理员" : ""}<br />绑定邮箱：${escapeHtml(email)}`;
+        `${user.isAdmin ? "管理员 · " : ""}${escapeHtml(email)}`;
     }
 
     function actorLabel(name, email, fallback = "-") {
