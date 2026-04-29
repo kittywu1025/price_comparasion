@@ -153,14 +153,25 @@
     return /^(是|yes|y|true|1|限时|优惠)$/i.test(String(value || "").trim());
   }
 
+  function hasLegacyPromoText(note) {
+    return /限时(?:特惠|优惠)?|特惠|限期|期間限定/i.test(String(note || ""));
+  }
+
   function stripPromoNote(note) {
-    return String(note || "").replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "").trim();
+    return String(note || "")
+      .replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "")
+      .replace(/(^|\s|\||，|,|、)(限时特惠|限时优惠|限时|特惠|限期|期間限定)(?=\s|\||，|,|、|$)/gi, " ")
+      .replace(/^[\s|，,、]+|[\s|，,、]+$/g, "")
+      .replace(/\s*([|，,、])\s*/g, " $1 ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function parsePromoNote(note) {
     const match = String(note || "").match(/^\[\[promo(?::(\d{4}-\d{2}-\d{2}))?\]\]\s*/i);
+    const legacyPromo = hasLegacyPromoText(note);
     return {
-      isPromo: Boolean(match),
+      isPromo: Boolean(match) || legacyPromo,
       promoUntil: match?.[1] || ""
     };
   }
