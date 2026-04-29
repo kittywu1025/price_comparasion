@@ -771,6 +771,41 @@ async function createPriceRecord(env, input, auth) {
     createdBy: getCreatedBy(auth)
   });
 
+  const existing = await first(
+    env,
+    "select * from price_records where product_id = ? and store_id = ? and record_date = ? order by id desc limit 1",
+    [payload.productId, Number(payload.storeId), payload.recordDate]
+  );
+
+  if (existing) {
+    await snapshotPriceRecordRevision(env, existing, auth);
+    const effectiveImageUrl = imageUrls.length ? payload.imageUrl : existing.image_url;
+    await run(
+      env,
+      `update price_records
+       set store_id = ?, price_tax_in = ?, price_tax_ex = ?, tax_rate = ?, spec_value = ?, unit = ?,
+           unit_price = ?, unit_price_label = ?, image_url = ?, record_date = ?, note = ?, updated_at = datetime('now')
+       where id = ?`,
+      [
+        Number(payload.storeId),
+        payload.priceTaxIn,
+        payload.priceTaxEx,
+        payload.taxRate,
+        payload.specValue,
+        payload.unit,
+        payload.unitPrice,
+        payload.unitPriceLabel,
+        effectiveImageUrl,
+        payload.recordDate,
+        payload.note,
+        existing.id
+      ]
+    );
+    await updateProductMetadata(env, payload.productId, input.product, imageUrls[0] || null, { setDefaultImage: Boolean(imageUrls[0]) });
+    const row = await first(env, "select * from price_records where id = ?", [existing.id]);
+    return toPriceRecord(row);
+  }
+
   const result = await run(
     env,
     `insert into price_records

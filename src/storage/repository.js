@@ -353,6 +353,18 @@ export function createPriceRecord(input, auth = {}) {
   if (productId) {
     const existingProduct = db.products.find((product) => product.id === productId);
     if (!existingProduct) throw new Error("product not found");
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "nameZh")) {
+      existingProduct.nameZh = String(input.product.nameZh || "").trim();
+      existingProduct.updatedAt = nowDate();
+    }
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "nameJa")) {
+      existingProduct.nameJa = String(input.product.nameJa || "").trim();
+      existingProduct.updatedAt = nowDate();
+    }
+    if (input.product && Object.prototype.hasOwnProperty.call(input.product, "brand")) {
+      existingProduct.brand = String(input.product.brand || "").trim();
+      existingProduct.updatedAt = nowDate();
+    }
     if (hasBarcodeInput) {
       const duplicate = barcode
         ? db.products.find((product) => product.id !== productId && String(product.barcode || "").trim() === barcode)
@@ -400,6 +412,52 @@ export function createPriceRecord(input, auth = {}) {
     createdBy: getCreatedBy(auth),
     createdAt: nowDate()
   };
+
+  const existingRecord = db.priceRecords
+    .slice()
+    .sort((a, b) => Number(b.id) - Number(a.id))
+    .find((record) =>
+      Number(record.productId) === Number(row.productId) &&
+      Number(record.storeId) === Number(row.storeId) &&
+      String(record.recordDate || "") === String(row.recordDate || "")
+    );
+
+  if (existingRecord) {
+    db.priceRecordRevisions.push({
+      id: getNextId(db, "priceRecordRevision"),
+      priceRecordId: existingRecord.id,
+      snapshot: {
+        storeId: existingRecord.storeId,
+        priceTaxIn: existingRecord.priceTaxIn,
+        priceTaxEx: existingRecord.priceTaxEx,
+        taxRate: existingRecord.taxRate,
+        specValue: existingRecord.specValue,
+        unit: existingRecord.unit,
+        unitPrice: existingRecord.unitPrice,
+        unitPriceLabel: existingRecord.unitPriceLabel,
+        imageUrl: existingRecord.imageUrl || null,
+        recordDate: existingRecord.recordDate,
+        note: existingRecord.note || null
+      },
+      modifiedBy: getCreatedBy(auth),
+      createdAt: nowDate()
+    });
+    Object.assign(existingRecord, {
+      storeId: row.storeId,
+      priceTaxIn: row.priceTaxIn,
+      priceTaxEx: row.priceTaxEx,
+      taxRate: row.taxRate,
+      specValue: row.specValue,
+      unit: row.unit,
+      unitPrice: row.unitPrice,
+      unitPriceLabel: row.unitPriceLabel,
+      imageUrl: imageUrls.length ? row.imageUrl : existingRecord.imageUrl,
+      recordDate: row.recordDate,
+      note: row.note
+    });
+    writeDb(db);
+    return toPriceRecord(existingRecord);
+  }
 
   db.priceRecords.push(row);
   writeDb(db);
