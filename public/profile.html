@@ -368,6 +368,8 @@
       <p id="totalLine" class="panel-body">正在读取...</p>
     </section>
 
+    <div id="priceImportMount"></div>
+
     <section class="panel">
       <p class="panel-title">github</p>
       <p id="totalLine" class="panel-body">https://github.com/kittywu1025/price_comparasion.git</p>
@@ -405,6 +407,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="import-records.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const devModeKey = "priceComparisonDevMode";
@@ -450,6 +453,7 @@
     }
 
     loadStats();
+    setupPriceImport("priceImportMount");
 
     $("saveProfileBtn").onclick = async () => {
       const button = $("saveProfileBtn");

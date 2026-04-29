@@ -1021,16 +1021,6 @@
     </header>
     <div id="barcodeNote" class="toolbar-note">条码：未扫码</div>
 
-    <section class="card import-card" aria-label="记录与模板">
-      <p class="import-title">记录与模板</p>
-      <div class="import-actions">
-        <button id="importRecordsBtn" class="import-action" type="button">导入记录</button>
-        <button id="downloadTemplateBtn" class="import-action" type="button">下载模板文件</button>
-      </div>
-      <p class="import-help">先下载模板填写价格数据，再导入预览；确认列表里可以单选、批量选择并手动修正。</p>
-      <input id="importFile" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv,text/tab-separated-values" style="display:none" />
-    </section>
-
     <section class="card">
       <form id="form">
         <input id="imageFile" type="file" accept="image/*" multiple style="display:none" />
@@ -2166,42 +2156,6 @@
       $("quickMask").style.display = "none";
     };
     $("applyQuickFill").onclick = applyQuickFillText;
-    $("downloadTemplateBtn").onclick = downloadImportTemplate;
-    $("importRecordsBtn").onclick = () => {
-      $("importFile").value = "";
-      $("importFile").click();
-    };
-    $("importFile").onchange = (e) => handleImportFile((e.target.files || [])[0]);
-    $("closeImportPreview").onclick = closeImportPreview;
-    $("cancelImportPreview").onclick = closeImportPreview;
-    $("importMask").addEventListener("click", (e) => {
-      if (e.target === $("importMask")) closeImportPreview();
-    });
-    $("selectAllImportRows").onchange = (e) => {
-      state.importRows.forEach((row) => {
-        row.selected = e.target.checked;
-      });
-      renderImportPreview();
-    };
-    $("importPreviewBody").addEventListener("input", (e) => {
-      const rowEl = e.target.closest("tr[data-index]");
-      if (!rowEl) return;
-      const row = state.importRows[Number(rowEl.dataset.index)];
-      const field = e.target.dataset.field;
-      if (!row || !field) return;
-      row[field] = field === "selected" ? e.target.checked : e.target.value;
-      updateImportCount();
-    });
-    $("importPreviewBody").addEventListener("change", (e) => {
-      const rowEl = e.target.closest("tr[data-index]");
-      if (!rowEl) return;
-      const row = state.importRows[Number(rowEl.dataset.index)];
-      const field = e.target.dataset.field;
-      if (!row || !field) return;
-      row[field] = field === "selected" ? e.target.checked : e.target.value;
-      renderImportPreview();
-    });
-    $("commitImportRows").onclick = commitImportRows;
     $("applyExistingProduct").onclick = () => {
       if (state.pendingExistingProduct) {
         applyExistingProductData(state.pendingExistingProduct, state.pendingExistingDetail);
