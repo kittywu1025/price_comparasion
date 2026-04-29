@@ -260,12 +260,15 @@ def main() -> None:
 
 def normalize_unit(raw_value):
     unit = clean(raw_value)
+    lowered_unit = unit.lower()
     if unit == "克":
         return "g"
     if unit == "毫升":
         return "ml"
     if unit == "个":
         return "个"
+    if lowered_unit == "pack":
+        return "pack"
     raise RuntimeError(f"Unsupported unit: {raw_value}")
 
 
@@ -277,8 +280,8 @@ def normalize_spec(raw_value, normalized_unit):
         if match:
             return float(match.group(0)), None
         raise RuntimeError(f"Unsupported spec value: {raw_value}")
-    if normalized_unit == "个":
-        return 1.0, "规格缺失，按1个兜底"
+    if normalized_unit in ("个", "pack"):
+        return 1.0, f"规格缺失，按1{normalized_unit}兜底"
     if normalized_unit in ("g", "ml"):
         return 100.0, f"规格缺失，按100{normalized_unit}兜底"
     raise RuntimeError(f"Cannot fallback spec for unit: {normalized_unit}")
@@ -308,7 +311,7 @@ def calculate_unit_price(price_tax_in, spec_value, normalized_unit):
         return round(price_tax_in / (spec_value / 100), 4), "/100g"
     if normalized_unit == "ml":
         return round(price_tax_in / (spec_value / 100), 4), "/100ml"
-    return round(price_tax_in / spec_value, 4), "/个"
+    return round(price_tax_in / spec_value, 4), f"/{normalized_unit}"
 
 
 def clean(value):

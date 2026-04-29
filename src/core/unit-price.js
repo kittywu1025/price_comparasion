@@ -1,6 +1,6 @@
 const WEIGHT_UNITS = new Set(["g", "kg"]);
 const VOLUME_UNITS = new Set(["ml", "l"]);
-const COUNT_UNITS = new Set(["个", "袋", "包", "盒", "枚", "本", "瓶", "罐", "卷"]);
+const COUNT_UNITS = new Set(["个", "pack", "袋", "包", "盒", "枚", "本", "瓶", "罐", "卷"]);
 
 /**
  * @typedef {{ unitPrice:number, unitPriceLabel:string }} UnitPriceResult
@@ -60,6 +60,7 @@ export function normalizeUnit(rawUnit) {
   const unit = rawUnit.trim().toLowerCase();
   if (unit === "l") return "l";
   if (unit === "kg") return "kg";
+  if (unit === "pack") return "pack";
   return rawUnit.trim();
 }
 

@@ -26,6 +26,12 @@ test("数量类: 6个, ¥198 => ¥33/个", () => {
   assert.equal(result.unitPriceLabel, "/个");
 });
 
+test("数量类: 2pack, ¥398 => ¥199/pack", () => {
+  const result = calculateUnitPrice(398, 2, "pack");
+  assert.equal(result.unitPrice, 199);
+  assert.equal(result.unitPriceLabel, "/pack");
+});
+
 test("非法参数会抛错", () => {
   assert.throws(() => calculateUnitPrice(0, 400, "g"));
   assert.throws(() => calculateUnitPrice(100, -1, "g"));

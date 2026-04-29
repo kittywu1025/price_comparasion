@@ -186,7 +186,7 @@
     if ((!priceTaxIn || priceTaxIn <= 0) && (!priceTaxEx || priceTaxEx <= 0)) errors.push("价格必填");
     const specValue = toNumberOrNull(row.specValue);
     if (!specValue || specValue <= 0) errors.push("规格必填");
-    if (!["g", "ml", "个"].includes(String(row.unit || "").trim())) errors.push("单位需为 g/ml/个");
+    if (!["g", "ml", "个", "pack"].includes(String(row.unit || "").trim())) errors.push("单位需为 g/ml/个/pack");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.recordDate || ""))) errors.push("日期格式 YYYY-MM-DD");
     if (isPromoValue(row.isPromo) && row.promoUntil && !/^\d{4}-\d{2}-\d{2}$/.test(String(row.promoUntil))) {
       errors.push("优惠截止日期格式 YYYY-MM-DD");
@@ -241,7 +241,7 @@
           <td><input data-field="priceTaxEx" inputmode="decimal" value="${escapeHtml(row.priceTaxEx)}" /></td>
           <td><input data-field="taxRate" inputmode="decimal" value="${escapeHtml(row.taxRate)}" /></td>
           <td><input data-field="specValue" inputmode="decimal" value="${escapeHtml(row.specValue)}" /></td>
-          <td><select data-field="unit">${["g", "ml", "个"].map((unit) => `<option value="${unit}" ${row.unit === unit ? "selected" : ""}>${unit}</option>`).join("")}</select></td>
+          <td><select data-field="unit">${["g", "ml", "个", "pack"].map((unit) => `<option value="${unit}" ${row.unit === unit ? "selected" : ""}>${unit}</option>`).join("")}</select></td>
           <td><input data-field="recordDate" type="date" value="${escapeHtml(row.recordDate)}" /></td>
           <td><select data-field="isPromo"><option value="否" ${!isPromoValue(row.isPromo) ? "selected" : ""}>否</option><option value="是" ${isPromoValue(row.isPromo) ? "selected" : ""}>是</option></select></td>
           <td><input data-field="promoUntil" type="date" value="${escapeHtml(row.promoUntil)}" /></td>

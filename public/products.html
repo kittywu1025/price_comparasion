@@ -1784,6 +1784,7 @@
                     <button type="button" data-unit="g" class="${editUnit === "g" ? "active" : ""}">g</button>
                     <button type="button" data-unit="ml" class="${editUnit === "ml" ? "active" : ""}">ml</button>
                     <button type="button" data-unit="个" class="${editUnit === "个" ? "active" : ""}">个</button>
+                    <button type="button" data-unit="pack" class="${editUnit === "pack" ? "active" : ""}">pack</button>
                   </div>
                 </div>
               </div>
@@ -1955,7 +1956,7 @@
             unitLabel = editUnit === "g" ? "/100g" : "/100ml";
           } else {
             unitPrice = after / spec;
-            unitLabel = "/个";
+            unitLabel = `/${editUnit}`;
           }
         }
         modal.querySelector("#editPriceTaxIn").value = `¥${round1(after).toFixed(1)}`;
