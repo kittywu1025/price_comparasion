@@ -125,6 +125,10 @@
       gap: 10px;
     }
 
+    .is-hidden {
+      display: none !important;
+    }
+
     .stat-card,
     .panel {
       border: 1px solid var(--line);
@@ -422,7 +426,7 @@
       <p id="profileMsg" class="inline-msg"></p>
     </section>
 
-    <section class="stats-grid">
+    <section class="stats-grid is-hidden">
       <div class="stat-card">
         <p class="stat-label">我添加的价格记录</p>
         <p id="myRecords" class="stat-value">-</p>
