@@ -26,6 +26,17 @@
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   }
 
+  function protectSpreadsheetText(value) {
+    const text = String(value ?? "").trim();
+    return text ? `\t${text}` : "";
+  }
+
+  function cleanSpreadsheetText(value) {
+    const text = String(value ?? "").replace(/^\uFEFF/, "").trim();
+    const formulaText = text.match(/^=\s*"([^"]*)"$/);
+    return formulaText ? formulaText[1].trim() : text;
+  }
+
   function ensureStyles() {
     if (document.getElementById("priceImportStyles")) return;
     const style = document.createElement("style");
@@ -121,7 +132,7 @@
       sourceIndex: index + 2,
       nameZh: row[indexes.nameZh] || "",
       nameJa: row[indexes.nameJa] || "",
-      barcode: row[indexes.barcode] || "",
+      barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
       storeName: row[indexes.storeName] || "",
       priceTaxIn: row[indexes.priceTaxIn] || "",
       priceTaxEx: row[indexes.priceTaxEx] || "",
@@ -276,7 +287,7 @@
     if (!ok) return;
     const rows = [
       ["中文名", "日文名", "条码", "店铺", "税后价", "税前价", "税率", "规格", "单位", "日期", "限时优惠", "优惠截止日期", "备注"],
-      ["牛奶", "牛乳", "4900000000000", state.stores[0]?.name || "请填写已有店铺名", "198", "", "8", "1000", "ml", today(), "是", today(), "可选"]
+      ["牛奶", "牛乳", protectSpreadsheetText("4900000000000"), state.stores[0]?.name || "请填写已有店铺名", "198", "", "8", "1000", "ml", today(), "是", today(), "可选"]
     ];
     const csv = `\uFEFF${rows.map((row) => row.map(csvEscape).join(",")).join("\n")}`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -508,7 +519,7 @@
       row.productId,
       row.nameZh,
       row.nameJa,
-      row.barcode,
+      protectSpreadsheetText(row.barcode),
       row.storeId,
       row.storeName,
       row.priceTaxIn,
@@ -571,7 +582,7 @@
       productId: row[indexes.productId] || "",
       nameZh: row[indexes.nameZh] || "",
       nameJa: row[indexes.nameJa] || "",
-      barcode: row[indexes.barcode] || "",
+      barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
       storeId: row[indexes.storeId] || "",
       storeName: row[indexes.storeName] || "",
       priceTaxIn: row[indexes.priceTaxIn] || "",
