@@ -37,6 +37,10 @@
     return formulaText ? formulaText[1].trim() : text;
   }
 
+  function hasUserData(row) {
+    return row.some((cell) => cleanSpreadsheetText(cell).trim());
+  }
+
   function ensureStyles() {
     if (document.getElementById("priceImportStyles")) return;
     const style = document.createElement("style");
@@ -127,23 +131,26 @@
     };
     const indexOf = (keys) => headers.findIndex((header) => keys.some((key) => header.toLowerCase() === String(key).toLowerCase()));
     const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
-    return rawRows.slice(1).map((row, index) => ({
-      selected: true,
-      sourceIndex: index + 2,
-      nameZh: row[indexes.nameZh] || "",
-      nameJa: row[indexes.nameJa] || "",
-      barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
-      storeName: row[indexes.storeName] || "",
-      priceTaxIn: row[indexes.priceTaxIn] || "",
-      priceTaxEx: row[indexes.priceTaxEx] || "",
-      taxRate: row[indexes.taxRate] || "8",
-      specValue: row[indexes.specValue] || "",
-      unit: row[indexes.unit] || "g",
-      recordDate: row[indexes.recordDate] || today(),
-      isPromo: row[indexes.isPromo] || "否",
-      promoUntil: row[indexes.promoUntil] || "",
-      note: row[indexes.note] || ""
-    })).filter((row) => Object.values(row).some((value) => typeof value === "string" && value.trim()));
+    return rawRows.slice(1).flatMap((row, index) => {
+      if (!hasUserData(row)) return [];
+      return [{
+        selected: true,
+        sourceIndex: index + 2,
+        nameZh: row[indexes.nameZh] || "",
+        nameJa: row[indexes.nameJa] || "",
+        barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
+        storeName: row[indexes.storeName] || "",
+        priceTaxIn: row[indexes.priceTaxIn] || "",
+        priceTaxEx: row[indexes.priceTaxEx] || "",
+        taxRate: row[indexes.taxRate] || "8",
+        specValue: row[indexes.specValue] || "",
+        unit: row[indexes.unit] || "g",
+        recordDate: row[indexes.recordDate] || today(),
+        isPromo: row[indexes.isPromo] || "否",
+        promoUntil: row[indexes.promoUntil] || "",
+        note: row[indexes.note] || ""
+      }];
+    });
   }
 
   function findStoreByName(name) {
@@ -575,26 +582,29 @@
     const indexOf = (keys) => headers.findIndex((header) => keys.some((key) => header.toLowerCase() === String(key).toLowerCase()));
     const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
     if (indexes.recordId < 0 && indexes.productId < 0) throw new Error("缺少 recordId/productId，不能安全更新");
-    return rawRows.slice(1).map((row, index) => ({
-      selected: true,
-      sourceIndex: index + 2,
-      recordId: row[indexes.recordId] || "",
-      productId: row[indexes.productId] || "",
-      nameZh: row[indexes.nameZh] || "",
-      nameJa: row[indexes.nameJa] || "",
-      barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
-      storeId: row[indexes.storeId] || "",
-      storeName: row[indexes.storeName] || "",
-      priceTaxIn: row[indexes.priceTaxIn] || "",
-      priceTaxEx: row[indexes.priceTaxEx] || "",
-      taxRate: row[indexes.taxRate] || "8",
-      specValue: row[indexes.specValue] || "",
-      unit: row[indexes.unit] || "g",
-      recordDate: row[indexes.recordDate] || today(),
-      isPromo: row[indexes.isPromo] || "否",
-      promoUntil: row[indexes.promoUntil] || "",
-      note: row[indexes.note] || ""
-    })).filter((row) => Object.values(row).some((value) => typeof value === "string" && value.trim()));
+    return rawRows.slice(1).flatMap((row, index) => {
+      if (!hasUserData(row)) return [];
+      return [{
+        selected: true,
+        sourceIndex: index + 2,
+        recordId: row[indexes.recordId] || "",
+        productId: row[indexes.productId] || "",
+        nameZh: row[indexes.nameZh] || "",
+        nameJa: row[indexes.nameJa] || "",
+        barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
+        storeId: row[indexes.storeId] || "",
+        storeName: row[indexes.storeName] || "",
+        priceTaxIn: row[indexes.priceTaxIn] || "",
+        priceTaxEx: row[indexes.priceTaxEx] || "",
+        taxRate: row[indexes.taxRate] || "8",
+        specValue: row[indexes.specValue] || "",
+        unit: row[indexes.unit] || "g",
+        recordDate: row[indexes.recordDate] || today(),
+        isPromo: row[indexes.isPromo] || "否",
+        promoUntil: row[indexes.promoUntil] || "",
+        note: row[indexes.note] || ""
+      }];
+    });
   }
 
   function resolveDeveloperStore(row) {

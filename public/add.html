@@ -1358,6 +1358,10 @@
       return cells.map((x) => x.trim());
     }
 
+    function hasUserData(row) {
+      return row.some((cell) => String(cell ?? "").trim());
+    }
+
     function parseDelimitedText(text) {
       const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
       if (!cleanText) throw new Error("文件里没有可导入的数据");
@@ -1381,21 +1385,24 @@
       };
       const indexOf = (keys) => headers.findIndex((header) => keys.some((key) => header.toLowerCase() === String(key).toLowerCase()));
       const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
-      return dataRows.map((row, index) => ({
-        selected: true,
-        sourceIndex: index + 2,
-        nameZh: row[indexes.nameZh] || "",
-        nameJa: row[indexes.nameJa] || "",
-        barcode: row[indexes.barcode] || "",
-        storeName: row[indexes.storeName] || "",
-        priceTaxIn: row[indexes.priceTaxIn] || "",
-        priceTaxEx: row[indexes.priceTaxEx] || "",
-        taxRate: row[indexes.taxRate] || "8",
-        specValue: row[indexes.specValue] || "",
-        unit: row[indexes.unit] || "g",
-        recordDate: row[indexes.recordDate] || today(),
-        note: row[indexes.note] || ""
-      })).filter((row) => Object.values(row).some((value) => typeof value === "string" && value.trim()));
+      return dataRows.flatMap((row, index) => {
+        if (!hasUserData(row)) return [];
+        return [{
+          selected: true,
+          sourceIndex: index + 2,
+          nameZh: row[indexes.nameZh] || "",
+          nameJa: row[indexes.nameJa] || "",
+          barcode: row[indexes.barcode] || "",
+          storeName: row[indexes.storeName] || "",
+          priceTaxIn: row[indexes.priceTaxIn] || "",
+          priceTaxEx: row[indexes.priceTaxEx] || "",
+          taxRate: row[indexes.taxRate] || "8",
+          specValue: row[indexes.specValue] || "",
+          unit: row[indexes.unit] || "g",
+          recordDate: row[indexes.recordDate] || today(),
+          note: row[indexes.note] || ""
+        }];
+      });
     }
 
     function findStoreByName(name) {
