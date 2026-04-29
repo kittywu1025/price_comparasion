@@ -224,18 +224,22 @@
 
   function validateImportRow(row) {
     const errors = [];
-    if (!String(row.nameZh || "").trim() && !String(row.nameJa || "").trim()) errors.push("商品名必填");
+    if (!String(row.nameZh || "").trim() && !String(row.nameJa || "").trim()) errors.push("商品名必填：中文名和日文名不能同时为空");
     const store = findStoreByName(row.storeName);
-    if (!store) errors.push("店铺未匹配");
+    if (!store) errors.push(`店铺未匹配：${String(row.storeName || "").trim() || "空"}`);
     const priceTaxIn = toNumberOrNull(row.priceTaxIn);
     const priceTaxEx = toNumberOrNull(row.priceTaxEx);
-    if ((!priceTaxIn || priceTaxIn <= 0) && (!priceTaxEx || priceTaxEx <= 0)) errors.push("价格必填");
+    if ((!priceTaxIn || priceTaxIn <= 0) && (!priceTaxEx || priceTaxEx <= 0)) {
+      errors.push(`价格必填：税后价=${String(row.priceTaxIn || "").trim() || "空"}，税前价=${String(row.priceTaxEx || "").trim() || "空"}`);
+    }
     const specValue = toNumberOrNull(row.specValue);
-    if (!specValue || specValue <= 0) errors.push("规格必填");
-    if (!["g", "ml", "个", "pack"].includes(String(row.unit || "").trim())) errors.push("单位需为 g/ml/个/pack");
-    if (!isValidIsoDate(row.recordDate)) errors.push("日期格式 YYYY-MM-DD");
+    if (!specValue || specValue <= 0) errors.push(`规格必填：${String(row.specValue || "").trim() || "空"}`);
+    if (!["g", "ml", "个", "pack"].includes(String(row.unit || "").trim())) {
+      errors.push(`单位需为 g/ml/个/pack：${String(row.unit || "").trim() || "空"}`);
+    }
+    if (!isValidIsoDate(row.recordDate)) errors.push(`日期格式 YYYY-MM-DD：${String(row.recordDate || "").trim() || "空"}`);
     if (isPromoValue(row.isPromo) && row.promoUntil && !isValidIsoDate(row.promoUntil)) {
-      errors.push("优惠截止日期格式 YYYY-MM-DD");
+      errors.push(`优惠截止日期格式 YYYY-MM-DD：${String(row.promoUntil || "").trim()}`);
     }
     return { errors, store };
   }
@@ -648,11 +652,23 @@
     const base = validateImportRow(checkRow);
     const errors = [...base.errors];
     const store = resolveDeveloperStore(row);
-    if (!store && !errors.includes("店铺未匹配")) errors.push("店铺未匹配");
-    if (row.recordId && !Number.isFinite(Number(row.recordId))) errors.push("recordId 必须是数字");
-    if (row.productId && !Number.isFinite(Number(row.productId))) errors.push("productId 必须是数字");
-    if (!row.recordId && !row.productId && !String(row.nameZh || row.nameJa).trim()) errors.push("新增行需要商品名");
+    if (!store && !errors.some((error) => error.startsWith("店铺未匹配"))) {
+      errors.push(`店铺未匹配：storeId=${String(row.storeId || "").trim() || "空"}，店铺=${String(row.storeName || "").trim() || "空"}`);
+    }
+    if (row.recordId && !Number.isFinite(Number(row.recordId))) errors.push(`recordId 必须是数字：${row.recordId}`);
+    if (row.productId && !Number.isFinite(Number(row.productId))) errors.push(`productId 必须是数字：${row.productId}`);
+    if (!row.recordId && !row.productId && !String(row.nameZh || row.nameJa).trim()) errors.push("新增行需要商品名：recordId/productId 为空时必须填写中文名或日文名");
     return { errors, store };
+  }
+
+  function summarizeImportRow(row) {
+    return [
+      row.recordId ? `recordId=${row.recordId}` : "",
+      row.productId ? `productId=${row.productId}` : "",
+      row.nameZh ? `中文名=${row.nameZh}` : "",
+      row.nameJa ? `日文名=${row.nameJa}` : "",
+      row.barcode ? `条码=${row.barcode}` : ""
+    ].filter(Boolean).join("，") || "该行没有可识别的关键字段";
   }
 
   function buildDeveloperPayload(row, store) {
@@ -683,7 +699,7 @@
       const invalid = checks.filter((item) => item.errors.length);
       if (invalid.length) {
         const first = invalid[0];
-        throw new Error(`第 ${first.row.sourceIndex} 行需要修改：${first.errors.join("；")}`);
+        throw new Error(`第 ${first.row.sourceIndex} 行需要修改：${first.errors.join("；")}。当前行：${summarizeImportRow(first.row)}`);
       }
       let updated = 0;
       let created = 0;
