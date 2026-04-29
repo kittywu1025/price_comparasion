@@ -1362,6 +1362,34 @@
       return row.some((cell) => String(cell ?? "").trim());
     }
 
+    function isValidIsoDate(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return false;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    }
+
+    function normalizeDateInput(value) {
+      const text = String(value ?? "").trim();
+      if (!text) return "";
+      const ymd = text.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})$/);
+      if (ymd) {
+        const normalized = `${ymd[1]}-${ymd[2].padStart(2, "0")}-${ymd[3].padStart(2, "0")}`;
+        return isValidIsoDate(normalized) ? normalized : text;
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+      if (/^\d{5,6}$/.test(text)) {
+        const serial = Number(text);
+        const date = new Date(Date.UTC(1899, 11, 30 + serial));
+        const normalized = date.toISOString().slice(0, 10);
+        return isValidIsoDate(normalized) ? normalized : text;
+      }
+      return text;
+    }
+
     function parseDelimitedText(text) {
       const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
       if (!cleanText) throw new Error("文件里没有可导入的数据");
@@ -1399,7 +1427,7 @@
           taxRate: row[indexes.taxRate] || "8",
           specValue: row[indexes.specValue] || "",
           unit: row[indexes.unit] || "g",
-          recordDate: row[indexes.recordDate] || today(),
+          recordDate: normalizeDateInput(row[indexes.recordDate]) || today(),
           note: row[indexes.note] || ""
         }];
       });
@@ -1432,7 +1460,7 @@
       const specValue = toNumberOrNull(row.specValue);
       if (!specValue || specValue <= 0) errors.push("规格必填");
       if (!["g", "ml", "个", "pack"].includes(String(row.unit || "").trim())) errors.push("单位需为 g/ml/个/pack");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.recordDate || ""))) errors.push("日期格式 YYYY-MM-DD");
+      if (!isValidIsoDate(row.recordDate)) errors.push("日期格式 YYYY-MM-DD");
       return { errors, store };
     }
 
