@@ -404,6 +404,7 @@
     </nav>
   </div>
 
+  <script src="toast.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const devModeKey = "priceComparisonDevMode";
@@ -442,7 +443,8 @@
         setupDeveloperMode(data.user?.isAdmin);
         renderFeedbackPanel();
       } catch (err) {
-        $("userLine").textContent = `贡献数据读取失败：${err.message || "请稍后重试"}`;
+        showToast(`贡献数据读取失败：${err.message || "请稍后重试"}`, { type: "error" });
+        $("userLine").textContent = "贡献数据暂时无法读取。";
         $("totalLine").textContent = "如果你是本地打开，请确认使用 http://127.0.0.1:3000/profile.html，并且 npm start 正在运行。";
       }
     }
@@ -468,7 +470,8 @@
           renderUserLine(currentStats.user);
         }
       } catch (err) {
-        msg.textContent = err.message || "保存失败";
+        msg.textContent = "";
+        showToast(err.message || "保存失败", { type: "error" });
       } finally {
         button.disabled = false;
       }
@@ -514,7 +517,7 @@
       const text = $("feedbackText").value.trim();
       const msg = $("feedbackMsg");
       if (!text) {
-        msg.textContent = "请先写一点内容。";
+        showToast("请先写一点内容。", { type: "error" });
         return;
       }
       $("submitFeedbackBtn").disabled = true;
@@ -530,7 +533,8 @@
         $("feedbackText").value = "";
         msg.textContent = "已提交。";
       } catch (err) {
-        msg.textContent = err.message || "提交失败";
+        msg.textContent = "";
+        showToast(err.message || "提交失败", { type: "error" });
       } finally {
         $("submitFeedbackBtn").disabled = false;
       }
@@ -553,7 +557,8 @@
           </article>
         `).join("");
       } catch (err) {
-        mount.innerHTML = `<p class="panel-body">反馈读取失败：${escapeHtml(err.message || "请稍后重试")}</p>`;
+        mount.innerHTML = "";
+        showToast(`反馈读取失败：${err.message || "请稍后重试"}`, { type: "error" });
       }
     }
 

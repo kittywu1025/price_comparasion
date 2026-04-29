@@ -401,6 +401,168 @@
       word-break: break-word;
     }
 
+    .import-card {
+      display: grid;
+      gap: 10px;
+    }
+
+    .import-title {
+      margin: 0;
+      color: #607270;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .import-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .import-action {
+      height: 48px;
+      border: 0;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.07);
+      color: #166659;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .import-action:first-child {
+      color: #b86c12;
+    }
+
+    .import-help {
+      margin: 0;
+      color: #607270;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .import-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 19, 18, 0.45);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 39;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+    }
+
+    .import-mask.show {
+      display: flex;
+    }
+
+    .import-panel {
+      width: min(960px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      max-height: min(760px, calc(100dvh - 40px));
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid #dceae6;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      overflow: hidden;
+    }
+
+    .import-head,
+    .import-foot {
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid #e6efec;
+    }
+
+    .import-head h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .import-close {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 999px;
+      background: #edf6f3;
+      color: #1a5950;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .import-summary {
+      margin: 0;
+      padding: 10px 12px;
+      color: #607270;
+      font-size: 12px;
+      line-height: 1.45;
+      border-bottom: 1px solid #e6efec;
+    }
+
+    .import-table-wrap {
+      overflow: auto;
+      background: #f8fcfb;
+    }
+
+    .import-table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .import-table th,
+    .import-table td {
+      border-bottom: 1px solid #e2ece9;
+      padding: 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .import-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #eef7f4;
+      color: #465f5c;
+      font-weight: 800;
+    }
+
+    .import-table input,
+    .import-table select {
+      height: 34px;
+      min-width: 88px;
+      border-radius: 9px;
+      font-size: 12px;
+    }
+
+    .import-row-error {
+      margin-top: 4px;
+      color: var(--danger);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .import-foot {
+      border-top: 1px solid #e6efec;
+      border-bottom: 0;
+      background: #fff;
+    }
+
+    .import-foot-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
     .duplicate-panel {
       display: none;
       border: 1px solid #dcebe6;
@@ -859,6 +1021,16 @@
     </header>
     <div id="barcodeNote" class="toolbar-note">条码：未扫码</div>
 
+    <section class="card import-card" aria-label="记录与模板">
+      <p class="import-title">记录与模板</p>
+      <div class="import-actions">
+        <button id="importRecordsBtn" class="import-action" type="button">导入记录</button>
+        <button id="downloadTemplateBtn" class="import-action" type="button">下载模板文件</button>
+      </div>
+      <p class="import-help">先下载模板填写价格数据，再导入预览；确认列表里可以单选、批量选择并手动修正。</p>
+      <input id="importFile" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv,text/tab-separated-values" style="display:none" />
+    </section>
+
     <section class="card">
       <form id="form">
         <input id="imageFile" type="file" accept="image/*" multiple style="display:none" />
@@ -1056,6 +1228,46 @@
     </div>
   </div>
 
+  <div id="importMask" class="import-mask">
+    <div class="import-panel">
+      <div class="import-head">
+        <h2>导入数据确认</h2>
+        <button id="closeImportPreview" class="import-close" type="button" aria-label="关闭">×</button>
+      </div>
+      <p id="importSummary" class="import-summary"></p>
+      <div class="import-table-wrap">
+        <table class="import-table">
+          <thead>
+            <tr>
+              <th><input id="selectAllImportRows" type="checkbox" checked aria-label="全选" /></th>
+              <th>中文名</th>
+              <th>日文名</th>
+              <th>条码</th>
+              <th>店铺</th>
+              <th>税后价</th>
+              <th>税前价</th>
+              <th>税率</th>
+              <th>规格</th>
+              <th>单位</th>
+              <th>日期</th>
+              <th>备注</th>
+              <th>校验</th>
+            </tr>
+          </thead>
+          <tbody id="importPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="import-foot">
+        <span id="importCountText" class="toolbar-note"></span>
+        <div class="import-foot-actions">
+          <button id="cancelImportPreview" class="btn btn-subtle" type="button">取消</button>
+          <button id="commitImportRows" class="btn btn-primary" type="button">确认导入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="toast.js"></script>
   <script>
     const state = {
       taxMode: 8,
@@ -1073,7 +1285,8 @@
       scanStream: null,
       scanner: null,
       zxingControls: null,
-      zxingPromise: null
+      zxingPromise: null,
+      importRows: []
     };
     const $ = (id) => document.getElementById(id);
 
@@ -1099,6 +1312,252 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+    }
+
+    function notify(message, type = "info", options = {}) {
+      if (window.showToast) window.showToast(message, { type, ...options });
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    }
+
+    function downloadImportTemplate() {
+      const rows = [
+        ["中文名", "日文名", "条码", "店铺", "税后价", "税前价", "税率", "规格", "单位", "日期", "备注"],
+        ["牛奶", "牛乳", "4900000000000", state.stores[0]?.name || "请填写已有店铺名", "198", "", "8", "1000", "ml", today(), "可选"]
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(csvEscape).join(",")).join("\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "price-import-template.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      notify("模板文件已下载。", "success");
+    }
+
+    function splitDelimitedLine(line, delimiter) {
+      const cells = [];
+      let cell = "";
+      let quoted = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (quoted && line[i + 1] === '"') {
+            cell += '"';
+            i += 1;
+          } else {
+            quoted = !quoted;
+          }
+        } else if (ch === delimiter && !quoted) {
+          cells.push(cell);
+          cell = "";
+        } else {
+          cell += ch;
+        }
+      }
+      cells.push(cell);
+      return cells.map((x) => x.trim());
+    }
+
+    function parseDelimitedText(text) {
+      const cleanText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+      if (!cleanText) throw new Error("文件里没有可导入的数据");
+      const lines = cleanText.split("\n").filter((line) => line.trim());
+      const delimiter = lines[0].includes("\t") ? "\t" : ",";
+      const rawRows = lines.map((line) => splitDelimitedLine(line, delimiter));
+      const headers = rawRows[0].map((x) => x.trim());
+      const dataRows = rawRows.slice(1);
+      const aliases = {
+        nameZh: ["中文名", "商品中文名", "nameZh", "name_zh"],
+        nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
+        barcode: ["条码", "barcode", "JAN"],
+        storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
+        priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
+        priceTaxEx: ["税前价", "税前价格", "不含税价格", "priceTaxEx"],
+        taxRate: ["税率", "taxRate"],
+        specValue: ["规格", "规格数值", "spec", "specValue"],
+        unit: ["单位", "规格单位", "unit"],
+        recordDate: ["日期", "记录日期", "recordDate"],
+        note: ["备注", "note"]
+      };
+      const indexOf = (keys) => headers.findIndex((header) => keys.some((key) => header.toLowerCase() === String(key).toLowerCase()));
+      const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
+      return dataRows.map((row, index) => ({
+        selected: true,
+        sourceIndex: index + 2,
+        nameZh: row[indexes.nameZh] || "",
+        nameJa: row[indexes.nameJa] || "",
+        barcode: row[indexes.barcode] || "",
+        storeName: row[indexes.storeName] || "",
+        priceTaxIn: row[indexes.priceTaxIn] || "",
+        priceTaxEx: row[indexes.priceTaxEx] || "",
+        taxRate: row[indexes.taxRate] || "8",
+        specValue: row[indexes.specValue] || "",
+        unit: row[indexes.unit] || "g",
+        recordDate: row[indexes.recordDate] || today(),
+        note: row[indexes.note] || ""
+      })).filter((row) => Object.values(row).some((value) => typeof value === "string" && value.trim()));
+    }
+
+    function findStoreByName(name) {
+      const keyword = String(name || "").trim().toLowerCase();
+      if (!keyword) return null;
+      const exact = state.stores.find((store) => String(store.name || "").toLowerCase() === keyword);
+      return exact || state.stores.find((store) => String(store.name || "").toLowerCase().includes(keyword));
+    }
+
+    function toNumberOrNull(value) {
+      const cleaned = String(value ?? "").replace(/[¥￥円,\s]/g, "");
+      if (!cleaned) return null;
+      const number = Number(cleaned);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function validateImportRow(row) {
+      const errors = [];
+      if (!String(row.nameZh || "").trim() && !String(row.nameJa || "").trim()) {
+        errors.push("商品名必填");
+      }
+      const store = findStoreByName(row.storeName);
+      if (!store) errors.push("店铺未匹配");
+      const priceTaxIn = toNumberOrNull(row.priceTaxIn);
+      const priceTaxEx = toNumberOrNull(row.priceTaxEx);
+      if ((!priceTaxIn || priceTaxIn <= 0) && (!priceTaxEx || priceTaxEx <= 0)) errors.push("价格必填");
+      const specValue = toNumberOrNull(row.specValue);
+      if (!specValue || specValue <= 0) errors.push("规格必填");
+      if (!["g", "ml", "个"].includes(String(row.unit || "").trim())) errors.push("单位需为 g/ml/个");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.recordDate || ""))) errors.push("日期格式 YYYY-MM-DD");
+      return { errors, store };
+    }
+
+    function renderImportPreview() {
+      const body = $("importPreviewBody");
+      body.innerHTML = state.importRows.map((row, index) => {
+        const { errors } = validateImportRow(row);
+        return `
+          <tr data-index="${index}">
+            <td><input type="checkbox" data-field="selected" ${row.selected ? "checked" : ""} /></td>
+            <td><input data-field="nameZh" value="${escapeHtml(row.nameZh)}" /></td>
+            <td><input data-field="nameJa" value="${escapeHtml(row.nameJa)}" /></td>
+            <td><input data-field="barcode" value="${escapeHtml(row.barcode)}" /></td>
+            <td><input data-field="storeName" list="storeOptions" value="${escapeHtml(row.storeName)}" /></td>
+            <td><input data-field="priceTaxIn" inputmode="decimal" value="${escapeHtml(row.priceTaxIn)}" /></td>
+            <td><input data-field="priceTaxEx" inputmode="decimal" value="${escapeHtml(row.priceTaxEx)}" /></td>
+            <td><input data-field="taxRate" inputmode="decimal" value="${escapeHtml(row.taxRate)}" /></td>
+            <td><input data-field="specValue" inputmode="decimal" value="${escapeHtml(row.specValue)}" /></td>
+            <td>
+              <select data-field="unit">
+                ${["g", "ml", "个"].map((unit) => `<option value="${unit}" ${row.unit === unit ? "selected" : ""}>${unit}</option>`).join("")}
+              </select>
+            </td>
+            <td><input data-field="recordDate" type="date" value="${escapeHtml(row.recordDate)}" /></td>
+            <td><input data-field="note" value="${escapeHtml(row.note)}" /></td>
+            <td>${errors.length ? `<div class="import-row-error">${escapeHtml(errors.join("；"))}</div>` : "可导入"}</td>
+          </tr>
+        `;
+      }).join("");
+      updateImportCount();
+    }
+
+    function updateImportCount() {
+      const selected = state.importRows.filter((row) => row.selected).length;
+      const invalid = state.importRows.filter((row) => row.selected && validateImportRow(row).errors.length).length;
+      $("importCountText").textContent = `已选择 ${selected} 条${invalid ? `，其中 ${invalid} 条需要修改` : ""}`;
+      $("selectAllImportRows").checked = selected > 0 && selected === state.importRows.length;
+    }
+
+    function openImportPreview(rows, fileName) {
+      state.importRows = rows;
+      $("importSummary").textContent = `已解析 ${rows.length} 条记录：${fileName || "导入文件"}。请检查店铺、价格、规格和日期，确认无误后再导入。`;
+      renderImportPreview();
+      $("importMask").classList.add("show");
+    }
+
+    function closeImportPreview() {
+      $("importMask").classList.remove("show");
+    }
+
+    async function handleImportFile(file) {
+      if (!file) return;
+      if (/\.(xlsx|xls)$/i.test(file.name)) {
+        notify("当前浏览器端导入请把 Excel 另存为 CSV 后再上传。模板会下载为 CSV。", "error", { sticky: true });
+        return;
+      }
+      try {
+        const text = await file.text();
+        const rows = parseDelimitedText(text);
+        if (!rows.length) throw new Error("没有解析到有效记录");
+        openImportPreview(rows, file.name);
+        notify("解析完成，请先预览确认。", "success");
+      } catch (err) {
+        notify(`导入解析失败：${err.message || "请检查模板格式"}`, "error");
+      }
+    }
+
+    function buildImportPayload(row, store) {
+      const taxRate = Number(toNumberOrNull(row.taxRate) ?? 8);
+      const priceTaxIn = toNumberOrNull(row.priceTaxIn);
+      const priceTaxEx = toNumberOrNull(row.priceTaxEx);
+      const after = priceTaxIn || (priceTaxEx ? Math.round(priceTaxEx * (taxRate === 0 ? 1 : 1 + taxRate / 100) * 10) / 10 : null);
+      const before = priceTaxEx || (priceTaxIn ? Math.round(priceTaxIn / (taxRate === 0 ? 1 : 1 + taxRate / 100) * 10) / 10 : null);
+      return {
+        product: {
+          nameZh: String(row.nameZh || "").trim(),
+          nameJa: String(row.nameJa || "").trim(),
+          barcode: String(row.barcode || "").trim()
+        },
+        storeId: Number(store.id),
+        priceTaxEx: before,
+        taxRate,
+        priceTaxIn: after,
+        specValue: Number(toNumberOrNull(row.specValue)),
+        unit: String(row.unit || "g").trim(),
+        imageUrls: [],
+        recordDate: row.recordDate,
+        note: String(row.note || "").trim()
+      };
+    }
+
+    async function commitImportRows() {
+      const selected = state.importRows.filter((row) => row.selected);
+      if (!selected.length) {
+        notify("请至少选择一条记录。", "error");
+        return;
+      }
+      const checks = selected.map((row) => ({ row, ...validateImportRow(row) }));
+      const invalid = checks.filter((item) => item.errors.length);
+      if (invalid.length) {
+        renderImportPreview();
+        notify(`还有 ${invalid.length} 条记录需要修改后才能导入。`, "error");
+        return;
+      }
+
+      $("commitImportRows").disabled = true;
+      let success = 0;
+      try {
+        for (const item of checks) {
+          const res = await fetch("/api/price-records", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(buildImportPayload(item.row, item.store))
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`第 ${item.row.sourceIndex} 行导入失败：${data.error || "未知错误"}`);
+          success += 1;
+        }
+        closeImportPreview();
+        notify(`已导入 ${success} 条价格记录。`, "success", { duration: 3600 });
+      } catch (err) {
+        notify(err.message || "导入失败", "error", { sticky: true });
+      } finally {
+        $("commitImportRows").disabled = false;
+      }
     }
 
     async function compressImageFile(file) {
@@ -1217,7 +1676,7 @@
         const detail = await fetch(`/api/products/${exact.productId}`).then((r) => r.json());
         openExistingProductPrompt(exact, detail);
       } catch (err) {
-        $("msg").textContent = `条码检查失败：${err.message || "请稍后重试"}`;
+        notify(`条码检查失败：${err.message || "请稍后重试"}`, "error");
       }
     }
 
@@ -1485,6 +1944,7 @@
         $("quickMask").style.display = "none";
       } catch (err) {
         $("quickHint").textContent = err.message || "解析失败，请换成更明确的格式。";
+        notify(err.message || "解析失败，请换成更明确的格式。", "error");
       }
     }
 
@@ -1576,7 +2036,7 @@
 
     async function openScanner() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        $("msg").textContent = "当前浏览器无法调用摄像头。请确认使用 https 页面，并允许相机权限。";
+        notify("当前浏览器无法调用摄像头。请确认使用 https 页面，并允许相机权限。", "error");
         return;
       }
       if (!("BarcodeDetector" in window)) {
@@ -1615,7 +2075,7 @@
           }
         }, 280);
       } catch (err) {
-        $("msg").textContent = `无法打开摄像头：${err.message || "请检查权限"}`;
+        notify(`无法打开摄像头：${err.message || "请检查权限"}`, "error");
         stopScanner();
       }
     }
@@ -1668,7 +2128,7 @@
           );
         }
       } catch (err) {
-        $("msg").textContent = `无法启动扫码：${err.message || "请检查相机权限"}`;
+        notify(`无法启动扫码：${err.message || "请检查相机权限"}`, "error");
         stopScanner();
       }
     }
@@ -1706,6 +2166,42 @@
       $("quickMask").style.display = "none";
     };
     $("applyQuickFill").onclick = applyQuickFillText;
+    $("downloadTemplateBtn").onclick = downloadImportTemplate;
+    $("importRecordsBtn").onclick = () => {
+      $("importFile").value = "";
+      $("importFile").click();
+    };
+    $("importFile").onchange = (e) => handleImportFile((e.target.files || [])[0]);
+    $("closeImportPreview").onclick = closeImportPreview;
+    $("cancelImportPreview").onclick = closeImportPreview;
+    $("importMask").addEventListener("click", (e) => {
+      if (e.target === $("importMask")) closeImportPreview();
+    });
+    $("selectAllImportRows").onchange = (e) => {
+      state.importRows.forEach((row) => {
+        row.selected = e.target.checked;
+      });
+      renderImportPreview();
+    };
+    $("importPreviewBody").addEventListener("input", (e) => {
+      const rowEl = e.target.closest("tr[data-index]");
+      if (!rowEl) return;
+      const row = state.importRows[Number(rowEl.dataset.index)];
+      const field = e.target.dataset.field;
+      if (!row || !field) return;
+      row[field] = field === "selected" ? e.target.checked : e.target.value;
+      updateImportCount();
+    });
+    $("importPreviewBody").addEventListener("change", (e) => {
+      const rowEl = e.target.closest("tr[data-index]");
+      if (!rowEl) return;
+      const row = state.importRows[Number(rowEl.dataset.index)];
+      const field = e.target.dataset.field;
+      if (!row || !field) return;
+      row[field] = field === "selected" ? e.target.checked : e.target.value;
+      renderImportPreview();
+    });
+    $("commitImportRows").onclick = commitImportRows;
     $("applyExistingProduct").onclick = () => {
       if (state.pendingExistingProduct) {
         applyExistingProductData(state.pendingExistingProduct, state.pendingExistingDetail);
@@ -1798,7 +2294,7 @@
         $("uploadBox").classList.add("has-image");
         $("msg").textContent = `已选择 ${state.imageDataUrls.length} 张图片。`;
       } catch (err) {
-        $("msg").textContent = `图片处理失败：${err.message || "请重试"}`;
+        notify(`图片处理失败：${err.message || "请重试"}`, "error");
       } finally {
         e.target.value = "";
       }
@@ -1816,11 +2312,11 @@
       const matchedStore = matchStoreByInput();
 
       if (!matchedStore || !$("storeId").value) {
-        $("msg").textContent = "请先选择购买店铺。";
+        notify("请先选择购买店铺。", "error");
         return;
       }
       if (!$("nameZh").value.trim() && !$("nameJa").value.trim()) {
-        $("msg").textContent = "请至少填写中文名或日文名。";
+        notify("请至少填写中文名或日文名。", "error");
         return;
       }
 
@@ -1850,11 +2346,12 @@
       });
       const data = await res.json();
       if (!res.ok) {
-        $("msg").textContent = `保存失败：${data.error || "未知错误"}`;
+        notify(`保存失败：${data.error || "未知错误"}`, "error");
         return;
       }
 
       $("msg").textContent = "保存成功，正在返回清单页...";
+      notify("保存成功，正在返回清单页...", "success");
       setTimeout(() => {
         location.href = "products";
       }, 700);

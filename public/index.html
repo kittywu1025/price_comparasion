@@ -892,6 +892,7 @@
     <article class="modal" id="modal"></article>
   </div>
 
+  <script src="toast.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const pageParams = new URLSearchParams(location.search);
@@ -906,7 +907,7 @@
     let bodyScrollY = 0;
     let modalLocked = false;
 
-    $("scanSearch").onclick = () => alert("扫码搜索将在下一版接入，当前可用文本搜索。");
+    $("scanSearch").onclick = () => showToast("扫码搜索将在下一版接入，当前可用文本搜索。");
     $("mask").addEventListener("click", (e) => {
       if (e.target === $("mask")) closeModal();
     });
@@ -1145,7 +1146,7 @@
       const ok = confirm("确认删除这条数据吗？删除后不可恢复。");
       if (!ok) return false;
       await fetchJson(`/api/price-records/${recordId}`, { method: "DELETE" });
-      alert(successText);
+      showToast(successText, { type: "success" });
       return true;
     }
 
@@ -1200,7 +1201,7 @@
       const res = await fetch("/api/products/" + id);
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "加载失败");
+        showToast(data.error || "加载失败", { type: "error" });
         return;
       }
 
@@ -1392,7 +1393,7 @@
             editMode === "correction" && access.canUndo ? "block" : "none";
           return true;
         } catch (err) {
-          modal.querySelector("#editMsg").textContent = "编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。";
+          showToast("编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。", { type: "error", sticky: true });
           modal.querySelector("#deleteRecordBtn").style.display = "none";
           modal.querySelector("#undoEditBtn").style.display = "none";
           return false;
@@ -1441,7 +1442,7 @@
           closeModal();
           await load();
         } catch (err) {
-          alert(`删除失败：${err.message}`);
+          showToast(`删除失败：${err.message}`, { type: "error" });
         }
       };
       modal.querySelector("#backDetailBtn").onclick = backToDetail;
@@ -1454,7 +1455,7 @@
           closeModal();
           await load();
         } catch (err) {
-          editMsg.textContent = `删除失败：${err.message}`;
+          showToast(`删除失败：${err.message}`, { type: "error" });
         }
       };
       modal.querySelector("#undoEditBtn").onclick = async () => {
@@ -1466,7 +1467,7 @@
           await load();
           await openDetail(id);
         } catch (err) {
-          editMsg.textContent = `撤回失败：${err.message}`;
+          showToast(`撤回失败：${err.message}`, { type: "error" });
         }
       };
 
@@ -1556,7 +1557,7 @@
           storesCache = null;
           await openDetail(id);
         } catch (err) {
-          editMsg.textContent = `保存失败：${err.message}`;
+          showToast(`保存失败：${err.message}`, { type: "error" });
         }
       };
       openModal();
@@ -1623,7 +1624,7 @@
           const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
           if (deleted) await load();
         } catch (err) {
-          alert(err.message || "删除失败");
+          showToast(err.message || "删除失败", { type: "error" });
         }
       }, 550);
     });
@@ -1641,7 +1642,7 @@
           const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
           if (deleted) await load();
         } catch (err) {
-          alert(err.message || "删除失败");
+          showToast(err.message || "删除失败", { type: "error" });
         }
       }, 550);
     }, { passive: true });
@@ -1675,7 +1676,7 @@
             }
           }
         } catch (err) {
-          alert(err.message || "删除失败");
+          showToast(err.message || "删除失败", { type: "error" });
         }
       }, 550);
     });
@@ -1693,7 +1694,7 @@
             closeModal();
           }
         } catch (err) {
-          alert(err.message || "删除失败");
+          showToast(err.message || "删除失败", { type: "error" });
         }
       }, 550);
     }, { passive: true });

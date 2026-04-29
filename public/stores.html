@@ -444,6 +444,7 @@
     </div>
   </div>
 
+  <script src="toast.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     let editingId = null;
@@ -481,10 +482,20 @@
     }
 
     function setStatus(text) {
+      if (/失败|不能为空|未找到/.test(text || "")) {
+        showToast(text, { type: "error" });
+        $("status").textContent = "";
+        return;
+      }
       $("status").textContent = text;
     }
 
     function setListStatus(text) {
+      if (/失败/.test(text || "")) {
+        showToast(text, { type: "error" });
+        $("listStatus").textContent = "";
+        return;
+      }
       $("listStatus").textContent = text;
     }
 
@@ -662,7 +673,7 @@
       const keyword = $("name").value.trim();
       const results = $("storeSearchResults");
       if (!keyword) {
-        $("storeSearchStatus").textContent = "请先输入店铺名称。";
+        showToast("请先输入店铺名称。", { type: "error" });
         return;
       }
       $("storeSearchStatus").textContent = "正在搜索东广岛市内相关店铺...";
@@ -703,7 +714,7 @@
           };
         });
       } catch (err) {
-        $("storeSearchStatus").textContent = `搜索失败：${err.message || "请手动填写"}`;
+        showToast(`搜索失败：${err.message || "请手动填写"}`, { type: "error" });
       }
     };
     $("addStoreBtn").onclick = () => {

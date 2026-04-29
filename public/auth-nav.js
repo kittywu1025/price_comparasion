@@ -78,7 +78,7 @@ function showLoginModal() {
     const msg = mask.querySelector("#devLoginMsg");
     const button = mask.querySelector("#devLoginSubmit");
     if (!password) {
-      msg.textContent = "请输入开发口令。";
+      showAuthToast("请输入开发口令。");
       return;
     }
     button.disabled = true;
@@ -93,7 +93,8 @@ function showLoginModal() {
       if (!res.ok) throw new Error(data.error || "登录失败");
       location.reload();
     } catch (err) {
-      msg.textContent = err.message || "登录失败";
+      msg.textContent = "";
+      showAuthToast(err.message || "登录失败");
       button.disabled = false;
     }
   };
@@ -127,7 +128,7 @@ function showUsernameModal(user) {
   button.onclick = async () => {
     const displayName = input.value.trim();
     if (!displayName) {
-      msg.textContent = "请先输入用户名。";
+      showAuthToast("请先输入用户名。");
       return;
     }
     button.disabled = true;
@@ -143,10 +144,19 @@ function showUsernameModal(user) {
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: data }));
       mask.remove();
     } catch (err) {
-      msg.textContent = err.message || "保存失败";
+      msg.textContent = "";
+      showAuthToast(err.message || "保存失败");
       button.disabled = false;
     }
   };
+}
+
+function showAuthToast(message) {
+  if (window.showToast) {
+    window.showToast(message, { type: "error" });
+  } else {
+    window.alert(message);
+  }
 }
 
 function escapeHtml(value) {
