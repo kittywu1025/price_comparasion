@@ -1298,7 +1298,9 @@
         .filter((r) => Number.isFinite(Number(r.priceTaxIn)))
         .map((r) => ({
           date: r.recordDate || "-",
-          value: Number(r.priceTaxIn)
+          value: Number(r.priceTaxIn),
+          storeKey: storeKeyOf(r),
+          storeName: r.storeName || "-"
         }));
 
       if (!series.length) {
@@ -1320,9 +1322,23 @@
         const y = height - padY - ((item.value - min) / range) * (height - padY * 2);
         return { ...item, x, y };
       });
-      const pointAttr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      const pointsByStore = points.reduce((groups, point) => {
+        const key = point.storeKey || "-";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(point);
+        return groups;
+      }, new Map());
+      const polylines = Array.from(pointsByStore.values())
+        .filter((storePoints) => storePoints.length > 1)
+        .map((storePoints) => {
+          const pointAttr = storePoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+          return `<polyline points="${pointAttr}" fill="none" stroke="#0d9a7d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />`;
+        })
+        .join("");
       const circles = points.map((p) => `
-        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0d9a7d" />
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0d9a7d">
+          <title>${escapeHtml(p.storeName)} · ${escapeHtml(p.date)} · ¥${asMoney(p.value)}</title>
+        </circle>
       `).join("");
       const first = points[0];
       const last = points[points.length - 1];
@@ -1334,7 +1350,7 @@
             <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${height - padY}" stroke="#dbe7e3" stroke-width="1" />
             <text x="${padX}" y="14" fill="#607371" font-size="10">¥${asMoney(max)}</text>
             <text x="${padX}" y="${height - 4}" fill="#607371" font-size="10">¥${asMoney(min)}</text>
-            ${points.length > 1 ? `<polyline points="${pointAttr}" fill="none" stroke="#0d9a7d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />` : ""}
+            ${polylines}
             ${circles}
             <text x="${padX}" y="${height - 10}" fill="#607371" font-size="10">${escapeHtml(first.date)}</text>
             <text x="${width - padX}" y="${height - 10}" fill="#607371" font-size="10" text-anchor="end">${escapeHtml(last.date)}</text>
@@ -1554,6 +1570,23 @@
       return new Date().toISOString().slice(0, 10);
     }
 
+    function parsePromoNote(note) {
+      const text = String(note || "");
+      const match = text.match(/^\[\[promo(?::(\d{4}-\d{2}-\d{2}))?\]\]\s*/i);
+      return {
+        isPromo: Boolean(match),
+        promoUntil: match?.[1] || "",
+        plainNote: text.replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "").trim()
+      };
+    }
+
+    function buildPromoNote(plainNote, isPromo, promoUntil) {
+      const plain = String(plainNote || "").trim();
+      if (!isPromo) return plain || null;
+      const prefix = promoUntil ? `[[promo:${promoUntil}]]` : "[[promo]]";
+      return plain ? `${prefix} ${plain}` : prefix;
+    }
+
     async function fetchJson(url, options) {
       const res = await fetch(url, options);
       const contentType = res.headers.get("content-type") || "";
@@ -1685,6 +1718,8 @@
       let editTaxMode = Number(top.taxRate ?? 0);
       let editUnit = top.unit || "g";
       let editImageUrls = Array.isArray(top.imageUrls) ? top.imageUrls.slice(0, 4) : (top.imageUrl ? [top.imageUrl] : []);
+      const initialPromo = parsePromoNote(top.note);
+      let editIsPromo = initialPromo.isPromo;
       const initialBefore = Number(
         top.priceTaxEx ?? (editTaxMode ? Number(top.priceTaxIn || 0) / (1 + editTaxMode / 100) : top.priceTaxIn || 0)
       );
@@ -1735,11 +1770,11 @@
               <div class="edit-name-stack">
                 <div class="edit-field">
                   <label for="editNameZh">中文名称</label>
-                  <input id="editNameZh" value="${escapeHtml(data.product.nameZh || "")}" readonly />
+                  <input id="editNameZh" value="${escapeHtml(data.product.nameZh || "")}" />
                 </div>
                 <div class="edit-field">
                   <label for="editNameJa">日文名称</label>
-                  <input id="editNameJa" value="${escapeHtml(data.product.nameJa || "")}" readonly />
+                  <input id="editNameJa" value="${escapeHtml(data.product.nameJa || "")}" />
                 </div>
                 <div class="edit-field">
                   <label>条形码（可选）</label>
@@ -1801,10 +1836,18 @@
                 <select id="editStoreId"><option value="">登录后加载店铺</option></select>
               </div>
               <div class="edit-field">
-                <label id="editRecordDateLabel" for="editRecordDate">更新日期</label>
-                <input id="editRecordDate" type="date" value="${today()}" required />
+                <label>限时优惠</label>
+                <div id="editPromoSegment" class="edit-segment">
+                  <button type="button" data-promo="0" class="${editIsPromo ? "" : "active"}">否</button>
+                  <button type="button" data-promo="1" class="${editIsPromo ? "active" : ""}">是</button>
+                </div>
               </div>
             </div>
+            <div id="editPromoUntilField" class="edit-field" style="${editIsPromo ? "" : "display:none;"}">
+              <label for="editPromoUntil">优惠截止日期</label>
+              <input id="editPromoUntil" type="date" value="${escapeHtml(initialPromo.promoUntil)}" ${editIsPromo ? "" : "disabled"} />
+            </div>
+            <input id="editPlainNote" type="hidden" value="${escapeHtml(initialPromo.plainNote)}" />
             <div class="modal-actions">
               <button id="editSubmitBtn" class="btn btn-primary" type="submit">保存修正</button>
               <button id="undoEditBtn" class="btn btn-light" type="button" style="display:none;">撤回我的修改</button>
@@ -1882,8 +1925,6 @@
         detailView.classList.add("hidden");
         form.classList.add("active");
         modal.querySelector("#editModeTitle").textContent = mode === "new" ? "新增价格记录" : "修正记录";
-        modal.querySelector("#editRecordDateLabel").textContent = mode === "new" ? "记录日期" : "更新日期";
-        modal.querySelector("#editRecordDate").value = today();
         modal.querySelector("#editSubmitBtn").textContent = mode === "new" ? "新增价格记录" : "保存修正";
         modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
         const ok = await loadProtectedStores();
@@ -1980,6 +2021,18 @@
           calcEdit();
         };
       });
+      modal.querySelectorAll("#editPromoSegment button").forEach((btn) => {
+        btn.onclick = () => {
+          editIsPromo = btn.dataset.promo === "1";
+          modal.querySelectorAll("#editPromoSegment button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          const promoUntilField = modal.querySelector("#editPromoUntilField");
+          const promoUntil = modal.querySelector("#editPromoUntil");
+          promoUntilField.style.display = editIsPromo ? "" : "none";
+          promoUntil.disabled = !editIsPromo;
+          if (!editIsPromo) promoUntil.value = "";
+        };
+      });
       ["editPriceTaxEx", "editSpecValue"].forEach((fieldId) => {
         modal.querySelector(`#${fieldId}`).addEventListener("input", calcEdit);
       });
@@ -2037,19 +2090,25 @@
         const payload = {
           product: {
             id: data.product.id,
+            nameZh: modal.querySelector("#editNameZh").value.trim(),
+            nameJa: modal.querySelector("#editNameJa").value.trim(),
             barcode: editBarcode
           },
           storeId: Number(modal.querySelector("#editStoreId").value),
           priceTaxIn: after,
           specValue: Number(modal.querySelector("#editSpecValue").value),
           unit: editUnit,
-          recordDate: modal.querySelector("#editRecordDate").value,
+          recordDate: today(),
           priceTaxEx: before,
           taxRate: editTaxMode,
           imageUrls: editImageUrls,
-          note: top.note ?? null
+          note: buildPromoNote(modal.querySelector("#editPlainNote").value, editIsPromo, modal.querySelector("#editPromoUntil").value)
         };
         const editMsg = modal.querySelector("#editMsg");
+        if (!payload.product.nameZh && !payload.product.nameJa) {
+          editMsg.textContent = "中文名称和日文名称不能同时为空。";
+          return;
+        }
         try {
           const saveRes = editMode === "new"
             ? await fetch("/api/price-records", {
