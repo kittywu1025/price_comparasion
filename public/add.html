@@ -1259,6 +1259,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="image-cropper.js"></script>
   <script>
     const state = {
       taxMode: 8,
@@ -2278,7 +2279,7 @@
       try {
         state.imageDataUrls = [];
         for (const file of files) {
-          state.imageDataUrls.push(await compressImageFile(file));
+          state.imageDataUrls.push(window.cropAndCompressImageFile ? await window.cropAndCompressImageFile(file) : await compressImageFile(file));
         }
         $("previewImg").src = state.imageDataUrls[0];
         $("previewImg").style.display = "block";

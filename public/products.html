@@ -1180,6 +1180,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="image-cropper.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const pageParams = new URLSearchParams(location.search);
@@ -2107,7 +2108,7 @@
         try {
           editImageUrls = [];
           for (const file of files) {
-            editImageUrls.push(await compressImageFile(file));
+            editImageUrls.push(window.cropAndCompressImageFile ? await window.cropAndCompressImageFile(file) : await compressImageFile(file));
           }
           renderEditImages(editImageUrls);
           editMsg.textContent = `已选择 ${editImageUrls.length} 张图片。`;
