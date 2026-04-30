@@ -325,6 +325,18 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .unit-segment {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .unit-segment button {
+      height: 34px;
+      padding: 0 4px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     .result {
       margin-top: 12px;
       display: grid;
@@ -1094,7 +1106,7 @@
 
               <div class="field">
                 <label>规格单位</label>
-                <div id="unitSegment" class="segment">
+                <div id="unitSegment" class="segment unit-segment">
                   <button type="button" data-unit="g" class="active">g</button>
                   <button type="button" data-unit="ml">ml</button>
                   <button type="button" data-unit="个">个</button>
