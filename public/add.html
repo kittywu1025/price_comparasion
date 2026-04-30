@@ -1092,16 +1092,10 @@
           </div>
 
           <div class="field">
-            <label for="storeSearch">购买店铺<span class="req">必填</span></label>
-            <input id="storeSearch" list="storeOptions" placeholder="输入店铺名或直接选择" autocomplete="off" required />
+            <label for="storeId">购买店铺<span class="req">必填</span></label>
+            <select id="storeId" required></select>
             <datalist id="storeOptions"></datalist>
-            <select id="storeId" style="display:none;"></select>
-            <div id="storeHint" class="toolbar-note" style="margin:6px 0 0;">可输入关键词匹配现有店铺</div>
-          </div>
-
-          <div class="field">
-            <label for="recordDate">记录日期<span class="req">必填</span></label>
-            <input id="recordDate" type="date" required />
+            <div id="storeHint" class="toolbar-note" style="margin:6px 0 0;">会默认使用上次选择的店铺</div>
           </div>
 
           <div class="field span-2">
@@ -1281,6 +1275,7 @@
       zxingPromise: null,
       importRows: []
     };
+    const LAST_STORE_ID_KEY = "price-comparison:lastStoreId";
     const $ = (id) => document.getElementById(id);
 
     function today() {
@@ -1648,7 +1643,6 @@
       const store = state.stores.find((item) => Number(item.id) === Number(storeId));
       if (!store) return false;
       $("storeId").value = String(store.id);
-      $("storeSearch").value = store.name;
       $("storeHint").textContent = `已匹配：${store.name}`;
       return true;
     }
@@ -1866,37 +1860,28 @@
       if (state.taxMode !== 0) return;
       const cosmosId = findCosmosStoreId();
       if (!cosmosId) return;
-      $("storeId").value = String(cosmosId);
-      const store = state.stores.find((item) => Number(item.id) === cosmosId);
-      if (store) {
-        $("storeSearch").value = store.name;
-        $("storeHint").textContent = `已匹配：${store.name}`;
-      }
+      setStoreById(cosmosId);
     }
 
     function applyTaxStoreLinkByStore() {
-      const selectedText = $("storeSearch").value || $("storeId").selectedOptions?.[0]?.textContent || "";
+      const selectedText = $("storeId").selectedOptions?.[0]?.textContent || "";
       const isCosmos = selectedText.toLowerCase().includes("cosmos") || selectedText.includes("コスモス");
       setTaxMode(isCosmos ? 0 : 8);
     }
 
-    function matchStoreByInput() {
-      const keyword = $("storeSearch").value.trim().toLowerCase();
-      if (!keyword) {
-        $("storeId").value = "";
-        $("storeHint").textContent = "可输入关键词匹配现有店铺";
-        return null;
-      }
-      const exact = state.stores.find((store) => String(store.name || "").toLowerCase() === keyword);
-      const matched = exact || state.stores.find((store) => String(store.name || "").toLowerCase().includes(keyword));
+    function getSelectedStore() {
+      const matched = state.stores.find((store) => Number(store.id) === Number($("storeId").value));
       if (!matched) {
-        $("storeId").value = "";
-        $("storeHint").textContent = "没有匹配到店铺，请继续输入或先去店铺页新增";
+        $("storeHint").textContent = "请先到店铺页新增店铺";
         return null;
       }
-      $("storeId").value = String(matched.id);
       $("storeHint").textContent = `已匹配：${matched.name}`;
       return matched;
+    }
+
+    function rememberSelectedStore() {
+      const storeId = $("storeId").value;
+      if (storeId) localStorage.setItem(LAST_STORE_ID_KEY, storeId);
     }
 
     function normalizeQuickText(value) {
@@ -2033,8 +2018,8 @@
         ? stores.map((s) => `<option value="${s.id}">${s.name}</option>`).join("")
         : '<option value="">请先到店铺页新增店铺</option>';
       if (stores.length) {
-        $("storeSearch").value = stores[0].name;
-        $("storeHint").textContent = `已匹配：${stores[0].name}`;
+        const lastStoreId = localStorage.getItem(LAST_STORE_ID_KEY);
+        if (!setStoreById(lastStoreId)) setStoreById(stores[0].id);
         applyTaxStoreLinkByStore();
       }
     }
@@ -2250,17 +2235,10 @@
       }
       openSheet();
     };
-    $("storeId").addEventListener("change", applyTaxStoreLinkByStore);
-    $("storeSearch").addEventListener("input", () => {
-      const matched = matchStoreByInput();
-      if (matched) applyTaxStoreLinkByStore();
-    });
-    $("storeSearch").addEventListener("blur", () => {
-      const matched = matchStoreByInput();
-      if (matched) {
-        $("storeSearch").value = matched.name;
-        applyTaxStoreLinkByStore();
-      }
+    $("storeId").addEventListener("change", () => {
+      getSelectedStore();
+      rememberSelectedStore();
+      applyTaxStoreLinkByStore();
     });
     $("promoSegment").querySelectorAll("button").forEach((btn) => {
       btn.onclick = () => setPromoMode(btn.dataset.promo === "1");
@@ -2309,7 +2287,7 @@
     $("form").onsubmit = async (e) => {
       e.preventDefault();
       const { before, after } = calc();
-      const matchedStore = matchStoreByInput();
+      const matchedStore = getSelectedStore();
 
       if (!matchedStore || !$("storeId").value) {
         notify("请先选择购买店铺。", "error");
@@ -2335,7 +2313,7 @@
         specValue: Number($("spec").value),
         unit: state.unit,
         imageUrls: state.imageDataUrls,
-        recordDate: $("recordDate").value,
+        recordDate: today(),
         note: buildPromoNote($("note").value, state.isPromo, $("promoUntil").value)
       };
 
@@ -2351,13 +2329,13 @@
       }
 
       $("msg").textContent = "保存成功，正在返回清单页...";
+      rememberSelectedStore();
       notify("保存成功，正在返回清单页...", "success");
       setTimeout(() => {
         location.href = "products";
       }, 700);
     };
 
-    $("recordDate").value = today();
     setPromoMode(false);
     loadStores();
     updateBarcodeNote();
