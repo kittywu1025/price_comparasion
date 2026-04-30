@@ -633,8 +633,21 @@
       color: #1a5950;
     }
 
-    .promo-date-field.is-hidden {
-      display: none;
+    .promo-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .promo-date-field.is-disabled label {
+      color: #9aaaa7;
+    }
+
+    .promo-date-field.is-disabled input {
+      background: #edf4f2;
+      border-color: #d6e4df;
+      color: #91a09d;
+      cursor: not-allowed;
     }
 
     nav {
@@ -1103,17 +1116,19 @@
             <input id="note" placeholder="可选" />
           </div>
 
-          <div class="field">
-            <label>限时优惠</label>
-            <div id="promoSegment" class="segment two">
-              <button type="button" data-promo="0" class="active">否</button>
-              <button type="button" data-promo="1">是</button>
+          <div class="promo-row span-2">
+            <div class="field">
+              <label>限时优惠</label>
+              <div id="promoSegment" class="segment two">
+                <button type="button" data-promo="0" class="active">否</button>
+                <button type="button" data-promo="1">是</button>
+              </div>
             </div>
-          </div>
 
-          <div id="promoUntilField" class="field">
-            <label for="promoUntil">优惠截止日期</label>
-            <input id="promoUntil" type="date" />
+            <div id="promoUntilField" class="field promo-date-field">
+              <label for="promoUntil">优惠截止日期</label>
+              <input id="promoUntil" type="date" />
+            </div>
           </div>
         </div>
 
@@ -1984,7 +1999,7 @@
         b.classList.toggle("active", b.dataset.promo === (state.isPromo ? "1" : "0"));
       });
       $("promoUntil").disabled = !state.isPromo;
-      $("promoUntilField").classList.toggle("is-hidden", !state.isPromo);
+      $("promoUntilField").classList.toggle("is-disabled", !state.isPromo);
       if (!state.isPromo) $("promoUntil").value = "";
     }
 
