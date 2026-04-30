@@ -1259,6 +1259,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="image-viewer.js"></script>
   <script src="image-cropper.js"></script>
   <script>
     const state = {
@@ -2242,7 +2243,13 @@
     $("scannerMask").addEventListener("click", (e) => {
       if (e.target === $("scannerMask")) stopScanner();
     });
-    $("uploadBox").onclick = openSheet;
+    $("uploadBox").onclick = () => {
+      if (state.imageDataUrls[0] && window.openImageActionSheet) {
+        window.openImageActionSheet(state.imageDataUrls[0], openSheet);
+        return;
+      }
+      openSheet();
+    };
     $("storeId").addEventListener("change", applyTaxStoreLinkByStore);
     $("storeSearch").addEventListener("input", () => {
       const matched = matchStoreByInput();
@@ -2261,7 +2268,7 @@
     $("uploadBox").addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openSheet();
+        $("uploadBox").click();
       }
     });
 

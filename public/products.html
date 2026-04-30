@@ -1194,6 +1194,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="image-viewer.js"></script>
   <script src="image-cropper.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
@@ -1740,7 +1741,7 @@
       const secondaryName = data.product.nameZh && data.product.nameJa ? data.product.nameJa : "";
       const productHead = `
         <div class="modal-product-head">
-          <div class="modal-img compact">
+          <div class="modal-img compact" data-view-image="${escapeHtml(data.product.defaultImageUrl || "")}" role="${data.product.defaultImageUrl ? "button" : "img"}" tabindex="${data.product.defaultImageUrl ? "0" : "-1"}" aria-label="查看商品大图">
             ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
           </div>
           <div class="modal-name-stack">
@@ -1931,6 +1932,16 @@
       modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
         btn.onclick = () => updateTrend(btn.dataset.trendMode, btn.dataset.trendStore || "");
       });
+      modal.querySelectorAll("[data-view-image]").forEach((node) => {
+        const src = node.dataset.viewImage;
+        if (!src) return;
+        node.onclick = () => window.openImageViewer?.(src);
+        node.onkeydown = (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          window.openImageViewer?.(src);
+        };
+      });
       modal.querySelectorAll("[data-rank-store]").forEach((row) => {
         const selectStoreTrend = () => updateTrend("store", row.dataset.rankStore || "");
         row.onclick = selectStoreTrend;
@@ -2104,11 +2115,18 @@
         }
       };
       const editPhotoPreview = modal.querySelector("#editPhotoPreview");
-      editPhotoPreview.onclick = () => modal.querySelector("#editImageFile").click();
+      const chooseEditImage = () => modal.querySelector("#editImageFile").click();
+      editPhotoPreview.onclick = () => {
+        if (editImageUrls[0] && window.openImageActionSheet) {
+          window.openImageActionSheet(editImageUrls[0], chooseEditImage);
+          return;
+        }
+        chooseEditImage();
+      };
       editPhotoPreview.onkeydown = (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          modal.querySelector("#editImageFile").click();
+          editPhotoPreview.click();
         }
       };
       modal.querySelector("#clearEditPhoto").onclick = () => {

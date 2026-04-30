@@ -940,6 +940,7 @@
   </div>
 
   <script src="toast.js"></script>
+  <script src="image-viewer.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const pageParams = new URLSearchParams(location.search);
@@ -1291,7 +1292,7 @@
         modal.innerHTML = `
           <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
           <header class="modal-head">
-            <div class="modal-img">
+            <div class="modal-img" data-view-image="${escapeHtml(data.product.defaultImageUrl || "")}" role="${data.product.defaultImageUrl ? "button" : "img"}" tabindex="${data.product.defaultImageUrl ? "0" : "-1"}" aria-label="查看商品大图">
               ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
             </div>
           </header>
@@ -1315,7 +1316,7 @@
       modal.innerHTML = `
         <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
         <header id="modalHead" class="modal-head">
-          <div class="modal-img compact">
+          <div class="modal-img compact" data-view-image="${escapeHtml(data.product.defaultImageUrl || "")}" role="${data.product.defaultImageUrl ? "button" : "img"}" tabindex="${data.product.defaultImageUrl ? "0" : "-1"}" aria-label="查看商品大图">
             ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
           </div>
           <div class="modal-head-actions">
@@ -1461,6 +1462,16 @@
 
       modal.querySelectorAll("[data-trend-mode]").forEach((btn) => {
         btn.onclick = () => updateTrend(btn.dataset.trendMode, btn.dataset.trendStore || "");
+      });
+      modal.querySelectorAll("[data-view-image]").forEach((node) => {
+        const src = node.dataset.viewImage;
+        if (!src) return;
+        node.onclick = () => window.openImageViewer?.(src);
+        node.onkeydown = (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          window.openImageViewer?.(src);
+        };
       });
       modal.querySelectorAll("[data-rank-store]").forEach((row) => {
         const selectStoreTrend = () => updateTrend("store", row.dataset.rankStore || "");
