@@ -428,6 +428,27 @@
       padding: 14px 14px 0;
     }
 
+    .modal-head-actions {
+      position: absolute;
+      top: 14px;
+      right: 58px;
+      z-index: 4;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      max-width: min(420px, calc(100% - 170px));
+    }
+
+    .modal-head-actions .btn {
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      white-space: nowrap;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.08);
+    }
+
     .modal-product-head {
       display: grid;
       grid-template-columns: 96px 1fr;
@@ -1096,6 +1117,18 @@
         min-height: 82px;
       }
 
+      .modal-head-actions {
+        position: static;
+        margin-top: 10px;
+        max-width: none;
+        justify-content: stretch;
+      }
+
+      .modal-head-actions .btn {
+        flex: 1;
+        padding: 0 8px;
+      }
+
       .modal-img.compact {
         width: 82px;
         height: 82px;
@@ -1726,9 +1759,13 @@
 
       modal.innerHTML = `
         <button class="modal-close-fixed" onclick="closeModal()" aria-label="关闭">×</button>
-        <header id="modalHead" class="modal-head">
-          ${productHead}
-        </header>
+          <header id="modalHead" class="modal-head">
+            ${productHead}
+            <div class="modal-head-actions">
+              <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
+              <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
+            </div>
+          </header>
         <section class="modal-body">
           <div id="detailView" class="detail-view">
             <div class="stats">
@@ -1751,8 +1788,6 @@
               ${renderHistory(data.records || [])}
             </div>
             <div class="modal-actions">
-              <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
-              <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
               <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button">删除当前记录</button>
             </div>
           </div>
