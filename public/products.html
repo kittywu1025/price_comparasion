@@ -434,19 +434,40 @@
       right: 58px;
       z-index: 4;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       justify-content: flex-end;
-      max-width: min(420px, calc(100% - 170px));
     }
 
-    .modal-head-actions .btn {
-      min-height: 36px;
-      padding: 0 12px;
+    .modal-icon-btn {
+      width: 38px;
+      height: 38px;
+      border: 0;
       border-radius: 999px;
-      font-size: 13px;
-      white-space: nowrap;
+      background: #eef7f4;
+      color: #0c765f;
       box-shadow: 0 8px 16px rgba(12, 48, 42, 0.08);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 19px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .modal-icon-btn.primary {
+      background: #0d9a7d;
+      color: #fff;
+    }
+
+    .modal-icon-btn svg {
+      width: 19px;
+      height: 19px;
+      stroke: currentColor;
+      stroke-width: 2.4;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .modal-product-head {
@@ -1118,15 +1139,8 @@
       }
 
       .modal-head-actions {
-        position: static;
-        margin-top: 10px;
-        max-width: none;
-        justify-content: stretch;
-      }
-
-      .modal-head-actions .btn {
-        flex: 1;
-        padding: 0 8px;
+        top: 12px;
+        right: 54px;
       }
 
       .modal-img.compact {
@@ -1763,8 +1777,10 @@
           <header id="modalHead" class="modal-head">
             ${productHead}
             <div class="modal-head-actions">
-              <button id="addRecordBtn" class="btn btn-primary" type="button">新增价格记录</button>
-              <button id="showEditBtn" class="btn btn-light" type="button">修正记录</button>
+              <button id="addRecordBtn" class="modal-icon-btn primary" type="button" aria-label="新增价格记录" title="新增价格记录">+</button>
+              <button id="showEditBtn" class="modal-icon-btn" type="button" aria-label="修正记录" title="修正记录">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
             </div>
           </header>
         <section class="modal-body">
@@ -1773,7 +1789,6 @@
               <div class="stat"><p class="stat-k">税后总价</p><p class="stat-v">¥${asMoney(top.priceTaxIn)}</p></div>
               <div class="stat"><p class="stat-k">对比单价</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
               <div class="stat"><p class="stat-k">规格</p><p class="stat-v">${top.specValue ?? "-"} ${top.unit ?? ""}</p></div>
-              <div class="stat"><p class="stat-k">购买店铺</p><p class="stat-v">${top.storeName ?? "-"}</p></div>
             </div>
             <div class="detail-section">
               <p class="detail-section-title">各店现价排行</p>
