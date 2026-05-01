@@ -661,6 +661,22 @@
       color: #4f6562;
     }
 
+    .detail-note {
+      border: 1px solid #e4efeb;
+      border-radius: 12px;
+      background: #f8fcfb;
+      padding: 11px 12px;
+      color: #314748;
+      font-size: 13px;
+      line-height: 1.55;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .detail-note.empty {
+      color: #7a8b89;
+    }
+
     .trend-card {
       border: 1px solid #e4efeb;
       border-radius: 12px;
@@ -1873,6 +1889,14 @@
       };
     }
 
+    function renderDetailNote(note) {
+      const plainNote = parsePromoNote(note).plainNote;
+      if (!plainNote) {
+        return '<div class="detail-note empty">暂无备注</div>';
+      }
+      return `<div class="detail-note">${escapeHtml(plainNote)}</div>`;
+    }
+
     function buildPromoNote(plainNote, isPromo, promoUntil) {
       const plain = String(plainNote || "").trim();
       if (!isPromo) return plain || null;
@@ -2285,6 +2309,10 @@
               <div class="stat"><p class="stat-k">税后总价</p><p class="stat-v">¥${asMoney(top.priceTaxIn)}</p></div>
               <div class="stat"><p class="stat-k">对比单价</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
               <div class="stat"><p class="stat-k">规格</p><p class="stat-v">${top.specValue ?? "-"} ${top.unit ?? ""}</p></div>
+            </div>
+            <div class="detail-section">
+              <p class="detail-section-title">商品备注</p>
+              ${renderDetailNote(top.note)}
             </div>
             <div class="detail-section">
               <p class="detail-section-title">各店现价排行</p>
