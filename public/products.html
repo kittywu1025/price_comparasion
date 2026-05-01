@@ -89,6 +89,25 @@
       cursor: pointer;
     }
 
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .batch-entry {
+      height: 42px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 12px;
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     .search-wrap {
       margin-top: 12px;
       display: grid;
@@ -184,6 +203,42 @@
       border-color: #9dd8c9;
       box-shadow: 0 8px 18px rgba(12, 107, 89, 0.16);
       background: linear-gradient(180deg, #ffffff, #f3fbf8);
+    }
+
+    .card.selecting {
+      padding-left: 42px;
+    }
+
+    .card.selected {
+      border-color: #0d9a7d;
+      box-shadow: 0 10px 22px rgba(13, 154, 125, 0.18);
+    }
+
+    .select-dot {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 2px solid #b9c9c5;
+      background: #fff;
+      display: none;
+      place-items: center;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      z-index: 3;
+    }
+
+    .card.selecting .select-dot {
+      display: grid;
+    }
+
+    .card.selected .select-dot {
+      border-color: #0d8f76;
+      background: #0d8f76;
     }
 
     .flags {
@@ -1106,6 +1161,154 @@
       color: rgba(255, 255, 255, 0.76);
     }
 
+    .batch-bar {
+      position: fixed;
+      left: 50%;
+      bottom: calc(74px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 30;
+      width: min(520px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      min-height: 54px;
+      border: 1px solid #d8e7e1;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 28px rgba(12, 48, 42, 0.12);
+      padding: 8px;
+      display: none;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .batch-bar.show {
+      display: grid;
+    }
+
+    .batch-bar button {
+      height: 38px;
+      border: 0;
+      border-radius: 12px;
+      padding: 0 12px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .batch-count {
+      color: #607371;
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 0;
+    }
+
+    .batch-select-all,
+    .batch-cancel {
+      background: #edf6f3;
+      color: #185d52;
+    }
+
+    .batch-edit {
+      background: #0d9a7d;
+      color: #fff;
+    }
+
+    .batch-edit:disabled,
+    .batch-form-apply:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .batch-sheet-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(7, 19, 18, 0.45);
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    }
+
+    .batch-sheet-mask.show {
+      display: flex;
+    }
+
+    .batch-sheet {
+      width: min(420px, 100%);
+      border-radius: 20px 20px 0 0;
+      border: 1px solid #dceae6;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 18px 38px rgba(8, 46, 40, 0.22);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .batch-sheet h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .batch-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .batch-options button,
+    .batch-form button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .batch-options button {
+      background: #edf3f1;
+      color: #1f2a2b;
+    }
+
+    .batch-form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .batch-form label {
+      display: grid;
+      gap: 5px;
+      color: #607371;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .batch-form input,
+    .batch-form select {
+      width: 100%;
+      height: 40px;
+      border: 1px solid #d7e5e1;
+      border-radius: 10px;
+      padding: 0 10px;
+      font: inherit;
+      color: #163031;
+      background: #fff;
+    }
+
+    .batch-form-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .batch-form-cancel {
+      background: #edf6f3;
+      color: #185d52;
+    }
+
+    .batch-form-apply {
+      background: #0d9a7d;
+      color: #fff;
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -1167,7 +1370,10 @@
     <section class="hero">
       <div class="hero-top">
         <h1 class="title">价格比价清单</h1>
-        <button id="scanSearch" class="scan-btn" aria-label="扫码搜索">⌁</button>
+        <div class="hero-actions">
+          <button id="batchEntry" class="batch-entry" type="button">批量修改</button>
+          <button id="scanSearch" class="scan-btn" aria-label="扫码搜索">⌁</button>
+        </div>
       </div>
       <div class="search-wrap">
         <input id="q" placeholder="搜索名称、品牌、条码" />
@@ -1189,6 +1395,17 @@
       <a href="stores.html">店铺</a>
       <a href="profile.html">我的</a>
     </nav>
+  </div>
+
+  <div id="batchBar" class="batch-bar" aria-live="polite">
+    <button id="batchSelectAll" class="batch-select-all" type="button">全选</button>
+    <span id="batchCount" class="batch-count">已选择 0 条</span>
+    <button id="batchEdit" class="batch-edit" type="button">操作编辑</button>
+    <button id="batchCancel" class="batch-cancel" type="button">取消</button>
+  </div>
+
+  <div id="batchSheetMask" class="batch-sheet-mask">
+    <section id="batchSheet" class="batch-sheet" role="dialog" aria-modal="true" aria-label="批量修改"></section>
   </div>
 
   <div id="mask" class="modal-mask" role="dialog" aria-modal="true">
@@ -1220,6 +1437,8 @@
     let suppressNextCardClick = false;
     let suppressNextHistoryClick = false;
     let longPressTimer = null;
+    let batchMode = false;
+    const selectedProducts = new Set();
     let bodyScrollY = 0;
     let modalLocked = false;
     const scannerState = {
@@ -1715,6 +1934,235 @@
       return true;
     }
 
+    function visibleProductIds() {
+      return cache
+        .filter((item) => item.latestRecordId)
+        .map((item) => String(item.productId));
+    }
+
+    function updateBatchBar() {
+      $("batchBar").classList.toggle("show", batchMode);
+      $("batchEntry").textContent = batchMode ? "完成" : "批量修改";
+      $("batchCount").textContent = `已选择 ${selectedProducts.size} 条`;
+      $("batchEdit").disabled = selectedProducts.size === 0;
+      $("batchSelectAll").textContent =
+        visibleProductIds().length > 0 && visibleProductIds().every((id) => selectedProducts.has(id))
+          ? "取消全选"
+          : "全选";
+    }
+
+    function syncBatchCard(productId) {
+      const id = String(productId);
+      const card = Array.from(document.querySelectorAll(".card[data-product-id]"))
+        .find((node) => String(node.dataset.productId) === id);
+      if (!card) return;
+      const selected = selectedProducts.has(id);
+      card.classList.toggle("selecting", batchMode);
+      card.classList.toggle("selected", selected);
+      const dot = card.querySelector(".select-dot");
+      if (dot) dot.textContent = selected ? "✓" : "";
+    }
+
+    function enterBatchMode(productId = "") {
+      batchMode = true;
+      if (productId) {
+        const item = cache.find((entry) => String(entry.productId) === String(productId));
+        if (item?.latestRecordId) selectedProducts.add(String(productId));
+      }
+      document.querySelectorAll(".card[data-product-id]").forEach((card) => {
+        syncBatchCard(card.dataset.productId);
+      });
+      updateBatchBar();
+    }
+
+    function closeBatchSheet() {
+      $("batchSheetMask").classList.remove("show");
+      $("batchSheet").innerHTML = "";
+    }
+
+    function exitBatchMode() {
+      closeBatchSheet();
+      batchMode = false;
+      selectedProducts.clear();
+      document.querySelectorAll(".card[data-product-id]").forEach((card) => {
+        syncBatchCard(card.dataset.productId);
+      });
+      updateBatchBar();
+    }
+
+    function toggleBatchSelection(productId) {
+      const id = String(productId);
+      const item = cache.find((entry) => String(entry.productId) === id);
+      if (!item?.latestRecordId) {
+        showToast("当前商品没有可修改的价格记录。", { type: "error" });
+        return;
+      }
+      if (selectedProducts.has(id)) selectedProducts.delete(id);
+      else selectedProducts.add(id);
+      syncBatchCard(id);
+      updateBatchBar();
+    }
+
+    function selectedProductItems() {
+      return cache.filter((item) => selectedProducts.has(String(item.productId)) && item.latestRecordId);
+    }
+
+    function openBatchSheet() {
+      if (!selectedProducts.size) {
+        showToast("请先选择需要修改的商品。", { type: "error" });
+        return;
+      }
+      $("batchSheetMask").classList.add("show");
+      $("batchSheet").innerHTML = `
+        <h2>批量修改 ${selectedProducts.size} 条</h2>
+        <div class="batch-options">
+          <button type="button" data-batch-field="store">购买店铺</button>
+          <button type="button" data-batch-field="date">记录日期</button>
+          <button type="button" data-batch-field="promo">限时优惠</button>
+          <button type="button" data-batch-field="note">备注</button>
+          <button type="button" data-batch-field="cancel">取消</button>
+        </div>
+      `;
+    }
+
+    async function renderBatchField(field) {
+      const sheet = $("batchSheet");
+      if (field === "cancel") {
+        closeBatchSheet();
+        return;
+      }
+      if (field === "store") {
+        try {
+          const stores = await getStores();
+          sheet.innerHTML = `
+            <h2>批量修改购买店铺</h2>
+            <form class="batch-form" data-batch-form="store">
+              <label>选择店铺
+                <select name="storeId" required>
+                  ${stores.map((store) => `<option value="${store.id}">${escapeHtml(store.name)}</option>`).join("")}
+                </select>
+              </label>
+              <div class="batch-form-actions">
+                <button class="batch-form-cancel" type="button" data-batch-back>返回</button>
+                <button class="batch-form-apply" type="submit">保存修改</button>
+              </div>
+            </form>
+          `;
+        } catch (err) {
+          showToast(`店铺列表加载失败：${err.message || "请稍后重试"}`, { type: "error", sticky: true });
+        }
+        return;
+      }
+      if (field === "date") {
+        sheet.innerHTML = `
+          <h2>批量修改记录日期</h2>
+          <form class="batch-form" data-batch-form="date">
+            <label>记录日期
+              <input name="recordDate" type="date" value="${today()}" required />
+            </label>
+            <div class="batch-form-actions">
+              <button class="batch-form-cancel" type="button" data-batch-back>返回</button>
+              <button class="batch-form-apply" type="submit">保存修改</button>
+            </div>
+          </form>
+        `;
+        return;
+      }
+      if (field === "promo") {
+        sheet.innerHTML = `
+          <h2>批量修改限时优惠</h2>
+          <form class="batch-form" data-batch-form="promo">
+            <label>是否为限时优惠
+              <select name="isPromo">
+                <option value="0">否</option>
+                <option value="1">是</option>
+              </select>
+            </label>
+            <label>优惠截止日期
+              <input name="promoUntil" type="date" disabled />
+            </label>
+            <div class="batch-form-actions">
+              <button class="batch-form-cancel" type="button" data-batch-back>返回</button>
+              <button class="batch-form-apply" type="submit">保存修改</button>
+            </div>
+          </form>
+        `;
+        const form = sheet.querySelector("[data-batch-form='promo']");
+        const select = form.querySelector("[name='isPromo']");
+        const promoUntil = form.querySelector("[name='promoUntil']");
+        select.onchange = () => {
+          const active = select.value === "1";
+          promoUntil.disabled = !active;
+          if (!active) promoUntil.value = "";
+        };
+        return;
+      }
+      if (field === "note") {
+        sheet.innerHTML = `
+          <h2>批量修改备注</h2>
+          <form class="batch-form" data-batch-form="note">
+            <label>备注内容
+              <input name="note" placeholder="留空则清空备注" />
+            </label>
+            <div class="batch-form-actions">
+              <button class="batch-form-cancel" type="button" data-batch-back>返回</button>
+              <button class="batch-form-apply" type="submit">保存修改</button>
+            </div>
+          </form>
+        `;
+      }
+    }
+
+    async function applyBatchEdit(field, values) {
+      const items = selectedProductItems();
+      if (!items.length) throw new Error("没有可修改的记录。");
+      const ok = confirm(`确认批量修改 ${items.length} 条当前展示记录吗？`);
+      if (!ok) return;
+      for (const item of items) {
+        const detail = await fetchJson(`/api/products/${item.productId}`);
+        const product = detail.product || {};
+        const top = detail.records?.[0];
+        if (!top?.id) continue;
+        const promo = parsePromoNote(top.note);
+        let isPromo = promo.isPromo;
+        let promoUntil = promo.promoUntil;
+        let plainNote = promo.plainNote;
+        if (field === "promo") {
+          isPromo = values.isPromo;
+          promoUntil = values.promoUntil;
+        }
+        if (field === "note") {
+          plainNote = values.note;
+        }
+        const payload = {
+          productId: product.id,
+          product: {
+            id: product.id,
+            nameZh: product.nameZh || "",
+            nameJa: product.nameJa || "",
+            barcode: product.barcode || ""
+          },
+          storeId: field === "store" ? Number(values.storeId) : Number(top.storeId),
+          priceTaxIn: Number(top.priceTaxIn),
+          specValue: Number(top.specValue),
+          unit: top.unit || "g",
+          recordDate: field === "date" ? values.recordDate : top.recordDate,
+          priceTaxEx: top.priceTaxEx ?? null,
+          taxRate: Number(top.taxRate ?? 8),
+          imageUrls: Array.isArray(top.imageUrls) ? top.imageUrls : (top.imageUrl ? [top.imageUrl] : []),
+          note: buildPromoNote(plainNote, isPromo, promoUntil)
+        };
+        await fetchJson(`/api/price-records/${top.id}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      }
+      showToast(`已批量修改 ${items.length} 条记录。`, { type: "success" });
+      exitBatchMode();
+      await load();
+    }
+
     async function load() {
       const q = $("q").value.trim();
       const params = new URLSearchParams();
@@ -1724,6 +2172,10 @@
       const query = params.toString();
       const data = await fetch("/api/products" + (query ? `?${query}` : "")).then((r) => r.json());
       cache = data.slice();
+      const visibleIds = new Set(cache.map((item) => String(item.productId)));
+      selectedProducts.forEach((id) => {
+        if (!visibleIds.has(id)) selectedProducts.delete(id);
+      });
       $("summaryChip").textContent = storeFilterName
         ? `${cache.length} 条记录 · ${storeFilterName}`
         : `${cache.length} 条记录`;
@@ -1746,7 +2198,8 @@
             isBest ? '<div class="flag best">最低价</div>' : ""
           ].filter(Boolean).join("");
           return `
-            <article class="card ${isBest ? "best" : ""}" data-product-id="${item.productId}">
+            <article class="card ${isBest ? "best" : ""} ${batchMode ? "selecting" : ""} ${selectedProducts.has(String(item.productId)) ? "selected" : ""}" data-product-id="${item.productId}" data-record-id="${item.latestRecordId || ""}">
+              <div class="select-dot">${selectedProducts.has(String(item.productId)) ? "✓" : ""}</div>
               ${flags ? `<div class="flags">${flags}</div>` : ""}
               <div class="thumb">
                 ${item.defaultImageUrl ? `<img src="${item.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
@@ -1765,6 +2218,7 @@
           `;
         })
         .join("");
+      updateBatchBar();
     }
 
     async function openDetail(id) {
@@ -2315,6 +2769,10 @@
         suppressNextCardClick = false;
         return;
       }
+      if (batchMode) {
+        toggleBatchSelection(card.dataset.productId);
+        return;
+      }
       await openDetail(Number(card.dataset.productId));
     });
 
@@ -2329,36 +2787,20 @@
       const card = e.target.closest(".card[data-product-id]");
       if (!card) return;
       clearLongPress();
-      longPressTimer = setTimeout(async () => {
+      longPressTimer = setTimeout(() => {
         longPressTimer = null;
         suppressNextCardClick = true;
-        try {
-          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
-          const latest = detail.records?.[0];
-          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
-          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
-          if (deleted) await load();
-        } catch (err) {
-          showToast(err.message || "删除失败", { type: "error" });
-        }
+        enterBatchMode(card.dataset.productId);
       }, 550);
     });
     $("list").addEventListener("touchstart", (e) => {
       const card = e.target.closest(".card[data-product-id]");
       if (!card) return;
       clearLongPress();
-      longPressTimer = setTimeout(async () => {
+      longPressTimer = setTimeout(() => {
         longPressTimer = null;
         suppressNextCardClick = true;
-        try {
-          const detail = await fetch(`/api/products/${card.dataset.productId}`).then((r) => r.json());
-          const latest = detail.records?.[0];
-          if (!latest?.id) throw new Error("当前商品没有可删除的数据。");
-          const deleted = await deleteRecord(latest.id, "已删除该商品当前展示的数据。");
-          if (deleted) await load();
-        } catch (err) {
-          showToast(err.message || "删除失败", { type: "error" });
-        }
+        enterBatchMode(card.dataset.productId);
       }, 550);
     }, { passive: true });
     ["mouseup", "mouseleave", "touchend", "touchcancel", "touchmove"].forEach((eventName) => {
@@ -2418,6 +2860,60 @@
     });
 
     $("q").addEventListener("input", load);
+    $("batchEntry").onclick = () => {
+      if (batchMode) exitBatchMode();
+      else enterBatchMode();
+    };
+    $("batchSelectAll").onclick = () => {
+      const ids = visibleProductIds();
+      const allSelected = ids.length > 0 && ids.every((id) => selectedProducts.has(id));
+      if (allSelected) ids.forEach((id) => selectedProducts.delete(id));
+      else ids.forEach((id) => selectedProducts.add(id));
+      document.querySelectorAll(".card[data-product-id]").forEach((card) => syncBatchCard(card.dataset.productId));
+      updateBatchBar();
+    };
+    $("batchEdit").onclick = openBatchSheet;
+    $("batchCancel").onclick = exitBatchMode;
+    $("batchSheetMask").addEventListener("click", (e) => {
+      if (e.target === $("batchSheetMask")) closeBatchSheet();
+    });
+    $("batchSheet").addEventListener("click", async (e) => {
+      const fieldButton = e.target.closest("[data-batch-field]");
+      if (fieldButton) {
+        await renderBatchField(fieldButton.dataset.batchField);
+        return;
+      }
+      if (e.target.closest("[data-batch-back]")) {
+        openBatchSheet();
+      }
+    });
+    $("batchSheet").addEventListener("submit", async (e) => {
+      const form = e.target.closest("[data-batch-form]");
+      if (!form) return;
+      e.preventDefault();
+      const field = form.dataset.batchForm;
+      const submit = form.querySelector("[type='submit']");
+      submit.disabled = true;
+      try {
+        const values = Object.fromEntries(new FormData(form).entries());
+        if (field === "date") {
+          values.recordDate = normalizeDateInput(values.recordDate);
+          if (!values.recordDate) throw new Error("请选择正确的记录日期。");
+        }
+        if (field === "promo") {
+          values.isPromo = values.isPromo === "1";
+          values.promoUntil = values.isPromo ? normalizeDateInput(values.promoUntil) : "";
+          if (values.isPromo && form.querySelector("[name='promoUntil']").value && !values.promoUntil) {
+            throw new Error("优惠截止日期格式不正确。");
+          }
+        }
+        await applyBatchEdit(field, values);
+      } catch (err) {
+        showToast(`批量修改失败：${err.message || "请稍后重试"}`, { type: "error", sticky: true });
+      } finally {
+        submit.disabled = false;
+      }
+    });
     $("searchScope").querySelectorAll("button").forEach((button) => {
       button.classList.toggle("active", button.dataset.scope === searchScope);
       button.onclick = () => {

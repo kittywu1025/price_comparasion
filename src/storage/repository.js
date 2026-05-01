@@ -270,6 +270,7 @@ export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}
       sameProductLowestUnitPrice: sameProductLowest?.unitPrice ?? null,
       sameProductLowestUnitPriceLabel: sameProductLowest?.unitPriceLabel ?? null,
       sameProductLowestStoreName: sameProductLowestStore ?? null,
+      latestRecordId: latest?.id ?? null,
       latestPriceTaxIn: latest?.priceTaxIn ?? null,
       latestUnitPrice: latest?.unitPrice ?? null,
       latestUnitPriceLabel: latest?.unitPriceLabel ?? null,

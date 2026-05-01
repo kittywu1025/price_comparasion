@@ -672,6 +672,7 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
         sameProductLowestUnitPrice: sameProductLowest?.unit_price ?? null,
         sameProductLowestUnitPriceLabel: sameProductLowest?.unit_price_label ?? null,
         sameProductLowestStoreName: sameProductLowestStore ?? null,
+        latestRecordId: latest?.id ?? null,
         latestPriceTaxIn: latest?.price_tax_in ?? null,
         latestUnitPrice: latest?.unit_price ?? null,
         latestUnitPriceLabel: latest?.unit_price_label ?? null,
