@@ -28,6 +28,24 @@ test("缺少必填字段时报错", () => {
   );
 });
 
+test("0% 税率应原样保留", () => {
+  const payload = buildPriceRecordPayload({
+    productId: "p1",
+    storeId: "s1",
+    priceTaxIn: 198,
+    priceTaxEx: 198,
+    taxRate: 0,
+    specValue: 1,
+    unit: "pack",
+    recordDate: "2026-04-29",
+    createdBy: "u1"
+  });
+
+  assert.equal(payload.taxRate, 0);
+  assert.equal(payload.priceTaxEx, 198);
+  assert.equal(payload.priceTaxIn, 198);
+});
+
 test("同商品同店同日期再次新增时更新原价格记录", (t) => {
   const dataFile = "data/app.json";
   const backup = fs.existsSync(dataFile) ? fs.readFileSync(dataFile, "utf8") : null;

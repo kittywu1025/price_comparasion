@@ -61,6 +61,11 @@
     return formulaText ? formulaText[1].trim() : text;
   }
 
+  function cellValue(row, index, fallback = "") {
+    if (!Array.isArray(row) || index == null || index < 0 || index >= row.length) return fallback;
+    return cleanSpreadsheetText(row[index]);
+  }
+
   function hasUserData(row) {
     return row.some((cell) => cleanSpreadsheetText(cell).trim());
   }
@@ -201,19 +206,19 @@
       return [{
         selected: true,
         sourceIndex: index + 2,
-        nameZh: row[indexes.nameZh] || "",
-        nameJa: row[indexes.nameJa] || "",
-        barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
-        storeName: row[indexes.storeName] || "",
-        priceTaxIn: row[indexes.priceTaxIn] || "",
-        priceTaxEx: row[indexes.priceTaxEx] || "",
-        taxRate: row[indexes.taxRate] || "8",
-        specValue: row[indexes.specValue] || "",
-        unit: row[indexes.unit] || "g",
-        recordDate: normalizeDateInput(row[indexes.recordDate]) || today(),
-        isPromo: row[indexes.isPromo] || "否",
-        promoUntil: normalizeDateInput(row[indexes.promoUntil]),
-        note: row[indexes.note] || ""
+        nameZh: cellValue(row, indexes.nameZh),
+        nameJa: cellValue(row, indexes.nameJa),
+        barcode: cellValue(row, indexes.barcode),
+        storeName: cellValue(row, indexes.storeName),
+        priceTaxIn: cellValue(row, indexes.priceTaxIn),
+        priceTaxEx: cellValue(row, indexes.priceTaxEx),
+        taxRate: cellValue(row, indexes.taxRate, "8") || "8",
+        specValue: cellValue(row, indexes.specValue),
+        unit: cellValue(row, indexes.unit, "g") || "g",
+        recordDate: normalizeDateInput(cellValue(row, indexes.recordDate)) || today(),
+        isPromo: cellValue(row, indexes.isPromo, "否") || "否",
+        promoUntil: normalizeDateInput(cellValue(row, indexes.promoUntil)),
+        note: cellValue(row, indexes.note)
       }];
     });
   }
@@ -266,17 +271,29 @@
     if (!store) errors.push(`店铺未匹配：${String(row.storeName || "").trim() || "空"}`);
     const priceTaxIn = toNumberOrNull(row.priceTaxIn);
     const priceTaxEx = toNumberOrNull(row.priceTaxEx);
+    const rawTaxRate = cleanSpreadsheetText(row.taxRate);
+    const taxRate = rawTaxRate === "" ? 8 : toNumberOrNull(rawTaxRate);
     if ((!priceTaxIn || priceTaxIn <= 0) && (!priceTaxEx || priceTaxEx <= 0)) {
       errors.push(`价格必填：税后价=${String(row.priceTaxIn || "").trim() || "空"}，税前价=${String(row.priceTaxEx || "").trim() || "空"}`);
     }
     const specValue = toNumberOrNull(row.specValue);
     if (!specValue || specValue <= 0) errors.push(`规格必填：${String(row.specValue || "").trim() || "空"}`);
+    if (!Number.isFinite(taxRate) || ![0, 8, 10].includes(Number(taxRate))) {
+      errors.push(`税率需为 0/8/10：${String(row.taxRate || "").trim() || "空"}`);
+    }
     if (!["g", "ml", "个", "pack"].includes(String(row.unit || "").trim())) {
       errors.push(`单位需为 g/ml/个/pack：${String(row.unit || "").trim() || "空"}`);
     }
     if (!isValidIsoDate(row.recordDate)) errors.push(`日期格式 YYYY-MM-DD：${String(row.recordDate || "").trim() || "空"}`);
     if (isPromoValue(row.isPromo) && row.promoUntil && !isValidIsoDate(row.promoUntil)) {
       errors.push(`优惠截止日期格式 YYYY-MM-DD：${String(row.promoUntil || "").trim()}`);
+    }
+    if (priceTaxIn > 0 && priceTaxEx > 0 && Number.isFinite(taxRate)) {
+      const factor = Number(taxRate) === 0 ? 1 : 1 + Number(taxRate) / 100;
+      const expectedAfter = Math.round(priceTaxEx * factor * 10) / 10;
+      if (Math.abs(expectedAfter - priceTaxIn) > 0.11) {
+        errors.push(`税前价/税后价/税率不一致：税前=${priceTaxEx}，税后=${priceTaxIn}，税率=${taxRate}`);
+      }
     }
     return { errors, store };
   }
@@ -656,22 +673,22 @@
       return [{
         selected: true,
         sourceIndex: index + 2,
-        recordId: row[indexes.recordId] || "",
-        productId: row[indexes.productId] || "",
-        nameZh: row[indexes.nameZh] || "",
-        nameJa: row[indexes.nameJa] || "",
-        barcode: cleanSpreadsheetText(row[indexes.barcode] || ""),
-        storeId: row[indexes.storeId] || "",
-        storeName: row[indexes.storeName] || "",
-        priceTaxIn: row[indexes.priceTaxIn] || "",
-        priceTaxEx: row[indexes.priceTaxEx] || "",
-        taxRate: row[indexes.taxRate] || "8",
-        specValue: row[indexes.specValue] || "",
-        unit: row[indexes.unit] || "g",
-        recordDate: normalizeDateInput(row[indexes.recordDate]) || today(),
-        isPromo: row[indexes.isPromo] || "否",
-        promoUntil: normalizeDateInput(row[indexes.promoUntil]),
-        note: row[indexes.note] || ""
+        recordId: cellValue(row, indexes.recordId),
+        productId: cellValue(row, indexes.productId),
+        nameZh: cellValue(row, indexes.nameZh),
+        nameJa: cellValue(row, indexes.nameJa),
+        barcode: cellValue(row, indexes.barcode),
+        storeId: cellValue(row, indexes.storeId),
+        storeName: cellValue(row, indexes.storeName),
+        priceTaxIn: cellValue(row, indexes.priceTaxIn),
+        priceTaxEx: cellValue(row, indexes.priceTaxEx),
+        taxRate: cellValue(row, indexes.taxRate, "8") || "8",
+        specValue: cellValue(row, indexes.specValue),
+        unit: cellValue(row, indexes.unit, "g") || "g",
+        recordDate: normalizeDateInput(cellValue(row, indexes.recordDate)) || today(),
+        isPromo: cellValue(row, indexes.isPromo, "否") || "否",
+        promoUntil: normalizeDateInput(cellValue(row, indexes.promoUntil)),
+        note: cellValue(row, indexes.note)
       }];
     });
   }

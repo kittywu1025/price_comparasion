@@ -1905,6 +1905,23 @@
       return plain ? `${prefix} ${plain}` : prefix;
     }
 
+    function deriveBeforeTaxPrice(priceTaxIn, taxRate) {
+      const after = Number(priceTaxIn || 0);
+      const rate = Number(taxRate ?? 0);
+      if (!(after > 0)) return 0;
+      if (rate === 0) return after;
+      return Math.round((after / (1 + rate / 100)) * 10) / 10;
+    }
+
+    function isStoredTaxPairConsistent(priceTaxIn, priceTaxEx, taxRate) {
+      const after = Number(priceTaxIn);
+      const before = Number(priceTaxEx);
+      const rate = Number(taxRate ?? 0);
+      if (!(after > 0) || !(before > 0) || !Number.isFinite(rate)) return false;
+      const expectedAfter = Math.round(before * (rate === 0 ? 1 : 1 + rate / 100) * 10) / 10;
+      return Math.abs(expectedAfter - after) <= 0.11;
+    }
+
     async function fetchJson(url, options) {
       const res = await fetch(url, options);
       const contentType = res.headers.get("content-type") || "";
@@ -2289,7 +2306,9 @@
       const initialPromo = parsePromoNote(top.note);
       let editIsPromo = initialPromo.isPromo;
       const initialBefore = Number(
-        top.priceTaxEx ?? (editTaxMode ? Number(top.priceTaxIn || 0) / (1 + editTaxMode / 100) : top.priceTaxIn || 0)
+        isStoredTaxPairConsistent(top.priceTaxIn, top.priceTaxEx, editTaxMode)
+          ? top.priceTaxEx
+          : deriveBeforeTaxPrice(top.priceTaxIn, editTaxMode)
       );
 
       modal.innerHTML = `
@@ -2529,6 +2548,10 @@
         modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
         const ok = await loadProtectedStores();
         modal.querySelector("#editSubmitBtn").disabled = !ok;
+        if (ok && !isStoredTaxPairConsistent(top.priceTaxIn, top.priceTaxEx, editTaxMode)) {
+          modal.querySelector("#editMsg").textContent = "这条记录原有的税率与税前/税后价格不一致，表单已按当前税率重新计算显示，请保存前再确认一次。";
+          return;
+        }
         if (ok && modal.querySelector("#editMsg").textContent === "正在检查登录状态...") modal.querySelector("#editMsg").textContent = "";
       }
 
