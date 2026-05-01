@@ -52,7 +52,7 @@
 
   function protectSpreadsheetText(value) {
     const text = String(value ?? "").trim();
-    return text ? `\t${text}` : "";
+    return text ? `="${text.replaceAll('"', '""')}"` : "";
   }
 
   function cleanSpreadsheetText(value) {
@@ -64,6 +64,26 @@
   function cellValue(row, index, fallback = "") {
     if (!Array.isArray(row) || index == null || index < 0 || index >= row.length) return fallback;
     return cleanSpreadsheetText(row[index]);
+  }
+
+  function parseImageUrlsFromCells(primaryValue, listValue) {
+    const rawList = cleanSpreadsheetText(listValue);
+    if (rawList) {
+      if (rawList.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(rawList);
+          if (Array.isArray(parsed)) return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+        } catch (_) {
+          // fall through to delimiter parsing
+        }
+      }
+      return rawList
+        .split(/\s*[|｜]\s*|\r?\n/)
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+    }
+    const primary = cleanSpreadsheetText(primaryValue);
+    return primary ? [primary] : [];
   }
 
   function hasUserData(row) {
@@ -188,6 +208,8 @@
       nameZh: ["中文名", "商品中文名", "nameZh", "name_zh"],
       nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
       barcode: ["条码", "barcode", "JAN"],
+      imageUrl: ["图片", "主图", "imageUrl", "image_url"],
+      imageUrls: ["图片列表", "图片URLs", "imageUrls", "image_urls"],
       storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
       priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
       priceTaxEx: ["税前价", "税前价格", "不含税价格", "priceTaxEx"],
@@ -203,12 +225,16 @@
     const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
     return rawRows.slice(1).flatMap((row, index) => {
       if (!hasUserData(row)) return [];
+      const imageProvided = indexes.imageUrl >= 0 || indexes.imageUrls >= 0;
       return [{
         selected: true,
         sourceIndex: index + 2,
         nameZh: cellValue(row, indexes.nameZh),
         nameJa: cellValue(row, indexes.nameJa),
         barcode: cellValue(row, indexes.barcode),
+        imageUrl: cellValue(row, indexes.imageUrl),
+        imageUrls: cellValue(row, indexes.imageUrls),
+        imageProvided,
         storeName: cellValue(row, indexes.storeName),
         priceTaxIn: cellValue(row, indexes.priceTaxIn),
         priceTaxEx: cellValue(row, indexes.priceTaxEx),
@@ -312,7 +338,7 @@
     const factor = taxRate === 0 ? 1 : 1 + taxRate / 100;
     const after = priceTaxIn || (priceTaxEx ? Math.round(priceTaxEx * factor * 10) / 10 : null);
     const before = priceTaxEx || (priceTaxIn ? Math.round((priceTaxIn / factor) * 10) / 10 : null);
-    return {
+    const payload = {
       product: {
         nameZh: String(row.nameZh || "").trim(),
         nameJa: String(row.nameJa || "").trim(),
@@ -324,10 +350,13 @@
       priceTaxIn: after,
       specValue: Number(toNumberOrNull(row.specValue)),
       unit: String(row.unit || "g").trim(),
-      imageUrls: [],
       recordDate: row.recordDate,
       note: buildPromoNote(row)
     };
+    if (row.imageProvided) {
+      payload.imageUrls = parseImageUrlsFromCells(row.imageUrl, row.imageUrls);
+    }
+    return payload;
   }
 
   function renderImportPreview() {
@@ -577,6 +606,8 @@
           nameZh: detail.product.nameZh || "",
           nameJa: detail.product.nameJa || "",
           barcode: detail.product.barcode || "",
+          imageUrl: record.imageUrl || detail.product.defaultImageUrl || "",
+          imageUrls: Array.isArray(record.imageUrls) ? record.imageUrls : [],
           storeId: record.storeId,
           storeName: storeById.get(Number(record.storeId))?.name || record.storeName || "",
           priceTaxIn: record.priceTaxIn ?? "",
@@ -603,7 +634,7 @@
     const ok = window.confirm("确认导出所有价格记录表格吗？文件会下载到本机。");
     if (!ok) return;
     const headers = [
-      "recordId", "productId", "中文名", "日文名", "条码", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
+      "recordId", "productId", "中文名", "日文名", "条码", "图片", "图片列表", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
       "日期", "限时优惠", "优惠截止日期", "备注", "createdBy", "createdAt"
     ];
     const rows = await fetchAllRecordRows();
@@ -612,7 +643,9 @@
       row.productId,
       row.nameZh,
       row.nameJa,
-      row.barcode,
+      protectSpreadsheetText(row.barcode),
+      row.imageUrl,
+      row.imageUrls.join(" | "),
       row.storeId,
       row.storeName,
       row.priceTaxIn,
@@ -653,6 +686,8 @@
       nameZh: ["中文名", "商品中文名", "nameZh", "name_zh"],
       nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
       barcode: ["条码", "barcode", "JAN"],
+      imageUrl: ["图片", "主图", "imageUrl", "image_url"],
+      imageUrls: ["图片列表", "图片URLs", "imageUrls", "image_urls"],
       storeId: ["storeId", "店铺ID"],
       storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
       priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
@@ -670,6 +705,7 @@
     if (indexes.recordId < 0 && indexes.productId < 0) throw new Error("缺少 recordId/productId，不能安全更新");
     return rawRows.slice(1).flatMap((row, index) => {
       if (!hasUserData(row)) return [];
+      const imageProvided = indexes.imageUrl >= 0 || indexes.imageUrls >= 0;
       return [{
         selected: true,
         sourceIndex: index + 2,
@@ -678,6 +714,9 @@
         nameZh: cellValue(row, indexes.nameZh),
         nameJa: cellValue(row, indexes.nameJa),
         barcode: cellValue(row, indexes.barcode),
+        imageUrl: cellValue(row, indexes.imageUrl),
+        imageUrls: cellValue(row, indexes.imageUrls),
+        imageProvided,
         storeId: cellValue(row, indexes.storeId),
         storeName: cellValue(row, indexes.storeName),
         priceTaxIn: cellValue(row, indexes.priceTaxIn),
