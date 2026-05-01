@@ -1218,11 +1218,21 @@
       const res = await fetch(url, options);
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
-        throw new Error("请先登录后再编辑数据。");
+        const error = new Error("接口没有返回 JSON，请刷新页面或重新登录后再试。");
+        error.status = res.status;
+        throw error;
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "请求失败");
+      if (!res.ok) {
+        const error = new Error(data.error || "请求失败");
+        error.status = res.status;
+        throw error;
+      }
       return data;
+    }
+
+    function isLoginError(error) {
+      return Number(error?.status) === 401 || String(error?.message || "").toLowerCase().includes("login required");
     }
 
     async function getStores() {
@@ -1519,21 +1529,36 @@
         const select = modal.querySelector("#editStoreId");
         try {
           const stores = await getStores();
-          const access = await getRecordAccess(top.id);
           select.innerHTML = stores
             .map((s) => `<option value="${s.id}" ${Number(s.id) === Number(top.storeId) ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
             .join("");
-          modal.querySelector("#deleteRecordBtn").style.display =
-            editMode === "correction" && access.canDelete ? "block" : "none";
-          modal.querySelector("#undoEditBtn").style.display =
-            editMode === "correction" && access.canUndo ? "block" : "none";
-          return true;
         } catch (err) {
-          showToast("编辑需要登录。请先打开录入页完成登录，再回到清单页编辑。", { type: "error", sticky: true });
+          if (isLoginError(err)) {
+            showToast("编辑需要登录。请刷新页面确认登录状态，或重新登录后再试。", { type: "error", sticky: true });
+          } else {
+            showToast(`店铺列表加载失败：${err.message || "请稍后重试"}`, { type: "error", sticky: true });
+          }
           modal.querySelector("#deleteRecordBtn").style.display = "none";
           modal.querySelector("#undoEditBtn").style.display = "none";
           return false;
         }
+
+        modal.querySelector("#deleteRecordBtn").style.display = "none";
+        modal.querySelector("#undoEditBtn").style.display = "none";
+        try {
+          const access = await getRecordAccess(top.id);
+          modal.querySelector("#deleteRecordBtn").style.display =
+            editMode === "correction" && access.canDelete ? "block" : "none";
+          modal.querySelector("#undoEditBtn").style.display =
+            editMode === "correction" && access.canUndo ? "block" : "none";
+        } catch (err) {
+          if (isLoginError(err)) {
+            modal.querySelector("#editMsg").textContent = "已打开编辑表单；删除和撤回需要登录状态确认，保存时会再次校验。";
+          } else {
+            modal.querySelector("#editMsg").textContent = `权限信息加载失败：${err.message || "请稍后重试"}。仍可先编辑并尝试保存。`;
+          }
+        }
+        return true;
       }
 
       function backToDetail() {
@@ -1553,7 +1578,7 @@
         modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
         const ok = await loadProtectedStores();
         modal.querySelector("#editSubmitBtn").disabled = !ok;
-        if (ok) modal.querySelector("#editMsg").textContent = "";
+        if (ok && modal.querySelector("#editMsg").textContent === "正在检查登录状态...") modal.querySelector("#editMsg").textContent = "";
       }
 
       modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");
