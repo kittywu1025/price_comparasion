@@ -26,22 +26,6 @@
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   }
 
-  function tsvCell(value) {
-    return String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
-  }
-
-  function utf16LeBlob(text) {
-    const bytes = new Uint8Array(2 + text.length * 2);
-    bytes[0] = 0xff;
-    bytes[1] = 0xfe;
-    for (let i = 0; i < text.length; i += 1) {
-      const code = text.charCodeAt(i);
-      bytes[2 + i * 2] = code & 0xff;
-      bytes[3 + i * 2] = code >> 8;
-    }
-    return new Blob([bytes], { type: "text/tab-separated-values;charset=utf-16le" });
-  }
-
   async function readTextFile(file) {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -209,11 +193,10 @@
       nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
       barcode: ["条码", "barcode", "JAN"],
       imageUrl: ["图片", "主图", "imageUrl", "image_url"],
-      imageUrls: ["图片列表", "图片URLs", "imageUrls", "image_urls"],
       storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
       priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
       priceTaxEx: ["税前价", "税前价格", "不含税价格", "priceTaxEx"],
-      taxRate: ["税率", "taxRate"],
+      taxRate: ["税率", "税率(%)", "税率（%）", "taxRate"],
       specValue: ["规格", "规格数值", "spec", "specValue"],
       unit: ["单位", "规格单位", "unit"],
       recordDate: ["日期", "记录日期", "recordDate"],
@@ -225,7 +208,7 @@
     const indexes = Object.fromEntries(Object.entries(aliases).map(([key, keys]) => [key, indexOf(keys)]));
     return rawRows.slice(1).flatMap((row, index) => {
       if (!hasUserData(row)) return [];
-      const imageProvided = indexes.imageUrl >= 0 || indexes.imageUrls >= 0;
+      const imageProvided = indexes.imageUrl >= 0;
       return [{
         selected: true,
         sourceIndex: index + 2,
@@ -233,7 +216,6 @@
         nameJa: cellValue(row, indexes.nameJa),
         barcode: cellValue(row, indexes.barcode),
         imageUrl: cellValue(row, indexes.imageUrl),
-        imageUrls: cellValue(row, indexes.imageUrls),
         imageProvided,
         storeName: cellValue(row, indexes.storeName),
         priceTaxIn: cellValue(row, indexes.priceTaxIn),
@@ -354,7 +336,7 @@
       note: buildPromoNote(row)
     };
     if (row.imageProvided) {
-      payload.imageUrls = parseImageUrlsFromCells(row.imageUrl, row.imageUrls);
+      payload.imageUrls = parseImageUrlsFromCells(row.imageUrl, "");
     }
     return payload;
   }
@@ -607,7 +589,6 @@
           nameJa: detail.product.nameJa || "",
           barcode: detail.product.barcode || "",
           imageUrl: record.imageUrl || detail.product.defaultImageUrl || "",
-          imageUrls: Array.isArray(record.imageUrls) ? record.imageUrls : [],
           storeId: record.storeId,
           storeName: storeById.get(Number(record.storeId))?.name || record.storeName || "",
           priceTaxIn: record.priceTaxIn ?? "",
@@ -634,7 +615,7 @@
     const ok = window.confirm("确认导出所有价格记录表格吗？文件会下载到本机。");
     if (!ok) return;
     const headers = [
-      "recordId", "productId", "中文名", "日文名", "条码", "图片", "图片列表", "storeId", "店铺", "税后价", "税前价", "税率", "规格", "单位",
+      "recordId", "productId", "中文名", "日文名", "条码", "图片", "店铺", "税前价", "税率(%)", "规格", "单位",
       "日期", "限时优惠", "优惠截止日期", "备注", "createdBy", "createdAt"
     ];
     const rows = await fetchAllRecordRows();
@@ -645,10 +626,7 @@
       row.nameJa,
       protectSpreadsheetText(row.barcode),
       row.imageUrl,
-      row.imageUrls.join(" | "),
-      row.storeId,
       row.storeName,
-      row.priceTaxIn,
       row.priceTaxEx,
       row.taxRate,
       row.specValue,
@@ -660,12 +638,12 @@
       row.createdBy,
       row.createdAt
     ]);
-    const tsv = [headers, ...lines].map((row) => row.map(tsvCell).join("\t")).join("\r\n");
-    const blob = utf16LeBlob(tsv);
+    const csv = `\uFEFF${[headers, ...lines].map((row) => row.map(csvEscape).join(",")).join("\r\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `price-records-export-${today()}.tsv`;
+    link.download = `price-records-export-${today()}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -687,12 +665,11 @@
       nameJa: ["日文名", "商品日文名", "nameJa", "name_ja"],
       barcode: ["条码", "barcode", "JAN"],
       imageUrl: ["图片", "主图", "imageUrl", "image_url"],
-      imageUrls: ["图片列表", "图片URLs", "imageUrls", "image_urls"],
       storeId: ["storeId", "店铺ID"],
       storeName: ["店铺", "店铺名", "购买店铺", "store", "storeName"],
       priceTaxIn: ["税后价", "税后价格", "含税价格", "priceTaxIn"],
       priceTaxEx: ["税前价", "税前价格", "不含税价格", "priceTaxEx"],
-      taxRate: ["税率", "taxRate"],
+      taxRate: ["税率", "税率(%)", "税率（%）", "taxRate"],
       specValue: ["规格", "规格数值", "spec", "specValue"],
       unit: ["单位", "规格单位", "unit"],
       recordDate: ["日期", "记录日期", "recordDate"],
@@ -705,7 +682,7 @@
     if (indexes.recordId < 0 && indexes.productId < 0) throw new Error("缺少 recordId/productId，不能安全更新");
     return rawRows.slice(1).flatMap((row, index) => {
       if (!hasUserData(row)) return [];
-      const imageProvided = indexes.imageUrl >= 0 || indexes.imageUrls >= 0;
+      const imageProvided = indexes.imageUrl >= 0;
       return [{
         selected: true,
         sourceIndex: index + 2,
@@ -715,7 +692,6 @@
         nameJa: cellValue(row, indexes.nameJa),
         barcode: cellValue(row, indexes.barcode),
         imageUrl: cellValue(row, indexes.imageUrl),
-        imageUrls: cellValue(row, indexes.imageUrls),
         imageProvided,
         storeId: cellValue(row, indexes.storeId),
         storeName: cellValue(row, indexes.storeName),
@@ -779,7 +755,7 @@
   async function applyDeveloperCsv(file) {
     if (!file) return;
     if (/\.(xlsx|xls)$/i.test(file.name)) {
-      notify("请把 Excel 另存为 TSV 或 CSV 后再上传。", "error", { sticky: true });
+      notify("请把 Excel 另存为 CSV 后再上传。", "error", { sticky: true });
       return;
     }
     const ok = window.confirm("会按 recordId 批量更新数据。建议先导出备份。确认继续吗？");
@@ -821,7 +797,7 @@
     mount.innerHTML = `
       <section class="developer-data-tools" aria-label="开发者数据整理">
         <p class="panel-title">数据整理</p>
-        <p class="panel-body">导出所有价格记录为 Excel 兼容 TSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。recordId 是每条价格记录的唯一编号；storeId 只是店铺编号，同一家店的多条记录会重复出现，这是正常的。</p>
+        <p class="panel-body">导出所有价格记录为 Excel 兼容 CSV，在表格里修改后再上传应用。当前导出只保留一列图片、隐藏 storeId、只展示税前价，税率表头会带 %。带 recordId 的行会更新原记录，空 recordId 的行会新增。recordId 是每条价格记录的唯一编号。</p>
         <div class="developer-data-actions">
           <button id="exportAllRecordsBtn" class="primary" type="button">导出所有数据</button>
           <button id="applyEditedRecordsBtn" type="button">上传修改表格</button>
