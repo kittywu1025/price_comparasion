@@ -2326,7 +2326,7 @@
           <div id="detailView" class="detail-view">
             <div class="stats">
               <div class="stat"><p class="stat-k">税后总价</p><p class="stat-v">¥${asMoney(top.priceTaxIn)}</p></div>
-              <div class="stat"><p class="stat-k">对比单价</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
+              <div class="stat"><p class="stat-k">对比单价（按税后价）</p><p class="stat-v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p></div>
               <div class="stat"><p class="stat-k">规格</p><p class="stat-v">${top.specValue ?? "-"} ${top.unit ?? ""}</p></div>
             </div>
             <div class="detail-section">
@@ -2420,7 +2420,7 @@
             </div>
 
             <div class="edit-unit-preview">
-              <p class="k">对比单价</p>
+              <p class="k">对比单价（按税后价）</p>
               <p id="editUnitPricePreview" class="v">${asUnit(top.unitPrice, top.unitPriceLabel)}</p>
             </div>
 
