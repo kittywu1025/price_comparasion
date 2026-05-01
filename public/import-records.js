@@ -782,7 +782,7 @@
     mount.innerHTML = `
       <section class="developer-data-tools" aria-label="开发者数据整理">
         <p class="panel-title">数据整理</p>
-        <p class="panel-body">导出所有价格记录为 Excel 兼容 TSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。</p>
+        <p class="panel-body">导出所有价格记录为 Excel 兼容 TSV，在表格里修改后再上传应用。带 recordId 的行会更新原记录，空 recordId 的行会新增。recordId 是每条价格记录的唯一编号；storeId 只是店铺编号，同一家店的多条记录会重复出现，这是正常的。</p>
         <div class="developer-data-actions">
           <button id="exportAllRecordsBtn" class="primary" type="button">导出所有数据</button>
           <button id="applyEditedRecordsBtn" type="button">上传修改表格</button>
