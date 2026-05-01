@@ -18,6 +18,8 @@
       .image-cropper-range{display:grid;gap:6px}
       .image-cropper-range label{font-size:12px;font-weight:700;color:#58706c}
       .image-cropper-range input{width:100%;accent-color:#0d9a7d}
+      .image-cropper-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      .image-cropper-tools button{height:36px;border:0;border-radius:10px;background:#edf6f3;color:#185d52;font-weight:800;cursor:pointer}
       .image-cropper-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
       .image-cropper-actions button{height:42px;border:0;border-radius:12px;font-weight:800;cursor:pointer}
       .image-cropper-cancel{background:#edf5f2;color:#185d52}
@@ -58,6 +60,10 @@
             <label for="imageCropperZoom">缩放</label>
             <input id="imageCropperZoom" type="range" min="100" max="300" value="100" />
           </div>
+          <div class="image-cropper-tools">
+            <button class="image-cropper-flip-x" type="button">左右翻转</button>
+            <button class="image-cropper-flip-y" type="button">上下翻转</button>
+          </div>
           <div class="image-cropper-actions">
             <button class="image-cropper-cancel" type="button">取消</button>
             <button class="image-cropper-apply" type="button">使用裁剪图</button>
@@ -74,7 +80,11 @@
         scale: baseScale,
         x: (canvasSize - bitmap.width * baseScale) / 2,
         y: (canvasSize - bitmap.height * baseScale) / 2,
-        drag: null
+        flipX: false,
+        flipY: false,
+        drag: null,
+        pinch: null,
+        pointers: new Map()
       };
 
       function clamp() {
@@ -84,13 +94,23 @@
         state.y = Math.min(0, Math.max(canvasSize - drawnH, state.y));
       }
 
+      function drawBitmap(targetCtx, ratio = 1) {
+        const drawnW = bitmap.width * state.scale * ratio;
+        const drawnH = bitmap.height * state.scale * ratio;
+        targetCtx.save();
+        targetCtx.translate(state.x * ratio + drawnW / 2, state.y * ratio + drawnH / 2);
+        targetCtx.scale(state.flipX ? -1 : 1, state.flipY ? -1 : 1);
+        targetCtx.drawImage(bitmap, -drawnW / 2, -drawnH / 2, drawnW, drawnH);
+        targetCtx.restore();
+      }
+
       function render() {
         clamp();
         ctx.clearRect(0, 0, canvasSize, canvasSize);
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvasSize, canvasSize);
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(bitmap, state.x, state.y, bitmap.width * state.scale, bitmap.height * state.scale);
+        drawBitmap(ctx);
         ctx.strokeStyle = "rgba(255,255,255,.85)";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -110,29 +130,106 @@
         mask.remove();
       }
 
-      zoom.addEventListener("input", () => {
+      function setScale(nextScale, centerX = canvasSize / 2, centerY = canvasSize / 2) {
         const oldScale = state.scale;
-        const nextScale = baseScale * (Number(zoom.value) / 100);
-        const centerX = canvasSize / 2;
-        const centerY = canvasSize / 2;
+        nextScale = Math.max(baseScale, Math.min(baseScale * 3, nextScale));
         state.x = centerX - ((centerX - state.x) / oldScale) * nextScale;
         state.y = centerY - ((centerY - state.y) / oldScale) * nextScale;
         state.scale = nextScale;
+        zoom.value = String(Math.round((state.scale / baseScale) * 100));
         render();
+      }
+
+      function pointFor(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * (canvasSize / rect.width),
+          y: (event.clientY - rect.top) * (canvasSize / rect.height),
+          clientX: event.clientX,
+          clientY: event.clientY
+        };
+      }
+
+      function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function center(a, b) {
+        return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      }
+
+      function startPinch() {
+        const points = Array.from(state.pointers.values());
+        if (points.length < 2) return;
+        const pinchCenter = center(points[0], points[1]);
+        const pinchDistance = distance(points[0], points[1]) || 1;
+        state.pinch = {
+          distance: pinchDistance,
+          centerX: pinchCenter.x,
+          centerY: pinchCenter.y,
+          scale: state.scale,
+          x: state.x,
+          y: state.y
+        };
+        state.drag = null;
+      }
+
+      zoom.addEventListener("input", () => {
+        setScale(baseScale * (Number(zoom.value) / 100));
       });
 
       canvas.addEventListener("pointerdown", (event) => {
         canvas.setPointerCapture(event.pointerId);
-        state.drag = { x: event.clientX, y: event.clientY, ox: state.x, oy: state.y };
+        state.pointers.set(event.pointerId, pointFor(event));
+        if (state.pointers.size === 1) {
+          const point = state.pointers.get(event.pointerId);
+          state.drag = { x: point.x, y: point.y, ox: state.x, oy: state.y };
+        } else {
+          startPinch();
+        }
       });
       canvas.addEventListener("pointermove", (event) => {
+        if (!state.pointers.has(event.pointerId)) return;
+        state.pointers.set(event.pointerId, pointFor(event));
+        if (state.pointers.size >= 2 && state.pinch) {
+          const points = Array.from(state.pointers.values());
+          const currentCenter = center(points[0], points[1]);
+          const nextScale = state.pinch.scale * (distance(points[0], points[1]) / state.pinch.distance);
+          const imageX = (state.pinch.centerX - state.pinch.x) / state.pinch.scale;
+          const imageY = (state.pinch.centerY - state.pinch.y) / state.pinch.scale;
+          state.scale = Math.max(baseScale, Math.min(baseScale * 3, nextScale));
+          state.x = currentCenter.x - imageX * state.scale;
+          state.y = currentCenter.y - imageY * state.scale;
+          zoom.value = String(Math.round((state.scale / baseScale) * 100));
+          render();
+          return;
+        }
         if (!state.drag) return;
-        state.x = state.drag.ox + event.clientX - state.drag.x;
-        state.y = state.drag.oy + event.clientY - state.drag.y;
+        const point = state.pointers.get(event.pointerId);
+        state.x = state.drag.ox + point.x - state.drag.x;
+        state.y = state.drag.oy + point.y - state.drag.y;
         render();
       });
-      canvas.addEventListener("pointerup", () => { state.drag = null; });
-      canvas.addEventListener("pointercancel", () => { state.drag = null; });
+      function endPointer(event) {
+        state.pointers.delete(event.pointerId);
+        state.drag = null;
+        state.pinch = null;
+        if (state.pointers.size === 1) {
+          const [point] = Array.from(state.pointers.values());
+          state.drag = { x: point.x, y: point.y, ox: state.x, oy: state.y };
+        }
+      }
+      canvas.addEventListener("pointerup", endPointer);
+      canvas.addEventListener("pointercancel", endPointer);
+
+      mask.querySelector(".image-cropper-flip-x").onclick = () => {
+        state.flipX = !state.flipX;
+        render();
+      };
+      mask.querySelector(".image-cropper-flip-y").onclick = () => {
+        state.flipY = !state.flipY;
+        render();
+      };
 
       mask.querySelector(".image-cropper-close").onclick = () => {
         cleanup();
@@ -152,13 +249,7 @@
           outputCtx.fillRect(0, 0, outputSize, outputSize);
           outputCtx.imageSmoothingQuality = "high";
           const ratio = outputSize / canvasSize;
-          outputCtx.drawImage(
-            bitmap,
-            state.x * ratio,
-            state.y * ratio,
-            bitmap.width * state.scale * ratio,
-            bitmap.height * state.scale * ratio
-          );
+          drawBitmap(outputCtx, ratio);
           const dataUrl = compressCanvas(output);
           cleanup();
           resolve(dataUrl);

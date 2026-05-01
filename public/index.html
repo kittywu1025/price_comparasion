@@ -220,7 +220,19 @@
       font-size: 16px;
       line-height: 1.3;
       margin: 0;
-      word-break: break-word;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .name-sub {
+      margin-top: 2px;
+      color: #5c706d;
+      font-size: 12px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .meta {
@@ -1171,20 +1183,34 @@
       return new Date().toISOString().slice(0, 10);
     }
 
+    function normalizeDateInput(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+      if (!match) return "";
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+
     function parsePromoNote(note) {
       const text = String(note || "");
-      const match = text.match(/^\[\[promo(?::(\d{4}-\d{2}-\d{2}))?\]\]\s*/i);
+      const match = text.match(/^\[\[promo(?::([^\]]+))?\]\]\s*/i);
       return {
         isPromo: Boolean(match),
-        promoUntil: match?.[1] || "",
-        plainNote: text.replace(/^\[\[promo(?::\d{4}-\d{2}-\d{2})?\]\]\s*/i, "").trim()
+        promoUntil: normalizeDateInput(match?.[1]) || "",
+        plainNote: text.replace(/^\[\[promo(?::[^\]]+)?\]\]\s*/i, "").trim()
       };
     }
 
     function buildPromoNote(plainNote, isPromo, promoUntil) {
       const plain = String(plainNote || "").trim();
       if (!isPromo) return plain || null;
-      const prefix = promoUntil ? `[[promo:${promoUntil}]]` : "[[promo]]";
+      const normalizedPromoUntil = normalizeDateInput(promoUntil);
+      const prefix = normalizedPromoUntil ? `[[promo:${normalizedPromoUntil}]]` : "[[promo]]";
       return plain ? `${prefix} ${plain}` : prefix;
     }
 
@@ -1252,6 +1278,10 @@
       list.innerHTML = cache
         .map((item) => {
           const isBest = item.isKeywordBest;
+          const nameZh = String(item.nameZh || "").trim();
+          const nameJa = String(item.nameJa || "").trim();
+          const primaryName = nameZh || nameJa || "未命名商品";
+          const secondaryName = nameZh && nameJa ? nameJa : "";
           const flags = [
             item.latestIsPromo ? '<div class="flag low">限时优惠</div>' : "",
             isBest ? '<div class="flag best">最低价</div>' : ""
@@ -1263,7 +1293,8 @@
                 ${item.defaultImageUrl ? `<img src="${item.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
               </div>
               <div class="info">
-                <h2 class="name">${item.nameZh || item.nameJa || "未命名商品"}</h2>
+                <h2 class="name" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</h2>
+                ${secondaryName ? `<div class="name-sub" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</div>` : ""}
                 <div class="meta">最低店铺：${item.lowestStoreName || "-"}</div>
                 <div class="price-row">
                   <div class="price">¥${asMoney(item.latestPriceTaxIn)}</div>
@@ -1633,29 +1664,30 @@
 
       form.onsubmit = async (e) => {
         e.preventDefault();
-        const { before, after } = calcEdit();
-        const payload = {
-          product: {
-            id: data.product.id,
-            nameZh: modal.querySelector("#editNameZh").value.trim(),
-            nameJa: modal.querySelector("#editNameJa").value.trim()
-          },
-          storeId: Number(modal.querySelector("#editStoreId").value),
-          priceTaxIn: after,
-          specValue: Number(modal.querySelector("#editSpecValue").value),
-          unit: editUnit,
-          recordDate: today(),
-          priceTaxEx: before,
-          taxRate: editTaxMode,
-          imageUrl: top.imageUrl ?? null,
-          note: buildPromoNote(modal.querySelector("#editPlainNote").value, editIsPromo, modal.querySelector("#editPromoUntil").value)
-        };
         const editMsg = modal.querySelector("#editMsg");
-        if (!payload.product.nameZh && !payload.product.nameJa) {
-          editMsg.textContent = "中文名称和日文名称不能同时为空。";
-          return;
-        }
         try {
+          const { before, after } = calcEdit();
+          const promoUntilValue = normalizeDateInput(modal.querySelector("#editPromoUntil").value);
+          const payload = {
+            product: {
+              id: data.product.id,
+              nameZh: modal.querySelector("#editNameZh").value.trim(),
+              nameJa: modal.querySelector("#editNameJa").value.trim()
+            },
+            storeId: Number(modal.querySelector("#editStoreId").value),
+            priceTaxIn: after,
+            specValue: Number(modal.querySelector("#editSpecValue").value),
+            unit: editUnit,
+            recordDate: today(),
+            priceTaxEx: before,
+            taxRate: editTaxMode,
+            imageUrl: top.imageUrl ?? null,
+            note: buildPromoNote(modal.querySelector("#editPlainNote").value, editIsPromo, promoUntilValue)
+          };
+          if (!payload.product.nameZh && !payload.product.nameJa) {
+            editMsg.textContent = "中文名称和日文名称不能同时为空。";
+            return;
+          }
           const saveRes = editMode === "new"
             ? await fetch("/api/price-records", {
               method: "POST",
