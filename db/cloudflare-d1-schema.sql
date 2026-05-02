@@ -120,6 +120,7 @@ create table if not exists store_posts (
   source text,
   image_data text,
   image_url text,
+  images_json text,
   uploaded_at text,
   last_confirmed_at text,
   valid_from text,

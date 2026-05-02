@@ -309,6 +309,7 @@ async function ensureStorePostsTable(env) {
       source text,
       image_data text,
       image_url text,
+      images_json text,
       uploaded_at text,
       last_confirmed_at text,
       valid_from text,
@@ -324,6 +325,10 @@ async function ensureStorePostsTable(env) {
   await run(env, "create index if not exists idx_store_posts_uploaded_at on store_posts(uploaded_at desc)");
   await run(env, "create index if not exists idx_store_posts_valid_to on store_posts(valid_to)");
   await run(env, "create index if not exists idx_store_posts_deleted_at on store_posts(deleted_at)");
+  const columns = await all(env, "pragma table_info(store_posts)");
+  if (!columns.some((row) => String(row.name || "").toLowerCase() === "images_json")) {
+    await run(env, "alter table store_posts add column images_json text");
+  }
 }
 
 async function handleCategories(request, env) {
@@ -528,9 +533,9 @@ async function handleStorePosts(request, env, route, auth) {
     await run(
       env,
       `insert into store_posts (
-        id, store_id, title, type, content, source, image_data, image_url,
+        id, store_id, title, type, content, source, image_data, image_url, images_json,
         uploaded_at, last_confirmed_at, valid_from, valid_to, created_by, created_at, updated_at, deleted_at
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, datetime('now'), datetime('now'), null)`,
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, datetime('now'), datetime('now'), null)`,
       [
         id,
         body.storeId,
@@ -540,6 +545,7 @@ async function handleStorePosts(request, env, route, auth) {
         body.source,
         body.imageData,
         body.imageUrl,
+        JSON.stringify(body.images),
         body.lastConfirmedAt,
         body.validFrom,
         body.validTo,
@@ -568,7 +574,7 @@ async function handleStorePosts(request, env, route, auth) {
     await run(
       env,
       `update store_posts
-       set store_id = ?, title = ?, type = ?, content = ?, source = ?, image_data = ?, image_url = ?,
+       set store_id = ?, title = ?, type = ?, content = ?, source = ?, image_data = ?, image_url = ?, images_json = ?,
            last_confirmed_at = ?, valid_from = ?, valid_to = ?, updated_at = datetime('now')
        where id = ?`,
       [
@@ -579,6 +585,7 @@ async function handleStorePosts(request, env, route, auth) {
         body.source,
         body.imageData,
         body.imageUrl,
+        JSON.stringify(body.images),
         body.lastConfirmedAt,
         body.validFrom,
         body.validTo,
@@ -1244,18 +1251,16 @@ function normalizeStorePostInput(input = {}) {
   if (!type) throw new Error("type is required");
   const storeId = input.storeId == null || input.storeId === "" ? "" : String(input.storeId).trim();
   if (!storeId || !/^\d+$/.test(storeId)) throw new Error("storeId is required");
-  const imageData = clean(input.imageData);
-  if (imageData && !imageData.startsWith("data:image/")) {
-    throw new Error("imageData must be a data URL");
-  }
+  const images = normalizeStorePostImagesInput(input);
   return {
     storeId,
     title,
     type,
     content: clean(input.content),
     source: clean(input.source),
-    imageData,
-    imageUrl: clean(input.imageUrl),
+    imageData: firstDataImage(images),
+    imageUrl: firstUrlImage(images),
+    images,
     lastConfirmedAt: clean(input.lastConfirmedAt),
     validFrom: clean(input.validFrom),
     validTo: clean(input.validTo)
@@ -1356,6 +1361,11 @@ function toStorePost(row, auth) {
     source: row.source || "",
     imageData: row.image_data || "",
     imageUrl: row.image_url || "",
+    images: normalizeStorePostImagesInput({
+      imagesJson: row.images_json,
+      imageData: row.image_data,
+      imageUrl: row.image_url
+    }),
     uploadedAt: row.uploaded_at || row.created_at || "",
     lastConfirmedAt: row.last_confirmed_at || "",
     validFrom: row.valid_from || "",
@@ -1371,6 +1381,45 @@ function toStorePost(row, auth) {
     currentUser: auth?.email || "",
     isAdmin: Boolean(auth?.isAdmin)
   };
+}
+
+function cleanImageRef(value) {
+  const text = clean(value);
+  if (!text) return "";
+  if (text.startsWith("data:image/")) return text;
+  return text;
+}
+
+function parseStorePostImageList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanImageRef(item)).filter(Boolean);
+  }
+  const text = clean(value);
+  if (!text) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => cleanImageRef(item)).filter(Boolean);
+      }
+    } catch {}
+  }
+  return [cleanImageRef(text)].filter(Boolean);
+}
+
+function normalizeStorePostImagesInput(input = {}) {
+  const directImages = parseStorePostImageList(input.images);
+  const jsonImages = parseStorePostImageList(input.imagesJson);
+  const fallbackImages = [cleanImageRef(input.imageData), cleanImageRef(input.imageUrl)];
+  return [...new Set([...directImages, ...jsonImages, ...fallbackImages].filter(Boolean))];
+}
+
+function firstDataImage(images) {
+  return images.find((item) => item.startsWith("data:image/")) || "";
+}
+
+function firstUrlImage(images) {
+  return images.find((item) => item && !item.startsWith("data:image/")) || "";
 }
 
 function toPriceRecord(row) {

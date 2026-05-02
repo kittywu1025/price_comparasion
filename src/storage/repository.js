@@ -295,6 +295,7 @@ export function updateStorePost(postId, input, auth = {}) {
     source: next.source,
     imageData: next.imageData,
     imageUrl: next.imageUrl,
+    images: next.images,
     lastConfirmedAt: next.lastConfirmedAt,
     validFrom: next.validFrom,
     validTo: next.validTo,
@@ -798,6 +799,7 @@ function ensureDbShape(db) {
     post.source ??= "";
     post.imageData ??= "";
     post.imageUrl ??= "";
+    post.images = normalizeStorePostImagesInput(post);
     post.uploadedAt ??= post.createdAt ?? new Date().toISOString();
     post.lastConfirmedAt ??= "";
     post.validFrom ??= post.startDate ?? "";
@@ -845,14 +847,16 @@ function normalizeStorePostInput(input, auth = {}) {
   if (!title) throw new Error("title is required");
   if (!type) throw new Error("type is required");
   if (storeId == null) throw new Error("storeId is required");
+  const images = normalizeStorePostImagesInput(input);
   return {
     storeId,
     title,
     type,
     content: clean(input.content),
     source: clean(input.source),
-    imageData: cleanImageData(input.imageData),
-    imageUrl: clean(input.imageUrl),
+    imageData: firstDataImage(images),
+    imageUrl: firstUrlImage(images),
+    images,
     lastConfirmedAt: clean(input.lastConfirmedAt),
     validFrom: clean(input.validFrom),
     validTo: clean(input.validTo),
@@ -872,6 +876,7 @@ function toStorePost(db, row, auth = {}) {
     source: row.source || "",
     imageData: row.imageData || "",
     imageUrl: row.imageUrl || "",
+    images: normalizeStorePostImagesInput(row),
     uploadedAt: row.uploadedAt || row.createdAt || "",
     lastConfirmedAt: row.lastConfirmedAt || "",
     validFrom: row.validFrom || "",
@@ -907,6 +912,45 @@ function cleanImageData(value) {
     throw new Error("imageData must be a data URL");
   }
   return text;
+}
+
+function cleanImageRef(value) {
+  const text = clean(value);
+  if (!text) return "";
+  if (text.startsWith("data:image/")) return cleanImageData(text);
+  return text;
+}
+
+function normalizeStorePostImagesInput(input) {
+  const directImages = parseImageList(input.images);
+  const jsonImages = parseImageList(input.imagesJson);
+  const fallbackImages = [cleanImageRef(input.imageData), cleanImageRef(input.imageUrl)];
+  return [...new Set([...directImages, ...jsonImages, ...fallbackImages].filter(Boolean))];
+}
+
+function parseImageList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanImageRef(item)).filter(Boolean);
+  }
+  const text = clean(value);
+  if (!text) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => cleanImageRef(item)).filter(Boolean);
+      }
+    } catch {}
+  }
+  return [cleanImageRef(text)].filter(Boolean);
+}
+
+function firstDataImage(images) {
+  return images.find((item) => item.startsWith("data:image/")) || "";
+}
+
+function firstUrlImage(images) {
+  return images.find((item) => item && !item.startsWith("data:image/")) || "";
 }
 
 function isPromoActive(note) {

@@ -172,7 +172,7 @@ npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-impo
 - `https://price-comparasion.pages.dev/add.html`
 - `https://price-comparasion.pages.dev/stores.html`
 - `https://price-comparasion.pages.dev/profile.html`
-- `https://price-comparasion.pages.dev/kana.html`
+- `https://price-comparasion.pages.dev/kana.html`（开发者/管理员专用）
 
 重点验证：
 

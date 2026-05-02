@@ -14,6 +14,7 @@
 - `/api/me*`
 - `/api/feedback*`
 - 非 GET 的 `/api/stores*`
+- 非 GET 的 `/api/store-posts*`
 - `/api/categories*`
 - `/api/price-records*`
 - 其他非 GET 请求
@@ -23,6 +24,8 @@
 - `/api/health`
 - `/api/images/*`
 - `GET /api/stores`
+- `GET /api/store-posts`
+- `GET /api/store-posts/:id`
 - `GET /api/products`
 - `GET /api/products/:id`
 
@@ -192,7 +195,64 @@
 
 `records` 使用价格记录返回结构。
 
-## 8. 价格记录
+## 8. 店铺情报投稿
+
+- `GET /api/store-posts?storeId=1`
+- `GET /api/store-posts/:id`
+- `POST /api/store-posts`
+- `PUT /api/store-posts/:id`
+- `DELETE /api/store-posts/:id`
+
+`POST` / `PUT` 请求体：
+
+```json
+{
+  "storeId": "1",
+  "title": "店铺情报",
+  "type": "post",
+  "content": "周三双倍积分",
+  "source": "用户上传",
+  "imageData": "data:image/jpeg;base64,...",
+  "imageUrl": "",
+  "images": [
+    "data:image/jpeg;base64,...",
+    "data:image/jpeg;base64,..."
+  ],
+  "validTo": "2026-05-31"
+}
+```
+
+说明：
+
+- `images` 支持多张图片；线上 D1 使用 `images_json` 保存。
+- 旧单图 `imageData` / `image_data` 仍兼容读取和显示。
+- 前端会先压缩成 JPEG 再提交。
+- 普通用户只能编辑和删除自己创建的投稿；管理员可以管理全部。
+- 列表页根据 `validTo` 或 `uploadedAt` 判断“已过期，仅供参考”与“旧情报，请注意确认”。
+
+返回字段示例：
+
+```json
+{
+  "id": "uuid",
+  "storeId": "1",
+  "content": "周三双倍积分",
+  "imageData": "data:image/jpeg;base64,...",
+  "imageUrl": "",
+  "images": [
+    "data:image/jpeg;base64,...",
+    "data:image/jpeg;base64,..."
+  ],
+  "validTo": "2026-05-31",
+  "createdBy": "user@example.com",
+  "createdByName": "Kitty",
+  "uploadedAt": "2026-05-03 12:00:00",
+  "canEdit": true,
+  "canDelete": true
+}
+```
+
+## 9. 价格记录
 
 - `POST /api/price-records`
 - `GET /api/price-records/:id`

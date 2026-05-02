@@ -324,7 +324,25 @@
     </section>
   </div>
 
+  <script src="auth-nav.js"></script>
   <script>
+    (async function initDeveloperOnlyPage() {
+      const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+      const session = window.priceAuth?.checkLogin
+        ? await window.priceAuth.checkLogin(isLocal)
+        : { loggedIn: isLocal, user: null };
+      if (!isLocal && !session.user?.isAdmin) {
+        document.querySelector(".app").innerHTML = `
+          <section class="panel">
+            <h2 style="margin:0;font-size:18px;">开发者专用</h2>
+            <p class="hint">日语读音标注工具目前只对开发者或管理员开放，普通用户不显示入口，也不能直接访问该页面。</p>
+            <a class="back-link" href="home.html" style="display:inline-flex;justify-content:center;border-color:#d7e7e2;color:#176f60;background:#edf6f3;">返回首页</a>
+          </section>
+        `;
+        document.title = "开发者专用";
+        return;
+      }
+
     const VOCAB_KEY = "kanaTool:vocab";
     const KNOWN_KEY = "kanaTool:known";
     const TEXT_KEY = "kanaTool:lastText";
@@ -608,6 +626,7 @@
       return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
     }
     function escapeAttr(value) { return escapeHtml(value).replace(/`/g, "&#96;"); }
+    }());
   </script>
 </body>
 </html>

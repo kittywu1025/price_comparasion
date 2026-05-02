@@ -13,15 +13,18 @@
       --muted: #607270;
       --primary: #0d9a7d;
       --primary-soft: #e2f7f1;
+      --primary-deep: #06735d;
       --danger: #c93f3f;
       --warn: #a56700;
       --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
       --radius-lg: 20px;
       --radius-md: 14px;
+      --radius-sm: 12px;
     }
 
     * { box-sizing: border-box; }
     html { min-height: 100%; overflow-x: hidden; }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -72,9 +75,9 @@
     .hero-top { align-items: flex-start; }
 
     .back-link, .outline-btn, .primary-btn, .ghost-btn, .danger-btn {
-      min-height: 38px;
+      min-height: 40px;
       border-radius: 999px;
-      padding: 0 14px;
+      padding: 0 15px;
       text-decoration: none;
       font: inherit;
       font-weight: 700;
@@ -82,6 +85,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      border: 0;
     }
 
     .back-link {
@@ -90,7 +94,6 @@
     }
 
     .primary-btn {
-      border: 0;
       background: var(--primary);
       color: #fff;
     }
@@ -102,13 +105,11 @@
     }
 
     .ghost-btn {
-      border: 0;
       background: #edf6f3;
       color: #1a5950;
     }
 
     .danger-btn {
-      border: 0;
       background: #feecec;
       color: var(--danger);
     }
@@ -133,13 +134,13 @@
       flex-wrap: wrap;
     }
 
-    .chip-row, .post-tags, .post-actions {
+    .post-tags, .post-actions, .upload-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
 
-    .chip, .tag, .flag {
+    .chip, .flag, .count-badge {
       display: inline-flex;
       align-items: center;
       min-height: 28px;
@@ -149,9 +150,9 @@
       font-weight: 800;
     }
 
-    .chip, .tag {
+    .chip, .count-badge {
       background: var(--primary-soft);
-      color: #06735d;
+      color: var(--primary-deep);
     }
 
     .flag.expired {
@@ -166,13 +167,13 @@
 
     .post-list {
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
 
     .post-card {
       padding: 12px;
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
 
     .post-head {
@@ -184,42 +185,99 @@
 
     .post-body {
       font-size: 13px;
-      line-height: 1.65;
+      line-height: 1.7;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    .post-image {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: #f7fbfa;
-      overflow: hidden;
+    .post-image-grid,
+    .picker-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
     }
 
-    .post-image img {
+    .post-image-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .post-image-item,
+    .picker-item {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #f7fbfa;
+      min-height: 104px;
+    }
+
+    .post-image-item img,
+    .picker-item img {
       display: block;
       width: 100%;
-      max-height: 300px;
+      height: 100%;
       object-fit: cover;
       cursor: zoom-in;
     }
 
+    .post-image-item.single-image {
+      min-height: 210px;
+    }
+
+    .post-image-item.single-image img {
+      max-height: 360px;
+    }
+
+    .picker-item {
+      aspect-ratio: 1 / 1;
+    }
+
+    .picker-remove {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(17, 36, 33, 0.8);
+      color: #fff;
+      font: inherit;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .picker-remove span {
+      transform: translateY(-1px);
+    }
+
     .post-actions button {
-      min-height: 32px;
+      min-height: 34px;
       padding: 0 12px;
       border-radius: 999px;
       font: inherit;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
+      border: 0;
+    }
+
+    .post-gallery-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .sheet-mask {
       position: fixed;
       inset: 0;
       display: none;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
       background: rgba(7, 19, 18, 0.46);
       padding:
@@ -234,38 +292,39 @@
 
     .sheet {
       width: min(720px, calc(100vw - 20px));
-      max-height: calc(100dvh - 20px);
+      max-height: calc(100dvh - 16px);
       overflow-y: auto;
-      padding: 16px;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
       display: grid;
-      gap: 12px;
+      gap: 14px;
+      border-bottom-left-radius: 24px;
+      border-bottom-right-radius: 24px;
     }
 
     .sheet-head {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
     }
 
     .close-btn {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       border: 0;
       border-radius: 999px;
       background: rgba(31, 42, 43, 0.72);
       color: #fff;
       font-size: 18px;
       cursor: pointer;
+      flex: none;
     }
 
-    .form-grid, .field {
+    .composer-form,
+    .field {
       display: grid;
-      gap: 6px;
+      gap: 8px;
     }
-
-    .form-grid { grid-template-columns: 1fr 1fr; }
-    .field.full { grid-column: 1 / -1; }
 
     label {
       color: #425956;
@@ -273,44 +332,76 @@
       font-weight: 700;
     }
 
-    input, textarea, select {
+    textarea,
+    input[type="date"] {
       width: 100%;
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 14px;
+      padding: 11px 12px;
       font: inherit;
       background: #f8fbfa;
       color: var(--text);
     }
 
     textarea {
-      min-height: 96px;
+      min-height: 104px;
       resize: vertical;
+      line-height: 1.65;
     }
 
-    input:focus, textarea:focus, select:focus {
+    textarea:focus,
+    input[type="date"]:focus {
       outline: none;
       border-color: #76c5b1;
       box-shadow: 0 0 0 3px rgba(13, 154, 125, 0.14);
     }
 
-    .preview-box {
+    .upload-panel {
       display: grid;
-      gap: 8px;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #d7e7e2;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fbfffd 0%, #f3faf7 100%);
     }
 
-    .preview-box img {
-      width: min(240px, 100%);
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      cursor: zoom-in;
+    .upload-actions .primary-btn,
+    .upload-actions .ghost-btn {
+      flex: 1 1 180px;
+      min-height: 44px;
+    }
+
+    .input-hidden {
+      display: none;
+    }
+
+    .picker-state {
+      display: grid;
+      gap: 10px;
+    }
+
+    .picker-empty {
+      border: 2px dashed #c9ddd7;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      padding: 20px 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
     }
 
     .sheet-actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       justify-content: flex-end;
       flex-wrap: wrap;
+      padding-top: 4px;
+    }
+
+    .sheet-actions button {
+      min-width: 104px;
+      min-height: 42px;
     }
 
     nav {
@@ -356,11 +447,31 @@
 
     nav a.active { color: #0c8f72; }
 
+    @media (max-width: 620px) {
+      .post-image-grid,
+      .picker-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
     @media (max-width: 560px) {
-      .form-grid { grid-template-columns: 1fr; }
-      .hero-top, .section-head, .stats, .post-head { display: grid; }
-      .sheet-actions { justify-content: stretch; }
-      .sheet-actions button, .sheet-actions a { width: 100%; }
+      .hero-top, .section-head, .stats, .post-head {
+        display: grid;
+      }
+
+      .sheet {
+        width: calc(100vw - 12px);
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .sheet-actions {
+        justify-content: stretch;
+      }
+
+      .sheet-actions button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -415,38 +526,47 @@
       <div class="sheet-head">
         <div>
           <h2 id="composerTitle">上传店铺情报</h2>
-          <p id="composerHint" class="subtle">只需上传图片，可选补一句备注和活动结束日期。</p>
+          <p id="composerHint" class="subtle">拍照或从相册选择，多张图片会在前端压缩后再保存。</p>
         </div>
         <button id="closeComposerBtn" class="close-btn" type="button" aria-label="关闭">×</button>
       </div>
 
-      <form id="composerForm" class="form-grid">
-        <div class="field full">
-          <label for="postImageFile">图片 <span aria-hidden="true">*</span></label>
-          <input id="postImageFile" type="file" accept="image/*" capture="environment" />
-          <p id="imageHint" class="subtle">必填。选择或拍照后会在前端压缩成 JPEG，再保存到投稿数据。</p>
-          <div id="imagePreviewBox" class="preview-box" hidden>
-            <img id="imagePreview" alt="投稿图片预览" />
-            <p id="imageMeta" class="subtle"></p>
+      <form id="composerForm" class="composer-form">
+        <div class="field">
+          <label>图片 <span aria-hidden="true">*</span></label>
+          <div class="upload-panel">
+            <div class="upload-actions">
+              <button id="cameraTriggerBtn" class="primary-btn" type="button">拍照上传</button>
+              <button id="galleryTriggerBtn" class="ghost-btn" type="button">从相册选择</button>
+            </div>
+            <input id="postCameraInput" class="input-hidden" type="file" accept="image/*" capture="environment" />
+            <input id="postGalleryInput" class="input-hidden" type="file" accept="image/*" multiple />
+            <div class="picker-state">
+              <div id="imageEmptyState" class="picker-empty">还没有选择图片，可以拍照或从相册选择。</div>
+              <div id="imagePreviewGrid" class="picker-grid" hidden></div>
+            </div>
+            <p id="imageMeta" class="subtle">支持多图上传，图片会自动压缩为 JPEG。</p>
           </div>
         </div>
+
         <div class="field">
           <label for="postContent">备注/说明</label>
-          <textarea id="postContent" maxlength="2000" placeholder="可选写一句备注，例如：周三双倍积分、门口海报拍摄。"></textarea>
+          <textarea id="postContent" maxlength="2000" placeholder="可选写一句备注，例如：周三双倍积分、店门口海报、会员特价。"></textarea>
         </div>
+
         <div class="field">
           <label for="postValidTo">活动结束日期</label>
           <input id="postValidTo" type="date" />
         </div>
-        <div class="field full">
+
+        <div class="field">
           <p id="formStatus" class="status"></p>
         </div>
-        <div class="field full">
-          <div class="sheet-actions">
-            <button id="deletePostBtn" class="danger-btn" type="button" hidden>删除投稿</button>
-            <button class="ghost-btn" type="button" id="cancelComposerBtn">取消</button>
-            <button class="primary-btn" type="submit" id="saveComposerBtn">发布</button>
-          </div>
+
+        <div class="sheet-actions">
+          <button id="deletePostBtn" class="danger-btn" type="button" hidden>删除投稿</button>
+          <button class="ghost-btn" type="button" id="cancelComposerBtn">取消</button>
+          <button class="primary-btn" type="submit" id="saveComposerBtn">发布</button>
         </div>
       </form>
     </section>
@@ -458,12 +578,13 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const storeId = new URLSearchParams(location.search).get("id") || "";
+
     let currentStore = null;
     let currentPosts = [];
     let currentSession = { loggedIn: false, user: null };
     let editingPostId = "";
-    let imageDataValue = "";
-    let imageUrlValue = "";
+    let selectedImages = [];
+    let isCompressing = false;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -497,6 +618,76 @@
         return { text: "旧情报，请注意确认", className: "stale" };
       }
       return null;
+    }
+
+    function uniqueImages(images) {
+      return [...new Set((images || []).map((item) => String(item || "").trim()).filter(Boolean))];
+    }
+
+    function normalizePostImages(post) {
+      const images = Array.isArray(post?.images) ? post.images : [];
+      return uniqueImages([
+        ...images,
+        post?.imageData || "",
+        post?.imageUrl || ""
+      ]);
+    }
+
+    function firstDataImage(images) {
+      return images.find((item) => item.startsWith("data:image/")) || "";
+    }
+
+    function firstUrlImage(images) {
+      return images.find((item) => item && !item.startsWith("data:image/")) || "";
+    }
+
+    function countLabel(count) {
+      return `共 ${count} 张`;
+    }
+
+    function renderImageGrid(images, mode) {
+      const visibleImages = images.slice(0, 4);
+      const single = images.length === 1;
+      return `
+        <div class="post-gallery-head">
+          <span class="count-badge">${escapeHtml(countLabel(images.length))}</span>
+        </div>
+        <div class="post-image-grid ${single ? "single" : ""}">
+          ${visibleImages.map((src, index) => {
+            const remaining = images.length - visibleImages.length;
+            const overlay = remaining > 0 && index === visibleImages.length - 1
+              ? `<span class="count-badge" style="position:absolute;right:8px;bottom:8px;">+${remaining}</span>`
+              : "";
+            return `
+              <div class="post-image-item ${single ? "single-image" : ""}">
+                <img src="${escapeHtml(src)}" alt="店铺情报图片" data-image-src="${escapeHtml(src)}" data-image-mode="${escapeHtml(mode)}" />
+                ${overlay}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderSelectedImages() {
+      const grid = $("imagePreviewGrid");
+      const empty = $("imageEmptyState");
+      if (!selectedImages.length) {
+        grid.hidden = true;
+        grid.innerHTML = "";
+        empty.hidden = false;
+        $("imageMeta").textContent = "支持多图上传，图片会自动压缩为 JPEG。";
+        return;
+      }
+      empty.hidden = true;
+      grid.hidden = false;
+      grid.innerHTML = selectedImages.map((src, index) => `
+        <div class="picker-item">
+          <img src="${escapeHtml(src)}" alt="已选择图片 ${index + 1}" data-image-src="${escapeHtml(src)}" data-image-mode="composer" />
+          <button class="picker-remove" type="button" data-remove-index="${index}" aria-label="移除第 ${index + 1} 张图片"><span>×</span></button>
+        </div>
+      `).join("");
+      $("imageMeta").textContent = `已选择 ${selectedImages.length} 张图片。发布时会保存压缩后的图片数据。`;
     }
 
     async function fetchJson(url, options) {
@@ -542,7 +733,7 @@
         return;
       }
       list.innerHTML = posts.map((post) => {
-        const imageSrc = post.imageData || post.imageUrl || "";
+        const images = normalizePostImages(post);
         const flag = validityState(post);
         return `
           <article class="post-card">
@@ -557,11 +748,7 @@
                 </div>
               ` : ""}
             </div>
-            ${imageSrc ? `
-              <div class="post-image">
-                <img src="${escapeHtml(imageSrc)}" alt="店铺情报图片" data-image-src="${escapeHtml(imageSrc)}" />
-              </div>
-            ` : ""}
+            ${images.length ? renderImageGrid(images, "post") : ""}
             ${post.content ? `<div class="post-body">${escapeHtml(post.content)}</div>` : ""}
             <div class="post-meta">上传者：${escapeHtml(post.createdByName || post.createdBy || "-")}</div>
             <div class="post-meta">上传日期：${escapeHtml(formatDate(post.uploadedAt))}</div>
@@ -573,17 +760,14 @@
 
     function resetComposer() {
       editingPostId = "";
-      imageDataValue = "";
-      imageUrlValue = "";
+      selectedImages = [];
       $("composerTitle").textContent = "上传店铺情报";
-      $("composerHint").textContent = "只需上传图片，可选补一句备注和活动结束日期。";
+      $("composerHint").textContent = "拍照或从相册选择，多张图片会在前端压缩后再保存。";
       $("composerForm").reset();
       $("saveComposerBtn").textContent = "发布";
       $("deletePostBtn").hidden = true;
-      $("imagePreviewBox").hidden = true;
-      $("imagePreview").removeAttribute("src");
-      $("imageMeta").textContent = "";
       $("formStatus").textContent = "";
+      renderSelectedImages();
     }
 
     function openComposer(post = null) {
@@ -595,19 +779,14 @@
       resetComposer();
       if (post) {
         editingPostId = post.id;
+        selectedImages = normalizePostImages(post);
         $("composerTitle").textContent = "编辑店铺情报";
         $("composerHint").textContent = "可以更新图片、备注或活动结束日期。";
         $("saveComposerBtn").textContent = "更新";
         $("postContent").value = post.content || "";
         $("postValidTo").value = formatDate(post.validTo) === "-" ? "" : formatDate(post.validTo);
-        imageDataValue = post.imageData || "";
-        imageUrlValue = post.imageUrl || "";
-        if (post.imageData || post.imageUrl) {
-          $("imagePreviewBox").hidden = false;
-          $("imagePreview").src = post.imageData || post.imageUrl;
-          $("imageMeta").textContent = post.imageData ? "当前使用压缩后的内嵌图片" : "当前使用图片链接";
-        }
         $("deletePostBtn").hidden = !post.canDelete;
+        renderSelectedImages();
       }
       $("composerMask").classList.add("show");
     }
@@ -617,7 +796,7 @@
       resetComposer();
     }
 
-    async function compressImage(file, maxWidth = 1200, quality = 0.76) {
+    async function compressImage(file, maxWidth = 1600, quality = 0.75) {
       const bitmap = await createImageBitmap(file);
       const scale = Math.min(1, maxWidth / Math.max(bitmap.width, bitmap.height));
       const width = Math.max(1, Math.round(bitmap.width * scale));
@@ -630,25 +809,29 @@
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(bitmap, 0, 0, width, height);
       bitmap.close();
-      const dataUrl = canvas.toDataURL("image/jpeg", quality);
-      return { dataUrl, width, height };
+      return {
+        dataUrl: canvas.toDataURL("image/jpeg", quality),
+        width,
+        height
+      };
     }
 
-    async function handleImageSelect(file) {
-      if (!file) return;
-      $("imageMeta").textContent = "正在压缩图片...";
-      $("imagePreviewBox").hidden = false;
+    async function handleImageFiles(fileList) {
+      const files = Array.from(fileList || []).filter((file) => file && String(file.type || "").startsWith("image/"));
+      if (!files.length) return;
+      isCompressing = true;
+      $("formStatus").textContent = "";
+      $("imageMeta").textContent = `正在压缩 ${files.length} 张图片...`;
       try {
-        const { dataUrl, width, height } = await compressImage(file, 1200, 0.76);
-        imageDataValue = dataUrl;
-        imageUrlValue = "";
-        $("imagePreview").src = dataUrl;
-        $("imageMeta").textContent = `已压缩为 JPEG ${width}×${height}，约 ${(dataUrl.length * 0.75 / 1024).toFixed(0)} KB`;
-      } catch (error) {
-        imageDataValue = "";
-        imageUrlValue = "";
-        $("imagePreviewBox").hidden = true;
-        throw error;
+        const compressed = [];
+        for (const file of files) {
+          const { dataUrl } = await compressImage(file, 1600, 0.75);
+          compressed.push(dataUrl);
+        }
+        selectedImages = uniqueImages([...selectedImages, ...compressed]);
+        renderSelectedImages();
+      } finally {
+        isCompressing = false;
       }
     }
 
@@ -677,20 +860,26 @@
         openComposer();
         return;
       }
+      if (isCompressing) {
+        $("formStatus").textContent = "图片还在处理中，请稍等。";
+        return;
+      }
+      const images = uniqueImages(selectedImages);
       const payload = {
         storeId,
         title: "店铺情报",
         type: "post",
         content: $("postContent").value.trim(),
         source: "用户上传",
-        imageData: imageDataValue,
-        imageUrl: imageUrlValue,
+        imageData: firstDataImage(images),
+        imageUrl: firstUrlImage(images),
+        images,
         lastConfirmedAt: "",
         validFrom: "",
         validTo: $("postValidTo").value
       };
-      if (!payload.imageData && !payload.imageUrl) {
-        $("formStatus").textContent = "请先上传图片。";
+      if (!payload.images.length) {
+        $("formStatus").textContent = "请先上传至少一张图片。";
         return;
       }
       $("formStatus").textContent = "正在保存...";
@@ -727,25 +916,44 @@
       $("openComposerBtn").onclick = () => openComposer();
       $("closeComposerBtn").onclick = closeComposer;
       $("cancelComposerBtn").onclick = closeComposer;
+      $("cameraTriggerBtn").onclick = () => $("postCameraInput").click();
+      $("galleryTriggerBtn").onclick = () => $("postGalleryInput").click();
       $("composerMask").addEventListener("click", (event) => {
         if (event.target === $("composerMask")) closeComposer();
       });
       $("composerForm").addEventListener("submit", submitComposer);
-      $("postImageFile").addEventListener("change", async (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+      $("postCameraInput").addEventListener("change", async (event) => {
         try {
-          await handleImageSelect(file);
+          await handleImageFiles(event.target.files);
+          event.target.value = "";
         } catch (error) {
           showToast(error.message || "图片处理失败", { type: "error" });
         }
       });
-      $("imagePreview").onclick = () => {
-        if ($("imagePreview").src) window.openImageViewer?.($("imagePreview").src);
-      };
+      $("postGalleryInput").addEventListener("change", async (event) => {
+        try {
+          await handleImageFiles(event.target.files);
+          event.target.value = "";
+        } catch (error) {
+          showToast(error.message || "图片处理失败", { type: "error" });
+        }
+      });
       $("deletePostBtn").onclick = () => {
         if (editingPostId) deletePost(editingPostId);
       };
+      $("imagePreviewGrid").addEventListener("click", (event) => {
+        const removeButton = event.target.closest("button[data-remove-index]");
+        if (removeButton) {
+          const index = Number(removeButton.dataset.removeIndex);
+          selectedImages = selectedImages.filter((_, itemIndex) => itemIndex !== index);
+          renderSelectedImages();
+          return;
+        }
+        const image = event.target.closest("img[data-image-src]");
+        if (image) {
+          window.openImageViewer?.(image.dataset.imageSrc);
+        }
+      });
       $("postList").addEventListener("click", async (event) => {
         const actionButton = event.target.closest("button[data-action]");
         if (actionButton) {
@@ -766,6 +974,7 @@
       bindEvents();
       await loadSession();
       updateUploadButton();
+      renderSelectedImages();
       await loadPage();
     }());
   </script>
