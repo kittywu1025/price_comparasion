@@ -980,6 +980,78 @@
       gap: 8px;
     }
 
+    .existing-product-card {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #dcebe6;
+      border-radius: 12px;
+      background: #f8fcfb;
+      padding: 8px;
+    }
+
+    .existing-product-img {
+      width: 82px;
+      height: 82px;
+      border: 1px solid #e4efeb;
+      border-radius: 10px;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #8ca09c;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .existing-product-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .existing-product-name {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .existing-product-meta {
+      margin: 5px 0 0;
+      color: #607270;
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .existing-price-preview {
+      border: 1px solid #dcebe6;
+      border-radius: 12px;
+      background: #f8fcfb;
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .existing-price-preview .k {
+      margin: 0;
+      color: #607270;
+      font-size: 12px;
+    }
+
+    .existing-price-preview .v {
+      margin: 0;
+      color: #0a826b;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+
     @media (min-width: 720px) {
       body {
         padding: 20px;
@@ -1240,6 +1312,51 @@
     </div>
   </div>
 
+  <div id="existingPriceMask" class="existing-mask">
+    <form id="existingPriceForm" class="existing-panel">
+      <h2>记录新价格</h2>
+      <div id="existingPriceProduct"></div>
+      <div class="group">
+        <p class="group-title">本次价格</p>
+        <div class="field">
+          <label>税率</label>
+          <div id="existingPriceTaxSegment" class="segment">
+            <button type="button" data-tax="8">8%</button>
+            <button type="button" data-tax="10">10%</button>
+            <button type="button" data-tax="0">0%</button>
+          </div>
+        </div>
+        <div class="inline-grid">
+          <div class="field">
+            <label for="existingPriceBeforeTax">税前价格<span class="req">必填</span></label>
+            <input id="existingPriceBeforeTax" type="number" step="0.01" placeholder="上次价格仅作提示" required />
+          </div>
+          <div class="field">
+            <label for="existingPriceAfterTax">税后价格</label>
+            <input id="existingPriceAfterTax" type="text" value="¥0.0" readonly />
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="existingPriceStoreId">购买店铺<span class="req">必填</span></label>
+        <select id="existingPriceStoreId" required></select>
+      </div>
+      <div class="field">
+        <label for="existingPriceNote">备注</label>
+        <input id="existingPriceNote" placeholder="可选，例如这家店的活动、包装差异" />
+      </div>
+      <div class="existing-price-preview">
+        <p class="k">对比单价（按原规格计算）</p>
+        <p id="existingPriceUnitPrice" class="v">¥0.0</p>
+      </div>
+      <div class="existing-actions">
+        <button class="btn btn-primary" type="submit">保存新价格</button>
+        <button id="closeExistingPrice" class="btn btn-subtle" type="button">取消</button>
+      </div>
+      <div id="existingPriceMsg" class="msg"></div>
+    </form>
+  </div>
+
   <div id="importMask" class="import-mask">
     <div class="import-panel">
       <div class="import-head">
@@ -1294,6 +1411,9 @@
       selectedProductName: "",
       pendingExistingProduct: null,
       pendingExistingDetail: null,
+      existingPriceProduct: null,
+      existingPriceDetail: null,
+      existingPriceTaxMode: 8,
       duplicateTimer: null,
       scanTimer: null,
       scanStream: null,
@@ -1637,6 +1757,23 @@
       state.selectedProductName = "";
     }
 
+    function setImagePreview(imageUrls) {
+      state.imageDataUrls = (Array.isArray(imageUrls) ? imageUrls : [])
+        .filter(Boolean)
+        .slice(0, 4);
+      if (state.imageDataUrls[0]) {
+        $("previewImg").src = state.imageDataUrls[0];
+        $("previewImg").style.display = "block";
+        $("uploadText").style.display = "none";
+        $("uploadBox").classList.add("has-image");
+      } else {
+        $("previewImg").removeAttribute("src");
+        $("previewImg").style.display = "none";
+        $("uploadText").style.display = "";
+        $("uploadBox").classList.remove("has-image");
+      }
+    }
+
     function selectExistingProduct(product) {
       state.selectedProductId = Number(product.productId);
       state.selectedProductName = product.nameZh || product.nameJa || "未命名商品";
@@ -1678,16 +1815,95 @@
       return (detail?.records || [])[0] || null;
     }
 
+    function inheritedImages(product, record) {
+      return Array.isArray(record?.imageUrls) && record.imageUrls.length
+        ? record.imageUrls.filter(Boolean).slice(0, 4)
+        : (product.defaultImageUrl ? [product.defaultImageUrl] : []);
+    }
+
+    function setExistingPriceTaxMode(nextTaxMode) {
+      const tax = Number(nextTaxMode);
+      state.existingPriceTaxMode = tax;
+      $("existingPriceTaxSegment").querySelectorAll("button").forEach((button) => {
+        button.classList.toggle("active", Number(button.dataset.tax) === tax);
+      });
+      calcExistingPrice();
+    }
+
+    function calcExistingPrice() {
+      const record = latestRecordOf(state.existingPriceDetail);
+      const before = Number($("existingPriceBeforeTax").value || 0);
+      const spec = Number(record?.specValue || 0);
+      const unit = record?.unit || "g";
+      const after = before * (state.existingPriceTaxMode === 0 ? 1 : 1 + state.existingPriceTaxMode / 100);
+      let unitPrice = 0;
+      let unitLabel = "/100g";
+      if (spec > 0) {
+        if (unit === "g" || unit === "ml") {
+          unitPrice = (after / spec) * 100;
+          unitLabel = unit === "g" ? "/100g" : "/100ml";
+        } else {
+          unitPrice = after / spec;
+          unitLabel = `/${unit}`;
+        }
+      }
+      $("existingPriceAfterTax").value = `¥${round1(after).toFixed(1)}`;
+      $("existingPriceUnitPrice").textContent = `¥${round1(unitPrice).toFixed(1)} ${unitLabel}`;
+      return { before, after: round1(after) };
+    }
+
+    function renderExistingPriceProduct(product, detail) {
+      const record = latestRecordOf(detail);
+      const name = product.nameZh || product.nameJa || "未命名商品";
+      const images = inheritedImages(product, record);
+      const specText = record ? `${record.specValue ?? "-"} ${record.unit || ""}` : "没有历史规格";
+      const lastPrice = record?.priceTaxEx != null
+        ? `上次税前价格 ¥${Number(record.priceTaxEx).toFixed(1)}`
+        : (record?.priceTaxIn != null ? `上次税后价格 ¥${Number(record.priceTaxIn).toFixed(0)}` : "没有历史价格");
+      $("existingPriceProduct").innerHTML = `
+        <div class="existing-product-card">
+          <div class="existing-product-img">
+            ${images[0] ? `<img src="${images[0]}" alt="商品图" />` : "暂无图片"}
+          </div>
+          <div>
+            <p class="existing-product-name">${escapeHtml(name)}</p>
+            <p class="existing-product-meta">规格：${escapeHtml(specText)}<br>${escapeHtml(lastPrice)}</p>
+          </div>
+        </div>
+      `;
+      $("existingPriceBeforeTax").value = "";
+      $("existingPriceBeforeTax").placeholder = lastPrice;
+      $("existingPriceStoreId").innerHTML = state.stores.length
+        ? state.stores.map((store) => `<option value="${store.id}">${escapeHtml(store.name)}</option>`).join("")
+        : '<option value="">请先到店铺页新增店铺</option>';
+      if (record?.storeId != null) $("existingPriceStoreId").value = String(record.storeId);
+      $("existingPriceNote").value = "";
+      setExistingPriceTaxMode(record?.taxRate ?? 8);
+      calcExistingPrice();
+    }
+
+    function openExistingPriceModal(product, detail) {
+      state.existingPriceProduct = product;
+      state.existingPriceDetail = detail;
+      renderExistingPriceProduct(product, detail);
+      $("existingPriceMsg").textContent = "";
+      $("existingPriceMask").style.display = "flex";
+      setTimeout(() => $("existingPriceBeforeTax").focus(), 0);
+    }
+
+    function closeExistingPriceModal() {
+      $("existingPriceMask").style.display = "none";
+    }
+
     function describeExistingProduct(product, detail) {
       const record = latestRecordOf(detail);
       const name = product.nameZh || product.nameJa || "未命名商品";
       const parts = [
         `条码 ${escapeHtml(state.barcode)} 已对应到「${escapeHtml(name)}」。`,
-        "这次会作为同一个商品新增价格记录，不会重新创建商品。"
+        "可以直接进入新价格记录弹窗，不需要重新填写商品信息。"
       ];
       if (record) {
-        parts.push(`将自动带入最近一次规格：${escapeHtml(record.specValue ?? "-")} ${escapeHtml(record.unit || "")}，税率 ${escapeHtml(record.taxRate ?? "-")}% ，店铺 ${escapeHtml(record.storeName || "-")}。`);
-        parts.push("价格请按本次看到的价格修改。");
+        parts.push(`将沿用最近一次规格：${escapeHtml(record.specValue ?? "-")} ${escapeHtml(record.unit || "")}，默认税率 ${escapeHtml(record.taxRate ?? "-")}% ，店铺 ${escapeHtml(record.storeName || "-")}。`);
       }
       return parts.join("<br>");
     }
@@ -1706,14 +1922,24 @@
     function applyExistingProductData(product, detail) {
       const record = latestRecordOf(detail);
       selectExistingProduct(product);
+      const images = Array.isArray(record?.imageUrls) && record.imageUrls.length
+        ? record.imageUrls
+        : (product.defaultImageUrl ? [product.defaultImageUrl] : []);
+      setImagePreview(images);
       if (record) {
         if (record.specValue != null) $("spec").value = record.specValue;
         if (record.unit) setUnitMode(record.unit);
         if (record.taxRate != null) setTaxMode(record.taxRate);
         if (record.storeId != null) setStoreById(record.storeId);
+        if (record.priceTaxEx != null) {
+          $("priceBeforeTax").value = Number(record.priceTaxEx).toFixed(1);
+        }
+        const promo = String(record.note || "").match(/^\[\[promo(?::(\d{4}-\d{2}-\d{2}))?\]\]\s*/i);
+        setPromoMode(Boolean(promo));
+        $("promoUntil").value = promo?.[1] || "";
       }
       calc();
-      $("msg").textContent = "已带入已有商品信息，请按本次价格修改后保存。";
+      $("msg").textContent = "已带入已有商品信息和最近一次价格规格，请按本次看到的价格修改后保存。";
     }
 
     async function checkBarcodeProduct() {
@@ -2210,7 +2436,7 @@
     $("applyQuickFill").onclick = applyQuickFillText;
     $("applyExistingProduct").onclick = () => {
       if (state.pendingExistingProduct) {
-        applyExistingProductData(state.pendingExistingProduct, state.pendingExistingDetail);
+        openExistingPriceModal(state.pendingExistingProduct, state.pendingExistingDetail);
       }
       closeExistingProductPrompt();
     };
@@ -2221,6 +2447,77 @@
     $("existingMask").addEventListener("click", (e) => {
       if (e.target === $("existingMask")) closeExistingProductPrompt();
     });
+    $("closeExistingPrice").onclick = closeExistingPriceModal;
+    $("existingPriceMask").addEventListener("click", (e) => {
+      if (e.target === $("existingPriceMask")) closeExistingPriceModal();
+    });
+    $("existingPriceTaxSegment").querySelectorAll("button").forEach((button) => {
+      button.onclick = () => setExistingPriceTaxMode(button.dataset.tax);
+    });
+    $("existingPriceBeforeTax").addEventListener("input", calcExistingPrice);
+    $("existingPriceStoreId").addEventListener("change", () => {
+      if ($("existingPriceStoreId").value) localStorage.setItem(LAST_STORE_ID_KEY, $("existingPriceStoreId").value);
+    });
+    $("existingPriceForm").onsubmit = async (event) => {
+      event.preventDefault();
+      const product = state.existingPriceProduct;
+      const detail = state.existingPriceDetail;
+      const record = latestRecordOf(detail);
+      const msg = $("existingPriceMsg");
+      if (!product?.productId && !product?.id) {
+        msg.textContent = "没有找到已有商品，请重新扫码。";
+        return;
+      }
+      if (!record?.specValue || !record?.unit) {
+        msg.textContent = "这个商品还没有可沿用的规格，请返回普通录入表单补全一次。";
+        return;
+      }
+      if (!$("existingPriceStoreId").value) {
+        msg.textContent = "请选择购买店铺。";
+        return;
+      }
+      const { before, after } = calcExistingPrice();
+      if (!(before > 0)) {
+        msg.textContent = "请输入本次看到的税前价格。";
+        return;
+      }
+      const submit = $("existingPriceForm").querySelector("[type='submit']");
+      submit.disabled = true;
+      msg.textContent = "正在保存...";
+      try {
+        const imageUrls = inheritedImages(product, record);
+        const payload = {
+          product: { id: Number(product.productId || product.id) },
+          storeId: Number($("existingPriceStoreId").value),
+          priceTaxEx: before,
+          taxRate: state.existingPriceTaxMode,
+          priceTaxIn: after,
+          specValue: Number(record.specValue),
+          unit: record.unit,
+          imageUrls,
+          recordDate: today(),
+          note: $("existingPriceNote").value.trim() || null
+        };
+        const res = await fetch("/api/price-records", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "保存失败");
+        localStorage.setItem(LAST_STORE_ID_KEY, $("existingPriceStoreId").value);
+        notify("新价格已保存。", "success");
+        msg.textContent = "保存成功，正在返回清单页...";
+        setTimeout(() => {
+          location.href = `products?q=${encodeURIComponent(product.nameZh || product.nameJa || state.barcode || "")}`;
+        }, 500);
+      } catch (err) {
+        msg.textContent = err.message || "保存失败";
+        notify(`保存失败：${err.message || "请稍后重试"}`, "error");
+      } finally {
+        submit.disabled = false;
+      }
+    };
     $("openSpecCalc").onclick = openSpecCalculator;
     $("closeSpecCalc").onclick = closeSpecCalculator;
     $("applySpecCalc").onclick = applySpecCalculator;

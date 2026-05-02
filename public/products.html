@@ -2303,6 +2303,7 @@
       let editTaxMode = Number(top.taxRate ?? 0);
       let editUnit = top.unit || "g";
       let editImageUrls = Array.isArray(top.imageUrls) ? top.imageUrls.slice(0, 4) : (top.imageUrl ? [top.imageUrl] : []);
+      const inheritedImageUrls = editImageUrls.slice();
       const initialPromo = parsePromoNote(top.note);
       let editIsPromo = initialPromo.isPromo;
       const initialBefore = Number(
@@ -2543,8 +2544,7 @@
         modalHead.classList.add("hidden");
         detailView.classList.add("hidden");
         form.classList.add("active");
-        modal.querySelector("#editModeTitle").textContent = mode === "new" ? "新增价格记录" : "修正记录";
-        modal.querySelector("#editSubmitBtn").textContent = mode === "new" ? "新增价格记录" : "保存修正";
+        syncRecordFormMode();
         modal.querySelector("#editMsg").textContent = "正在检查登录状态...";
         const ok = await loadProtectedStores();
         modal.querySelector("#editSubmitBtn").disabled = !ok;
@@ -2608,6 +2608,55 @@
         return Math.round(n * 10) / 10;
       }
 
+      function setEditTaxMode(nextTaxMode) {
+        editTaxMode = Number(nextTaxMode);
+        modal.querySelectorAll("#editTaxSegment button").forEach((button) => {
+          button.classList.toggle("active", Number(button.dataset.tax) === editTaxMode);
+        });
+        calcEdit();
+      }
+
+      function syncRecordFormMode() {
+        const isNew = editMode === "new";
+        const editTop = modal.querySelector(".edit-top");
+        const groupTitle = modal.querySelector(".edit-group-title");
+        const priceInput = modal.querySelector("#editPriceTaxEx");
+        const promoField = modal.querySelector("#editPromoSegment")?.closest(".edit-field");
+        const promoUntilField = modal.querySelector("#editPromoUntilField");
+        const beforeLabel = Number.isFinite(initialBefore) && initialBefore > 0 ? `¥${initialBefore.toFixed(1)}` : `¥${asMoney(top.priceTaxIn)}`;
+
+        modal.querySelector("#editModeTitle").textContent = isNew ? "新增价格记录" : "修正记录";
+        modal.querySelector("#editSubmitBtn").textContent = isNew ? "记录新价格" : "保存修正";
+        if (editTop) editTop.style.display = isNew ? "none" : "grid";
+        if (groupTitle) groupTitle.textContent = isNew ? "本次价格" : "价格与规格";
+        if (promoField) promoField.style.display = isNew ? "none" : "";
+        if (promoUntilField) promoUntilField.style.display = isNew ? "none" : (editIsPromo ? "" : "none");
+
+        priceInput.placeholder = isNew ? `上次税前价格 ${beforeLabel}` : "";
+        priceInput.value = isNew ? "" : (Number.isFinite(initialBefore) ? initialBefore.toFixed(1) : "0");
+
+        modal.querySelector("#editSpecValue").disabled = isNew;
+        modal.querySelectorAll("#editUnitSegment button").forEach((button) => {
+          button.disabled = isNew;
+          button.title = isNew ? "新增价格时沿用原规格" : "";
+        });
+        modal.querySelector("#clearEditPhoto").disabled = isNew;
+        modal.querySelector("#editPhotoPreview").style.cursor = isNew ? "default" : "pointer";
+
+        if (isNew) {
+          editImageUrls = inheritedImageUrls.slice();
+          editUnit = top.unit || "g";
+          modal.querySelector("#editSpecValue").value = Number(top.specValue || 0);
+          setEditTaxMode(Number(top.taxRate ?? 8));
+        } else {
+          editImageUrls = inheritedImageUrls.slice();
+          editUnit = top.unit || "g";
+          setEditTaxMode(Number(top.taxRate ?? 0));
+          renderEditImages(editImageUrls);
+        }
+        calcEdit();
+      }
+
       function calcEdit() {
         const before = Number(modal.querySelector("#editPriceTaxEx").value || 0);
         const spec = Number(modal.querySelector("#editSpecValue").value || 0);
@@ -2630,10 +2679,7 @@
 
       modal.querySelectorAll("#editTaxSegment button").forEach((btn) => {
         btn.onclick = () => {
-          editTaxMode = Number(btn.dataset.tax);
-          modal.querySelectorAll("#editTaxSegment button").forEach((b) => b.classList.remove("active"));
-          btn.classList.add("active");
-          calcEdit();
+          setEditTaxMode(btn.dataset.tax);
         };
       });
       modal.querySelectorAll("#editUnitSegment button").forEach((btn) => {
@@ -2720,24 +2766,32 @@
         try {
           const { before, after } = calcEdit();
           const promoUntilValue = normalizeDateInput(modal.querySelector("#editPromoUntil").value);
+          if (editMode === "new" && !(before > 0)) {
+            editMsg.textContent = "请输入本次看到的税前价格。上次价格只作为提示，不会自动保存。";
+            return;
+          }
           const payload = {
-            product: {
-              id: data.product.id,
-              nameZh: modal.querySelector("#editNameZh").value.trim(),
-              nameJa: modal.querySelector("#editNameJa").value.trim(),
-              barcode: editBarcode
-            },
+            product: editMode === "new"
+              ? { id: data.product.id }
+              : {
+                id: data.product.id,
+                nameZh: modal.querySelector("#editNameZh").value.trim(),
+                nameJa: modal.querySelector("#editNameJa").value.trim(),
+                barcode: editBarcode
+              },
             storeId: Number(modal.querySelector("#editStoreId").value),
             priceTaxIn: after,
-            specValue: Number(modal.querySelector("#editSpecValue").value),
-            unit: editUnit,
+            specValue: editMode === "new" ? Number(top.specValue) : Number(modal.querySelector("#editSpecValue").value),
+            unit: editMode === "new" ? (top.unit || "g") : editUnit,
             recordDate: today(),
             priceTaxEx: before,
             taxRate: editTaxMode,
-            imageUrls: editImageUrls,
-            note: buildPromoNote(modal.querySelector("#editPlainNote").value, editIsPromo, promoUntilValue)
+            imageUrls: editMode === "new" ? inheritedImageUrls : editImageUrls,
+            note: editMode === "new"
+              ? "price-change"
+              : buildPromoNote(modal.querySelector("#editPlainNote").value, editIsPromo, promoUntilValue)
           };
-          if (!payload.product.nameZh && !payload.product.nameJa) {
+          if (editMode !== "new" && !payload.product.nameZh && !payload.product.nameJa) {
             editMsg.textContent = "中文名称和日文名称不能同时为空。";
             return;
           }
@@ -2745,10 +2799,7 @@
             ? await fetch("/api/price-records", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                ...payload,
-                note: payload.note || "price-change"
-              })
+              body: JSON.stringify(payload)
             })
             : await fetch(`/api/price-records/${top.id}`, {
               method: "PUT",
