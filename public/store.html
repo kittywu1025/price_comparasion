@@ -182,12 +182,6 @@
       align-items: flex-start;
     }
 
-    .post-title {
-      font-size: 16px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
     .post-body {
       font-size: 13px;
       line-height: 1.65;
@@ -421,53 +415,28 @@
       <div class="sheet-head">
         <div>
           <h2 id="composerTitle">上传店铺情报</h2>
-          <p id="composerHint" class="subtle">支持上传店内海报、积分日公告、优惠日历等图片。</p>
+          <p id="composerHint" class="subtle">只需上传图片，可选补一句备注和活动结束日期。</p>
         </div>
         <button id="closeComposerBtn" class="close-btn" type="button" aria-label="关闭">×</button>
       </div>
 
       <form id="composerForm" class="form-grid">
-        <div class="field">
-          <label for="postTitle">标题</label>
-          <input id="postTitle" maxlength="120" required placeholder="例如：5月お買い得カレンダー" />
-        </div>
-        <div class="field">
-          <label for="postType">类型</label>
-          <select id="postType" required></select>
-        </div>
         <div class="field full">
-          <label for="postContent">文字说明</label>
-          <textarea id="postContent" maxlength="2000" placeholder="写下你看到的活动说明、适用日期、注意事项。"></textarea>
-        </div>
-        <div class="field">
-          <label for="postSource">来源</label>
-          <select id="postSource">
-            <option value="店内海报">店内海报</option>
-            <option value="App">App</option>
-            <option value="官网">官网</option>
-            <option value="其他">其他</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="postLastConfirmedAt">最后确认日期</label>
-          <input id="postLastConfirmedAt" type="date" />
-        </div>
-        <div class="field">
-          <label for="postValidFrom">有效开始日期</label>
-          <input id="postValidFrom" type="date" />
-        </div>
-        <div class="field">
-          <label for="postValidTo">有效结束日期</label>
-          <input id="postValidTo" type="date" />
-        </div>
-        <div class="field full">
-          <label for="postImageFile">图片</label>
-          <input id="postImageFile" type="file" accept="image/*" />
-          <p id="imageHint" class="subtle">上传后会在前端压缩成 JPEG，大图不会原样保存。</p>
+          <label for="postImageFile">图片 <span aria-hidden="true">*</span></label>
+          <input id="postImageFile" type="file" accept="image/*" capture="environment" />
+          <p id="imageHint" class="subtle">必填。选择或拍照后会在前端压缩成 JPEG，再保存到投稿数据。</p>
           <div id="imagePreviewBox" class="preview-box" hidden>
             <img id="imagePreview" alt="投稿图片预览" />
             <p id="imageMeta" class="subtle"></p>
           </div>
+        </div>
+        <div class="field">
+          <label for="postContent">备注/说明</label>
+          <textarea id="postContent" maxlength="2000" placeholder="可选写一句备注，例如：周三双倍积分、门口海报拍摄。"></textarea>
+        </div>
+        <div class="field">
+          <label for="postValidTo">活动结束日期</label>
+          <input id="postValidTo" type="date" />
         </div>
         <div class="field full">
           <p id="formStatus" class="status"></p>
@@ -476,7 +445,7 @@
           <div class="sheet-actions">
             <button id="deletePostBtn" class="danger-btn" type="button" hidden>删除投稿</button>
             <button class="ghost-btn" type="button" id="cancelComposerBtn">取消</button>
-            <button class="primary-btn" type="submit" id="saveComposerBtn">保存投稿</button>
+            <button class="primary-btn" type="submit" id="saveComposerBtn">发布</button>
           </div>
         </div>
       </form>
@@ -489,23 +458,12 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const storeId = new URLSearchParams(location.search).get("id") || "";
-    const postTypes = [
-      ["calendar", "月度日历"],
-      ["points", "积分"],
-      ["charge", "充值日"],
-      ["discount", "折扣"],
-      ["member_day", "会员日"],
-      ["evening_sale", "晚间半价"],
-      ["coupon", "优惠券"],
-      ["poster", "海报"],
-      ["other", "其他"]
-    ];
-
     let currentStore = null;
     let currentPosts = [];
     let currentSession = { loggedIn: false, user: null };
     let editingPostId = "";
     let imageDataValue = "";
+    let imageUrlValue = "";
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -522,10 +480,6 @@
       return text.includes("T") ? text.slice(0, 10) : text;
     }
 
-    function typeLabel(type) {
-      return postTypes.find((item) => item[0] === type)?.[1] || type || "其他";
-    }
-
     function ageDays(value) {
       if (!value) return null;
       const ms = Date.now() - new Date(value).getTime();
@@ -540,7 +494,7 @@
       }
       const days = ageDays(post.uploadedAt);
       if (!post.validTo && days != null && days > 30) {
-        return { text: "较旧情报，请注意确认", className: "stale" };
+        return { text: "旧情报，请注意确认", className: "stale" };
       }
       return null;
     }
@@ -590,18 +544,11 @@
       list.innerHTML = posts.map((post) => {
         const imageSrc = post.imageData || post.imageUrl || "";
         const flag = validityState(post);
-        const validText = post.validFrom || post.validTo
-          ? `${formatDate(post.validFrom)} 至 ${formatDate(post.validTo)}`
-          : "未填写";
         return `
           <article class="post-card">
             <div class="post-head">
-              <div>
-                <h3 class="post-title">${escapeHtml(post.title || "")}</h3>
-                <div class="post-tags">
-                  <span class="tag">${escapeHtml(typeLabel(post.type))}</span>
-                  ${flag ? `<span class="flag ${flag.className}">${escapeHtml(flag.text)}</span>` : ""}
-                </div>
+              <div class="post-tags">
+                ${flag ? `<span class="flag ${flag.className}">${escapeHtml(flag.text)}</span>` : ""}
               </div>
               ${(post.canEdit || post.canDelete) ? `
                 <div class="post-actions">
@@ -610,17 +557,15 @@
                 </div>
               ` : ""}
             </div>
-            ${post.content ? `<div class="post-body">${escapeHtml(post.content)}</div>` : ""}
             ${imageSrc ? `
               <div class="post-image">
-                <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(post.title || "店铺情报图片")}" data-image-src="${escapeHtml(imageSrc)}" />
+                <img src="${escapeHtml(imageSrc)}" alt="店铺情报图片" data-image-src="${escapeHtml(imageSrc)}" />
               </div>
             ` : ""}
-            <div class="post-meta">来源：${escapeHtml(post.source || "-")}</div>
-            <div class="post-meta">上传日期：${escapeHtml(formatDate(post.uploadedAt))}</div>
-            <div class="post-meta">最后确认：${escapeHtml(formatDate(post.lastConfirmedAt))}</div>
-            <div class="post-meta">有效期：${escapeHtml(validText)}</div>
+            ${post.content ? `<div class="post-body">${escapeHtml(post.content)}</div>` : ""}
             <div class="post-meta">上传者：${escapeHtml(post.createdByName || post.createdBy || "-")}</div>
+            <div class="post-meta">上传日期：${escapeHtml(formatDate(post.uploadedAt))}</div>
+            ${post.validTo ? `<div class="post-meta">活动结束日期：${escapeHtml(formatDate(post.validTo))}</div>` : ""}
           </article>
         `;
       }).join("");
@@ -629,10 +574,11 @@
     function resetComposer() {
       editingPostId = "";
       imageDataValue = "";
+      imageUrlValue = "";
       $("composerTitle").textContent = "上传店铺情报";
-      $("composerHint").textContent = "支持上传店内海报、积分日公告、优惠日历等图片。";
+      $("composerHint").textContent = "只需上传图片，可选补一句备注和活动结束日期。";
       $("composerForm").reset();
-      $("postSource").value = "店内海报";
+      $("saveComposerBtn").textContent = "发布";
       $("deletePostBtn").hidden = true;
       $("imagePreviewBox").hidden = true;
       $("imagePreview").removeAttribute("src");
@@ -650,15 +596,12 @@
       if (post) {
         editingPostId = post.id;
         $("composerTitle").textContent = "编辑店铺情报";
-        $("composerHint").textContent = `正在编辑 ${post.title || "投稿"}。`;
-        $("postTitle").value = post.title || "";
-        $("postType").value = post.type || "other";
+        $("composerHint").textContent = "可以更新图片、备注或活动结束日期。";
+        $("saveComposerBtn").textContent = "更新";
         $("postContent").value = post.content || "";
-        $("postSource").value = post.source || "店内海报";
-        $("postLastConfirmedAt").value = formatDate(post.lastConfirmedAt) === "-" ? "" : formatDate(post.lastConfirmedAt);
-        $("postValidFrom").value = formatDate(post.validFrom) === "-" ? "" : formatDate(post.validFrom);
         $("postValidTo").value = formatDate(post.validTo) === "-" ? "" : formatDate(post.validTo);
         imageDataValue = post.imageData || "";
+        imageUrlValue = post.imageUrl || "";
         if (post.imageData || post.imageUrl) {
           $("imagePreviewBox").hidden = false;
           $("imagePreview").src = post.imageData || post.imageUrl;
@@ -698,10 +641,12 @@
       try {
         const { dataUrl, width, height } = await compressImage(file, 1200, 0.76);
         imageDataValue = dataUrl;
+        imageUrlValue = "";
         $("imagePreview").src = dataUrl;
         $("imageMeta").textContent = `已压缩为 JPEG ${width}×${height}，约 ${(dataUrl.length * 0.75 / 1024).toFixed(0)} KB`;
       } catch (error) {
         imageDataValue = "";
+        imageUrlValue = "";
         $("imagePreviewBox").hidden = true;
         throw error;
       }
@@ -734,18 +679,18 @@
       }
       const payload = {
         storeId,
-        title: $("postTitle").value.trim(),
-        type: $("postType").value,
+        title: "店铺情报",
+        type: "post",
         content: $("postContent").value.trim(),
-        source: $("postSource").value,
+        source: "用户上传",
         imageData: imageDataValue,
-        imageUrl: "",
-        lastConfirmedAt: $("postLastConfirmedAt").value,
-        validFrom: $("postValidFrom").value,
+        imageUrl: imageUrlValue,
+        lastConfirmedAt: "",
+        validFrom: "",
         validTo: $("postValidTo").value
       };
-      if (!payload.title) {
-        $("formStatus").textContent = "标题不能为空。";
+      if (!payload.imageData && !payload.imageUrl) {
+        $("formStatus").textContent = "请先上传图片。";
         return;
       }
       $("formStatus").textContent = "正在保存...";
@@ -817,14 +762,7 @@
       });
     }
 
-    function setupTypeOptions() {
-      $("postType").innerHTML = postTypes.map(([value, label]) => (
-        `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`
-      )).join("");
-    }
-
     (async function init() {
-      setupTypeOptions();
       bindEvents();
       await loadSession();
       updateUploadButton();
