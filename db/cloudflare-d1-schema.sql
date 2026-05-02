@@ -110,3 +110,29 @@ create table if not exists feedback (
 );
 
 create index if not exists idx_feedback_created_at on feedback(created_at desc);
+
+create table if not exists store_posts (
+  id text primary key,
+  store_id text not null,
+  title text not null,
+  type text not null,
+  content text,
+  source text,
+  image_data text,
+  image_url text,
+  uploaded_at text,
+  last_confirmed_at text,
+  valid_from text,
+  valid_to text,
+  created_by text,
+  created_at text not null default (datetime('now')),
+  updated_at text not null default (datetime('now')),
+  deleted_at text
+);
+
+create index if not exists idx_store_posts_store_id on store_posts(store_id);
+create index if not exists idx_store_posts_type on store_posts(type);
+create index if not exists idx_store_posts_uploaded_at on store_posts(uploaded_at desc);
+create index if not exists idx_store_posts_valid_to on store_posts(valid_to);
+create index if not exists idx_store_posts_updated_at on store_posts(updated_at desc);
+create index if not exists idx_store_posts_deleted_at on store_posts(deleted_at);

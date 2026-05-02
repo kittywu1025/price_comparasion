@@ -754,9 +754,8 @@
             card.classList.remove("menu-open");
             return;
           }
-          location.href = pageUrl("/products", new URLSearchParams({
-            storeId: card.dataset.id,
-            storeName: card.dataset.name
+          location.href = pageUrl("/store.html", new URLSearchParams({
+            id: card.dataset.id
           }));
         }
         return;

@@ -8,7 +8,16 @@ function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     const initial = {
-      counters: { category: 1, store: 1, product: 1, priceRecord: 1, storeRevision: 1, priceRecordRevision: 1, feedback: 1 },
+      counters: {
+        category: 1,
+        store: 1,
+        product: 1,
+        priceRecord: 1,
+        storeRevision: 1,
+        priceRecordRevision: 1,
+        feedback: 1,
+        storePost: 1
+      },
       categories: [],
       stores: [],
       products: [],
@@ -16,7 +25,8 @@ function ensureDataFile() {
       storeRevisions: [],
       priceRecordRevisions: [],
       feedback: [],
-      userProfiles: []
+      userProfiles: [],
+      storePosts: []
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
   }
@@ -33,6 +43,7 @@ export function readDb() {
   db.counters.storeRevision ??= 1;
   db.counters.priceRecordRevision ??= 1;
   db.counters.feedback ??= 1;
+  db.counters.storePost ??= 1;
   db.categories ??= [];
   db.stores ??= [];
   db.products ??= [];
@@ -41,6 +52,8 @@ export function readDb() {
   db.priceRecordRevisions ??= [];
   db.feedback ??= [];
   db.userProfiles ??= [];
+  if (!db.storePosts && Array.isArray(db.deals)) db.storePosts = db.deals;
+  db.storePosts ??= [];
   return db;
 }
 

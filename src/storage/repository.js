@@ -214,6 +214,110 @@ export function deleteStore(storeId, auth = {}) {
   return deleted;
 }
 
+export function getStore(storeId, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const id = Number(storeId);
+  const store = db.stores.find((item) => Number(item.id) === id);
+  if (!store) return null;
+  const priceRecords = db.priceRecords.filter((record) => Number(record.storeId) === id);
+  const storePosts = db.storePosts.filter((post) => Number(post.storeId) === id && !post.deletedAt);
+  return {
+    ...store,
+    canDelete: canDeleteRow(auth, store.createdBy),
+    priceRecordCount: priceRecords.length,
+    storePostCount: storePosts.length,
+    latestPriceRecordDate: priceRecords
+      .map((record) => record.recordDate || "")
+      .filter(Boolean)
+      .sort()
+      .pop() || null
+  };
+}
+
+export function listStorePosts({ storeId = "" } = {}, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const storeIdText = String(storeId || "").trim();
+  if (storeIdText && !/^\d+$/.test(storeIdText)) throw new Error("storeId is required");
+
+  return db.storePosts
+    .filter((post) => !post.deletedAt)
+    .filter((post) => !storeIdText || String(post.storeId) === storeIdText)
+    .slice()
+    .sort((a, b) =>
+      String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")) ||
+      String(b.validTo || "").localeCompare(String(a.validTo || "")) ||
+      String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) ||
+      String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+    )
+    .map((post) => toStorePost(db, post, auth));
+}
+
+export function getStorePost(postId, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const post = db.storePosts.find((item) => item.id === String(postId) && !item.deletedAt);
+  if (!post) return null;
+  return toStorePost(db, post, auth);
+}
+
+export function createStorePost(input, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const row = normalizeStorePostInput(input, auth);
+  row.id = createStorePostId(db);
+  row.createdBy = getCreatedBy(auth);
+  row.uploadedAt = new Date().toISOString();
+  row.createdAt = new Date().toISOString();
+  row.updatedAt = row.createdAt;
+  row.deletedAt = null;
+  db.storePosts.push(row);
+  writeDb(db);
+  return toStorePost(db, row, auth);
+}
+
+export function updateStorePost(postId, input, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const row = db.storePosts.find((item) => item.id === String(postId) && !item.deletedAt);
+  if (!row) throw new Error("store post not found");
+  if (!canDeleteRow(auth, row.createdBy)) {
+    throw new Error("forbidden: only owner or admin can edit this store post");
+  }
+
+  const next = normalizeStorePostInput(input, auth);
+  Object.assign(row, {
+    storeId: next.storeId,
+    title: next.title,
+    type: next.type,
+    content: next.content,
+    source: next.source,
+    imageData: next.imageData,
+    imageUrl: next.imageUrl,
+    lastConfirmedAt: next.lastConfirmedAt,
+    validFrom: next.validFrom,
+    validTo: next.validTo,
+    updatedAt: new Date().toISOString()
+  });
+  writeDb(db);
+  return toStorePost(db, row, auth);
+}
+
+export function deleteStorePost(postId, auth = {}) {
+  const db = readDb();
+  ensureDbShape(db);
+  const row = db.storePosts.find((item) => item.id === String(postId) && !item.deletedAt);
+  if (!row) throw new Error("store post not found");
+  if (!canDeleteRow(auth, row.createdBy)) {
+    throw new Error("forbidden: only owner or admin can delete this store post");
+  }
+  row.deletedAt = new Date().toISOString();
+  row.updatedAt = row.deletedAt;
+  writeDb(db);
+  return { id: row.id };
+}
+
 export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}) {
   const db = readDb();
 
@@ -665,10 +769,13 @@ function ensureDbShape(db) {
   db.counters.storeRevision ??= 1;
   db.counters.priceRecordRevision ??= 1;
   db.counters.feedback ??= 1;
+  db.counters.storePost ??= 1;
   db.storeRevisions ??= [];
   db.priceRecordRevisions ??= [];
   db.feedback ??= [];
   db.userProfiles ??= [];
+  if (!db.storePosts && Array.isArray(db.deals)) db.storePosts = db.deals;
+  db.storePosts ??= [];
 
   for (const store of db.stores ?? []) {
     store.createdBy ??= "local-import";
@@ -680,6 +787,25 @@ function ensureDbShape(db) {
 
   for (const product of db.products ?? []) {
     product.createdBy ??= "local-import";
+  }
+
+  for (const post of db.storePosts ?? []) {
+    post.id = String(post.id || createStorePostId(db));
+    post.storeId = post.storeId == null || post.storeId === "" ? null : Number(post.storeId);
+    post.title ??= "";
+    post.type ??= "other";
+    post.content ??= post.note ?? "";
+    post.source ??= "";
+    post.imageData ??= "";
+    post.imageUrl ??= "";
+    post.uploadedAt ??= post.createdAt ?? new Date().toISOString();
+    post.lastConfirmedAt ??= "";
+    post.validFrom ??= post.startDate ?? "";
+    post.validTo ??= post.endDate ?? "";
+    post.createdBy ??= "local-import";
+    post.createdAt ??= post.uploadedAt;
+    post.updatedAt ??= post.createdAt;
+    post.deletedAt ??= null;
   }
 }
 
@@ -704,6 +830,83 @@ function canDeleteRow(auth, createdBy) {
 function canUndoLatestRevision(auth, modifiedBy) {
   if (auth?.isAdmin) return true;
   return Boolean(auth?.email && modifiedBy && auth.email === String(modifiedBy).trim().toLowerCase());
+}
+
+function createStorePostId(db) {
+  const id = db?.counters?.storePost ?? 1;
+  if (db?.counters) db.counters.storePost = id + 1;
+  return `store_post_${id}`;
+}
+
+function normalizeStorePostInput(input, auth = {}) {
+  const title = String(input.title || "").trim();
+  const type = String(input.type || "").trim();
+  const storeId = normalizeNullableNumber(input.storeId);
+  if (!title) throw new Error("title is required");
+  if (!type) throw new Error("type is required");
+  if (storeId == null) throw new Error("storeId is required");
+  return {
+    storeId,
+    title,
+    type,
+    content: clean(input.content),
+    source: clean(input.source),
+    imageData: cleanImageData(input.imageData),
+    imageUrl: clean(input.imageUrl),
+    lastConfirmedAt: clean(input.lastConfirmedAt),
+    validFrom: clean(input.validFrom),
+    validTo: clean(input.validTo),
+    createdBy: getCreatedBy(auth)
+  };
+}
+
+function toStorePost(db, row, auth = {}) {
+  const store = row.storeId == null ? null : db.stores.find((item) => Number(item.id) === Number(row.storeId));
+  const profile = profileFor(db, row.createdBy || "");
+  return {
+    id: row.id,
+    storeId: row.storeId,
+    title: row.title,
+    type: row.type,
+    content: row.content || "",
+    source: row.source || "",
+    imageData: row.imageData || "",
+    imageUrl: row.imageUrl || "",
+    uploadedAt: row.uploadedAt || row.createdAt || "",
+    lastConfirmedAt: row.lastConfirmedAt || "",
+    validFrom: row.validFrom || "",
+    validTo: row.validTo || "",
+    createdBy: row.createdBy || "",
+    createdByName: profile.displayName || row.createdBy || "",
+    createdAt: row.createdAt || "",
+    updatedAt: row.updatedAt || row.createdAt || "",
+    deletedAt: row.deletedAt || null,
+    storeName: store?.name || "",
+    canEdit: canDeleteRow(auth, row.createdBy),
+    canDelete: canDeleteRow(auth, row.createdBy),
+    currentUser: auth?.email || "",
+    isAdmin: Boolean(auth?.isAdmin)
+  };
+}
+
+function normalizeNullableNumber(value) {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) throw new Error("storeId must be a number");
+  return number;
+}
+
+function clean(value) {
+  return String(value ?? "").trim();
+}
+
+function cleanImageData(value) {
+  const text = clean(value);
+  if (!text) return "";
+  if (!text.startsWith("data:image/")) {
+    throw new Error("imageData must be a data URL");
+  }
+  return text;
 }
 
 function isPromoActive(note) {

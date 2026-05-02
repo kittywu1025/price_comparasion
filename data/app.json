@@ -5,7 +5,9 @@
     "product": 2,
     "priceRecord": 2,
     "storeRevision": 1,
-    "priceRecordRevision": 1
+    "priceRecordRevision": 1,
+    "feedback": 1,
+    "storePost": 1
   },
   "categories": [
     {
@@ -35,77 +37,88 @@
       "name": "Cosmos コスモス（中央店）",
       "chainBrand": "Cosmos",
       "location": "中央",
-      "note": ""
+      "note": "",
+      "createdBy": "local-import"
     },
     {
       "id": 4,
       "name": "大youme（東広島）",
       "chainBrand": "youme",
       "location": "Saijo Doyomaru 西条土与丸",
-      "note": "中央区域的大youme"
+      "note": "中央区域的大youme",
+      "createdBy": "local-import"
     },
     {
       "id": 5,
       "name": "Fuji Grand フジグラン（東広島）",
       "chainBrand": "Fuji",
       "location": "Saijo Misonou 西条町御薗宇",
-      "note": "生活采购常去"
+      "note": "生活采购常去",
+      "createdBy": "local-import"
     },
     {
       "id": 6,
       "name": "youme mall ゆめモール（西条）",
       "chainBrand": "youme",
       "location": "Saijo Sukezane 西条町助実",
-      "note": "youme mall 门店"
+      "note": "youme mall 门店",
+      "createdBy": "local-import"
     },
     {
       "id": 7,
       "name": "Gyomu Super Every エブリイ（西条御薗宇店）",
       "chainBrand": "业务超市",
       "location": "西条町御薗宇",
-      "note": "大包装和冷冻食品选择多"
+      "note": "大包装和冷冻食品选择多",
+      "createdBy": "local-import"
     },
     {
       "id": 8,
       "name": "HALOWS ハローズ（東広島店）",
       "chainBrand": "HALOWS",
       "location": "Saijo Jike 西条町寺家",
-      "note": "营业时间长"
+      "note": "营业时间长",
+      "createdBy": "local-import"
     },
     {
       "id": 9,
       "name": "LAMU ラ・ムー（西条店）",
       "chainBrand": "LAMU",
       "location": "Saijo Doyomaru 西条町土与丸",
-      "note": "低价导向"
+      "note": "低价导向",
+      "createdBy": "local-import"
     },
     {
       "id": 10,
       "name": "SHOJI ショージ（下見店）",
       "chainBrand": "SHOJI",
       "location": "Saijo Shitami 西条下見",
-      "note": "靠近广岛大学周边"
+      "note": "靠近广岛大学周边",
+      "createdBy": "local-import"
     },
     {
       "id": 11,
       "name": "MaxValu マックスバリュ（西条西店）",
       "chainBrand": "MaxValu",
       "location": "Saijo Jike 西条町寺家",
-      "note": "连锁综合超市"
+      "note": "连锁综合超市",
+      "createdBy": "local-import"
     },
     {
       "id": 12,
       "name": "FRESTA フレスタ（西条店）",
       "chainBrand": "FRESTA",
       "location": "Saijo 西条",
-      "note": "本地常用连锁超市"
+      "note": "本地常用连锁超市",
+      "createdBy": "local-import"
     },
     {
       "id": 13,
       "name": "小youme（广岛大学附近）",
       "chainBrand": "youme",
       "location": "Saijo Honmachi 西条本町",
-      "note": "广岛大学对面的小youme"
+      "note": "广岛大学对面的小youme",
+      "createdBy": "local-import"
     }
   ],
   "products": [
@@ -118,7 +131,8 @@
       "categoryId": null,
       "defaultImageUrl": null,
       "createdAt": "2026-04-25",
-      "updatedAt": "2026-04-25"
+      "updatedAt": "2026-04-25",
+      "createdBy": "local-import"
     }
   ],
   "priceRecords": [
@@ -136,9 +150,13 @@
       "imageUrl": null,
       "recordDate": "2026-04-25",
       "note": null,
-      "createdAt": "2026-04-25"
+      "createdAt": "2026-04-25",
+      "createdBy": "local-import"
     }
   ],
   "storeRevisions": [],
-  "priceRecordRevisions": []
+  "priceRecordRevisions": [],
+  "feedback": [],
+  "userProfiles": [],
+  "storePosts": []
 }

@@ -46,6 +46,10 @@ export async function onRequest(context) {
       return handleStores(request, env, route, auth);
     }
 
+    if (route[0] === "store-posts") {
+      return handleStorePosts(request, env, route, auth);
+    }
+
     if (route[0] === "me") {
       return handleMe(request, env, route, auth);
     }
@@ -74,6 +78,7 @@ function requiresAccess(route, request) {
   if (area === "me") return true;
   if (area === "feedback") return true;
   if (area === "stores") return request.method !== "GET";
+  if (area === "store-posts") return request.method !== "GET";
   if (area === "price-records" || area === "categories") return true;
   return request.method !== "GET";
 }
@@ -292,6 +297,35 @@ async function ensureUserProfilesTable(env) {
   );
 }
 
+async function ensureStorePostsTable(env) {
+  await run(
+    env,
+    `create table if not exists store_posts (
+      id text primary key,
+      store_id text not null,
+      title text not null,
+      type text not null,
+      content text,
+      source text,
+      image_data text,
+      image_url text,
+      uploaded_at text,
+      last_confirmed_at text,
+      valid_from text,
+      valid_to text,
+      created_by text,
+      created_at text not null default (datetime('now')),
+      updated_at text not null default (datetime('now')),
+      deleted_at text
+    )`
+  );
+  await run(env, "create index if not exists idx_store_posts_store_id on store_posts(store_id)");
+  await run(env, "create index if not exists idx_store_posts_type on store_posts(type)");
+  await run(env, "create index if not exists idx_store_posts_uploaded_at on store_posts(uploaded_at desc)");
+  await run(env, "create index if not exists idx_store_posts_valid_to on store_posts(valid_to)");
+  await run(env, "create index if not exists idx_store_posts_deleted_at on store_posts(deleted_at)");
+}
+
 async function handleCategories(request, env) {
   if (request.method === "GET") {
     const rows = await all(env, "select id, name from categories order by name");
@@ -321,6 +355,7 @@ async function handleStores(request, env, route, auth) {
   const storeId = route[1] ? Number(route[1]) : null;
   const hasOwnership = await storesHaveOwnership(env);
   const isUndoRoute = route[2] === "undo";
+  await ensureStorePostsTable(env);
 
   if (request.method === "GET" && !storeId) {
     const rows = await all(
@@ -328,6 +363,26 @@ async function handleStores(request, env, route, auth) {
       hasOwnership ? "select * from stores order by id desc" : "select *, '' as created_by from stores order by id desc"
     );
     return json(rows.map((row) => toStore(row, auth)));
+  }
+
+  if (request.method === "GET" && storeId && Number.isFinite(storeId) && !route[2]) {
+    const existing = await first(
+      env,
+      hasOwnership ? "select * from stores where id = ?" : "select *, '' as created_by from stores where id = ?",
+      [storeId]
+    );
+    if (!existing) return json({ error: "store not found" }, 404);
+    const [priceRecordCount, storePostCount, latestPriceRecordDate] = await Promise.all([
+      first(env, "select count(*) as count from price_records where store_id = ?", [storeId]),
+      first(env, "select count(*) as count from store_posts where store_id = ? and deleted_at is null", [String(storeId)]),
+      first(env, "select max(record_date) as date from price_records where store_id = ?", [storeId])
+    ]);
+    return json({
+      ...toStore(existing, auth),
+      priceRecordCount: Number(priceRecordCount?.count || 0),
+      storePostCount: Number(storePostCount?.count || 0),
+      latestPriceRecordDate: latestPriceRecordDate?.date || null
+    });
   }
 
   if (request.method === "POST" && !storeId) {
@@ -420,6 +475,136 @@ async function handleProducts(request, env, route, auth) {
     const detail = await getProductDetail(env, productId);
     if (!detail) return json({ error: "product not found" }, 404);
     return json(detail);
+  }
+
+  return json({ error: "Method not allowed" }, 405);
+}
+
+async function handleStorePosts(request, env, route, auth) {
+  await ensureStorePostsTable(env);
+  await ensureUserProfilesTable(env);
+  const postId = route[1] ? String(route[1]) : "";
+
+  if (request.method === "GET" && !postId) {
+    const url = new URL(request.url);
+    const storeId = String(url.searchParams.get("storeId") || "").trim();
+    if (storeId && !/^\d+$/.test(storeId)) return json({ error: "storeId is required" }, 400);
+    const params = [];
+    const where = ["sp.deleted_at is null"];
+    if (storeId) {
+      where.push("sp.store_id = ?");
+      params.push(storeId);
+    }
+    const rows = await all(
+      env,
+      `select sp.*, s.name as store_name, up.display_name as created_by_name
+       from store_posts sp
+       left join stores s on cast(s.id as text) = sp.store_id
+       left join user_profiles up on up.email = lower(sp.created_by)
+       where ${where.join(" and ")}
+       order by coalesce(sp.uploaded_at, '') desc, coalesce(sp.valid_to, '') desc, sp.updated_at desc, sp.created_at desc`,
+      params
+    );
+    return json(rows.map((row) => toStorePost(row, auth)));
+  }
+
+  if (request.method === "GET" && postId) {
+    const row = await first(
+      env,
+      `select sp.*, s.name as store_name, up.display_name as created_by_name
+       from store_posts sp
+       left join stores s on cast(s.id as text) = sp.store_id
+       left join user_profiles up on up.email = lower(sp.created_by)
+       where sp.id = ? and sp.deleted_at is null`,
+      [postId]
+    );
+    if (!row) return json({ error: "store post not found" }, 404);
+    return json(toStorePost(row, auth));
+  }
+
+  if (request.method === "POST" && !postId) {
+    const body = normalizeStorePostInput(await readJson(request));
+    const id = crypto.randomUUID();
+    await run(
+      env,
+      `insert into store_posts (
+        id, store_id, title, type, content, source, image_data, image_url,
+        uploaded_at, last_confirmed_at, valid_from, valid_to, created_by, created_at, updated_at, deleted_at
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, datetime('now'), datetime('now'), null)`,
+      [
+        id,
+        body.storeId,
+        body.title,
+        body.type,
+        body.content,
+        body.source,
+        body.imageData,
+        body.imageUrl,
+        body.lastConfirmedAt,
+        body.validFrom,
+        body.validTo,
+        auth.email || ""
+      ]
+    );
+    const row = await first(
+      env,
+      `select sp.*, s.name as store_name, up.display_name as created_by_name
+       from store_posts sp
+       left join stores s on cast(s.id as text) = sp.store_id
+       left join user_profiles up on up.email = lower(sp.created_by)
+       where sp.id = ?`,
+      [id]
+    );
+    return json(toStorePost(row, auth), 201);
+  }
+
+  if (request.method === "PUT" && postId) {
+    const existing = await first(env, "select * from store_posts where id = ? and deleted_at is null", [postId]);
+    if (!existing) return json({ error: "store post not found" }, 404);
+    if (!canDeleteRow(auth, existing.created_by)) {
+      return json({ error: "forbidden: only owner or admin can edit this store post" }, 403);
+    }
+    const body = normalizeStorePostInput(await readJson(request));
+    await run(
+      env,
+      `update store_posts
+       set store_id = ?, title = ?, type = ?, content = ?, source = ?, image_data = ?, image_url = ?,
+           last_confirmed_at = ?, valid_from = ?, valid_to = ?, updated_at = datetime('now')
+       where id = ?`,
+      [
+        body.storeId,
+        body.title,
+        body.type,
+        body.content,
+        body.source,
+        body.imageData,
+        body.imageUrl,
+        body.lastConfirmedAt,
+        body.validFrom,
+        body.validTo,
+        postId
+      ]
+    );
+    const row = await first(
+      env,
+      `select sp.*, s.name as store_name, up.display_name as created_by_name
+       from store_posts sp
+       left join stores s on cast(s.id as text) = sp.store_id
+       left join user_profiles up on up.email = lower(sp.created_by)
+       where sp.id = ?`,
+      [postId]
+    );
+    return json(toStorePost(row, auth));
+  }
+
+  if (request.method === "DELETE" && postId) {
+    const existing = await first(env, "select id, created_by from store_posts where id = ? and deleted_at is null", [postId]);
+    if (!existing) return json({ error: "store post not found" }, 404);
+    if (!canDeleteRow(auth, existing.created_by)) {
+      return json({ error: "forbidden: only owner or admin can delete this store post" }, 403);
+    }
+    await run(env, "update store_posts set deleted_at = datetime('now'), updated_at = datetime('now') where id = ?", [postId]);
+    return json({ id: postId });
   }
 
   return json({ error: "Method not allowed" }, 405);
@@ -1052,6 +1237,31 @@ function clean(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeStorePostInput(input = {}) {
+  const title = clean(input.title);
+  const type = clean(input.type);
+  if (!title) throw new Error("title is required");
+  if (!type) throw new Error("type is required");
+  const storeId = input.storeId == null || input.storeId === "" ? "" : String(input.storeId).trim();
+  if (!storeId || !/^\d+$/.test(storeId)) throw new Error("storeId is required");
+  const imageData = clean(input.imageData);
+  if (imageData && !imageData.startsWith("data:image/")) {
+    throw new Error("imageData must be a data URL");
+  }
+  return {
+    storeId,
+    title,
+    type,
+    content: clean(input.content),
+    source: clean(input.source),
+    imageData,
+    imageUrl: clean(input.imageUrl),
+    lastConfirmedAt: clean(input.lastConfirmedAt),
+    validFrom: clean(input.validFrom),
+    validTo: clean(input.validTo)
+  };
+}
+
 function getCreatedBy(auth) {
   return auth?.email || "cloudflare-access";
 }
@@ -1133,6 +1343,33 @@ function toStore(row, auth) {
     location: row.location || "",
     note: row.note || "",
     canDelete: canDeleteRow(auth, row.created_by || "")
+  };
+}
+
+function toStorePost(row, auth) {
+  return {
+    id: row.id,
+    storeId: row.store_id == null || row.store_id === "" ? null : row.store_id,
+    title: row.title || "",
+    type: row.type || "other",
+    content: row.content || "",
+    source: row.source || "",
+    imageData: row.image_data || "",
+    imageUrl: row.image_url || "",
+    uploadedAt: row.uploaded_at || row.created_at || "",
+    lastConfirmedAt: row.last_confirmed_at || "",
+    validFrom: row.valid_from || "",
+    validTo: row.valid_to || "",
+    createdBy: row.created_by || "",
+    createdByName: row.created_by_name || row.created_by || "",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || row.created_at || "",
+    deletedAt: row.deleted_at || null,
+    storeName: row.store_name || "",
+    canEdit: canDeleteRow(auth, row.created_by || ""),
+    canDelete: canDeleteRow(auth, row.created_by || ""),
+    currentUser: auth?.email || "",
+    isAdmin: Boolean(auth?.isAdmin)
   };
 }
 

@@ -30,6 +30,12 @@
   if (requiresAuth) showLoginModal();
 })();
 
+window.priceAuth = {
+  checkLogin,
+  showLoginModal,
+  showUsernameModal
+};
+
 async function checkLogin(isLocal) {
   try {
     const res = await fetch("/api/me/stats", { headers: { accept: "application/json" } });

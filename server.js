@@ -8,9 +8,12 @@ import {
   createCategory,
   createFeedback,
   deletePriceRecord,
+  deleteStorePost,
   createPriceRecord,
+  createStorePost,
   createStore,
   deleteStore,
+  getStore,
   getProductDetail,
   getMyProfile,
   getMyStats,
@@ -18,9 +21,12 @@ import {
   listCategories,
   listFeedback,
   listProducts,
+  listStorePosts,
   listStores,
+  getStorePost,
   undoPriceRecord,
   undoStore,
+  updateStorePost,
   updateMyProfile,
   updatePriceRecord,
   updateStore
@@ -140,6 +146,17 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, listStores(auth));
     }
 
+    if (req.method === "GET" && pathname === "/api/store-posts") {
+      return sendJson(res, 200, listStorePosts({
+        storeId: searchParams.get("storeId") || ""
+      }, auth));
+    }
+
+    if (req.method === "POST" && pathname === "/api/store-posts") {
+      const body = await parseBody(req);
+      return sendJson(res, 201, createStorePost(body, auth));
+    }
+
     if (req.method === "POST" && pathname === "/api/stores") {
       const body = await parseBody(req);
       if (!body.name?.trim()) return sendJson(res, 400, { error: "name is required" });
@@ -150,6 +167,12 @@ const server = http.createServer(async (req, res) => {
       const parts = pathname.split("/").filter(Boolean);
       const id = Number(parts[2]);
       if (!Number.isFinite(id)) return sendJson(res, 400, { error: "invalid store id" });
+
+      if (req.method === "GET" && !parts[3]) {
+        const store = getStore(id, auth);
+        if (!store) return sendJson(res, 404, { error: "store not found" });
+        return sendJson(res, 200, store);
+      }
 
       if (req.method === "POST" && parts[3] === "undo") {
         return sendJson(res, 200, undoStore(id, auth));
@@ -163,6 +186,26 @@ const server = http.createServer(async (req, res) => {
 
       if (req.method === "DELETE") {
         return sendJson(res, 200, deleteStore(id, auth));
+      }
+    }
+
+    if (pathname.startsWith("/api/store-posts/")) {
+      const id = pathname.split("/").filter(Boolean)[2];
+      if (!id) return sendJson(res, 400, { error: "invalid store post id" });
+
+      if (req.method === "GET") {
+        const post = getStorePost(id, auth);
+        if (!post) return sendJson(res, 404, { error: "store post not found" });
+        return sendJson(res, 200, post);
+      }
+
+      if (req.method === "PUT") {
+        const body = await parseBody(req);
+        return sendJson(res, 200, updateStorePost(id, body, auth));
+      }
+
+      if (req.method === "DELETE") {
+        return sendJson(res, 200, deleteStorePost(id, auth));
       }
     }
 
