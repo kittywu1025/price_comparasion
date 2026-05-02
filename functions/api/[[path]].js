@@ -644,6 +644,7 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
       const latest = productRecords.slice().sort((a, b) =>
         String(b.record_date || "").localeCompare(String(a.record_date || "")) || Number(b.id) - Number(a.id)
       )[0];
+      const latestActivityAt = latestActivityForProduct(product, productRecords);
       const keywordProducts = products.filter((candidate) =>
         matchesCompareKeyword(compareKeywordOfProduct(product), compareKeywordOfProduct(candidate))
       );
@@ -677,10 +678,15 @@ async function listProducts(env, { q = "", scope = "all", categoryId, storeId } 
         latestUnitPrice: latest?.unit_price ?? null,
         latestUnitPriceLabel: latest?.unit_price_label ?? null,
         latestStoreName: latestStore ?? null,
-        latestRecordDate: latest?.record_date ?? null
+        latestRecordDate: latest?.record_date ?? null,
+        latestActivityAt
       };
     })
-    .sort((a, b) => String(b.latestRecordDate || "").localeCompare(String(a.latestRecordDate || "")));
+    .sort((a, b) =>
+      String(b.latestActivityAt || "").localeCompare(String(a.latestActivityAt || "")) ||
+      String(b.latestRecordDate || "").localeCompare(String(a.latestRecordDate || "")) ||
+      Number(b.latestRecordId || 0) - Number(a.latestRecordId || 0)
+    );
 }
 
 async function getProductDetail(env, productId) {
@@ -1100,6 +1106,14 @@ function lowestRecord(records) {
   )[0] || null;
 }
 
+function latestActivityForProduct(product, records) {
+  return [
+    product.updated_at,
+    product.created_at,
+    ...records.flatMap((record) => [record.updated_at, record.created_at])
+  ].filter(Boolean).sort().pop() || "";
+}
+
 let storesOwnershipPromise;
 
 async function storesHaveOwnership(env) {
@@ -1140,6 +1154,7 @@ function toPriceRecord(row) {
     recordDate: row.record_date,
     note: row.note || null,
     createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at || "",
     createdBy: row.created_by || "",
     createdByName: row.created_by_name || row.created_by || "",
     lastModifiedBy: row.last_modified_by || "",

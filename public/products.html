@@ -1387,7 +1387,7 @@
       <div class="hero-top">
         <h1 class="title">价格比价清单</h1>
         <div class="hero-actions">
-          <button id="batchEntry" class="batch-entry" type="button">批量修改</button>
+          <button id="batchEntry" class="batch-entry" type="button" style="display:none;">批量修改</button>
           <button id="scanSearch" class="scan-btn" aria-label="扫码搜索">⌁</button>
         </div>
       </div>
@@ -1454,6 +1454,7 @@
     let suppressNextHistoryClick = false;
     let longPressTimer = null;
     let batchMode = false;
+    let developerBatchEnabled = false;
     const selectedProducts = new Set();
     let bodyScrollY = 0;
     let modalLocked = false;
@@ -1982,8 +1983,9 @@
     }
 
     function updateBatchBar() {
-      $("batchBar").classList.toggle("show", batchMode);
+      $("batchBar").classList.toggle("show", developerBatchEnabled && batchMode);
       $("batchEntry").textContent = batchMode ? "完成" : "批量修改";
+      $("batchEntry").style.display = developerBatchEnabled ? "" : "none";
       $("batchCount").textContent = `已选择 ${selectedProducts.size} 条`;
       $("batchEdit").disabled = selectedProducts.size === 0;
       $("batchSelectAll").textContent =
@@ -2005,6 +2007,7 @@
     }
 
     function enterBatchMode(productId = "") {
+      if (!developerBatchEnabled) return;
       batchMode = true;
       if (productId) {
         const item = cache.find((entry) => String(entry.productId) === String(productId));
@@ -2348,6 +2351,10 @@
               ${renderHistory(data.records || [])}
             </div>
             <div class="modal-actions">
+              <button id="detailAddRecordBtn" class="btn btn-primary" type="button">新增价格</button>
+              <button id="detailEditRecordBtn" class="btn btn-light" type="button">修改商品/修正记录</button>
+            </div>
+            <div class="modal-actions">
               <button id="detailDeleteRecordBtn" class="btn btn-danger" type="button">删除当前记录</button>
             </div>
           </div>
@@ -2557,6 +2564,8 @@
 
       modal.querySelector("#addRecordBtn").onclick = () => showRecordForm("new");
       modal.querySelector("#showEditBtn").onclick = () => showRecordForm("correction");
+      modal.querySelector("#detailAddRecordBtn").onclick = () => showRecordForm("new");
+      modal.querySelector("#detailEditRecordBtn").onclick = () => showRecordForm("correction");
       const detailDeleteBtn = modal.querySelector("#detailDeleteRecordBtn");
       getRecordAccess(top.id)
         .then((access) => {
@@ -2963,6 +2972,7 @@
 
     $("q").addEventListener("input", load);
     $("batchEntry").onclick = () => {
+      if (!developerBatchEnabled) return;
       if (batchMode) exitBatchMode();
       else enterBatchMode();
     };
@@ -3034,8 +3044,26 @@
       location.href = next.pathname + (next.search ? next.search : "");
     };
     load();
+    setupDeveloperBatchMode();
 
     setupSwipeNav();
+
+    async function setupDeveloperBatchMode() {
+      const apply = (isEnabled) => {
+        developerBatchEnabled = Boolean(isEnabled);
+        if (!developerBatchEnabled && batchMode) exitBatchMode();
+        updateBatchBar();
+      };
+      apply(false);
+      try {
+        const res = await fetch("/api/me/profile");
+        const data = await res.json();
+        const devMode = localStorage.getItem("priceComparisonDevMode") === "1";
+        apply(Boolean(res.ok && data.isAdmin && devMode));
+      } catch (_) {
+        apply(false);
+      }
+    }
 
     function setupSwipeNav() {
       const nav = document.querySelector("nav[data-active]");

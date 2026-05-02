@@ -245,6 +245,7 @@ export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}
   return products.map((p) => {
     const records = db.priceRecords.filter((r) => r.productId === p.id);
     const latest = records.slice().sort((a, b) => b.recordDate.localeCompare(a.recordDate) || b.id - a.id)[0];
+    const latestActivityAt = latestActivityForProduct(db, p, records);
     const keywordProducts = db.products.filter((candidate) => matchesCompareKeyword(compareKeywordOf(p), compareKeywordOf(candidate)));
     const sameProductProducts = db.products.filter((candidate) => isSameProductGroup(p, candidate));
     const keywordRecords = db.priceRecords.filter((r) => keywordProducts.some((candidate) => candidate.id === r.productId));
@@ -275,9 +276,14 @@ export function listProducts({ q = "", scope = "all", categoryId, storeId } = {}
       latestUnitPrice: latest?.unitPrice ?? null,
       latestUnitPriceLabel: latest?.unitPriceLabel ?? null,
       latestStoreName: latestStore ?? null,
-      latestRecordDate: latest?.recordDate ?? null
+      latestRecordDate: latest?.recordDate ?? null,
+      latestActivityAt
     };
-  }).sort((a, b) => (b.latestRecordDate || "").localeCompare(a.latestRecordDate || ""));
+  }).sort((a, b) =>
+    String(b.latestActivityAt || "").localeCompare(String(a.latestActivityAt || "")) ||
+    String(b.latestRecordDate || "").localeCompare(String(a.latestRecordDate || "")) ||
+    Number(b.latestRecordId || 0) - Number(a.latestRecordId || 0)
+  );
 }
 
 export function getProductDetail(productId) {
@@ -411,7 +417,8 @@ export function createPriceRecord(input, auth = {}) {
     recordDate: input.recordDate,
     note: input.note || null,
     createdBy: getCreatedBy(auth),
-    createdAt: nowDate()
+    createdAt: nowDate(),
+    updatedAt: nowDate()
   };
 
   const existingRecord = db.priceRecords
@@ -454,7 +461,8 @@ export function createPriceRecord(input, auth = {}) {
       unitPriceLabel: row.unitPriceLabel,
       imageUrl: imageUrls.length ? row.imageUrl : existingRecord.imageUrl,
       recordDate: row.recordDate,
-      note: row.note
+      note: row.note,
+      updatedAt: nowDate()
     });
     writeDb(db);
     return toPriceRecord(existingRecord);
@@ -522,6 +530,7 @@ export function updatePriceRecord(recordId, input, auth = {}) {
   row.imageUrl = imageInput === undefined ? row.imageUrl : serializeImageUrls(normalizeImageUrls(imageInput));
   row.recordDate = input.recordDate;
   row.note = input.note || null;
+  row.updatedAt = nowDate();
   const product = db.products.find((item) => item.id === row.productId);
   if (product) {
     if (input.product && Object.prototype.hasOwnProperty.call(input.product, "nameZh")) {
@@ -602,11 +611,28 @@ function toPriceRecord(row) {
     recordDate: row.recordDate,
     note: row.note || null,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt || row.createdAt || "",
     createdBy: row.createdBy || "",
     createdByName: row.createdByName || row.createdBy || "",
     lastModifiedBy: row.lastModifiedBy || "",
     lastModifiedByName: row.lastModifiedByName || row.lastModifiedBy || ""
   };
+}
+
+function latestActivityForProduct(db, product, records) {
+  const recordActivity = records.flatMap((record) => {
+    const latestRevision = latestBy(db.priceRecordRevisions, (item) => item.priceRecordId === record.id);
+    return [
+      record.updatedAt,
+      record.createdAt,
+      latestRevision?.createdAt
+    ].filter(Boolean);
+  });
+  return [
+    product.updatedAt,
+    product.createdAt,
+    ...recordActivity
+  ].filter(Boolean).sort().pop() || "";
 }
 
 function normalizeImageUrls(value) {
