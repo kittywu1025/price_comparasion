@@ -1158,12 +1158,12 @@
             <div class="inline-grid">
               <div class="field">
                 <label for="priceBeforeTax">税前价格<span class="req">必填</span></label>
-                <input id="priceBeforeTax" type="number" step="0.01" placeholder="0" required />
+                <input id="priceBeforeTax" type="number" step="0.01" placeholder="例如 198" required />
               </div>
 
               <div class="field">
                 <label for="priceAfterTaxInput">税后价格</label>
-                <input id="priceAfterTaxInput" type="text" value="¥0.0" readonly />
+                <input id="priceAfterTaxInput" type="text" value="¥0" readonly />
               </div>
             </div>
 
@@ -1197,7 +1197,7 @@
 
           <div class="field span-2">
             <label for="note">备注</label>
-            <input id="note" placeholder="可选" />
+            <input id="note" placeholder="可选，例如限时价、第二件优惠、会员日" />
           </div>
 
           <div class="promo-row span-2">
@@ -1262,12 +1262,12 @@
   <div id="quickMask" class="quick-mask">
     <div class="quick-panel">
       <h2>快速填入</h2>
-      <textarea id="quickText" placeholder="例：牛奶 198円 Cosmos 1000ml"></textarea>
+      <textarea id="quickText" placeholder="例：牛奶 198 Cosmos 1000ml"></textarea>
       <div class="quick-actions">
         <button id="applyQuickFill" class="btn btn-primary" type="button">解析填入</button>
         <button id="closeQuickFill" class="btn btn-subtle" type="button">取消</button>
       </div>
-      <div id="quickHint" class="toolbar-note">支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个 / 2pack。</div>
+      <div id="quickHint" class="toolbar-note">支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个 / 2pack。识别到的价格默认按税前价格带入。</div>
     </div>
   </div>
 
@@ -1329,11 +1329,11 @@
         <div class="inline-grid">
           <div class="field">
             <label for="existingPriceBeforeTax">税前价格<span class="req">必填</span></label>
-            <input id="existingPriceBeforeTax" type="number" step="0.01" placeholder="上次价格仅作提示" required />
+            <input id="existingPriceBeforeTax" type="number" step="0.01" placeholder="例如 198；上次价格仅作提示" required />
           </div>
           <div class="field">
             <label for="existingPriceAfterTax">税后价格</label>
-            <input id="existingPriceAfterTax" type="text" value="¥0.0" readonly />
+            <input id="existingPriceAfterTax" type="text" value="¥0" readonly />
           </div>
         </div>
       </div>
@@ -1343,7 +1343,7 @@
       </div>
       <div class="field">
         <label for="existingPriceNote">备注</label>
-        <input id="existingPriceNote" placeholder="可选，例如这家店的活动、包装差异" />
+        <input id="existingPriceNote" placeholder="可选，例如会员日、活动价、包装差异" />
       </div>
       <div class="existing-price-preview">
         <p class="k">对比单价（按原规格计算）</p>
@@ -1431,6 +1431,14 @@
 
     function round1(n) {
       return Math.round(n * 10) / 10;
+    }
+
+    function calcTaxIncludedYen(priceTaxEx, taxRate) {
+      const before = Number(priceTaxEx || 0);
+      const rate = Number(taxRate ?? 0);
+      if (!(before > 0)) return 0;
+      if (!Number.isFinite(rate) || rate === 0) return Math.round(before);
+      return Math.round(before * (1 + rate / 100));
     }
 
     function buildPromoNote(note, isPromo, promoUntil) {
@@ -1676,7 +1684,7 @@
       const taxRate = Number(toNumberOrNull(row.taxRate) ?? 8);
       const priceTaxIn = toNumberOrNull(row.priceTaxIn);
       const priceTaxEx = toNumberOrNull(row.priceTaxEx);
-      const after = priceTaxIn || (priceTaxEx ? Math.round(priceTaxEx * (taxRate === 0 ? 1 : 1 + taxRate / 100) * 10) / 10 : null);
+      const after = priceTaxIn || (priceTaxEx ? calcTaxIncludedYen(priceTaxEx, taxRate) : null);
       const before = priceTaxEx || (priceTaxIn ? Math.round(priceTaxIn / (taxRate === 0 ? 1 : 1 + taxRate / 100) * 10) / 10 : null);
       return {
         product: {
@@ -1856,7 +1864,7 @@
       const before = Number($("existingPriceBeforeTax").value || 0);
       const spec = Number(record?.specValue || 0);
       const unit = record?.unit || "g";
-      const after = before * (state.existingPriceTaxMode === 0 ? 1 : 1 + state.existingPriceTaxMode / 100);
+      const after = calcTaxIncludedYen(before, state.existingPriceTaxMode);
       let unitPrice = 0;
       let unitLabel = "/100g";
       if (spec > 0) {
@@ -1868,9 +1876,9 @@
           unitLabel = `/${unit}`;
         }
       }
-      $("existingPriceAfterTax").value = `¥${round1(after).toFixed(1)}`;
+      $("existingPriceAfterTax").value = `¥${Math.round(after).toFixed(0)}`;
       $("existingPriceUnitPrice").textContent = `¥${round1(unitPrice).toFixed(1)} ${unitLabel}`;
-      return { before, after: round1(after) };
+      return { before, after: Math.round(after) };
     }
 
     function renderExistingPriceProduct(product, detail) {
@@ -2035,8 +2043,7 @@
     function calc() {
       const before = Number($("priceBeforeTax").value || 0);
       const spec = Number(resolveSpecValue($("spec").value, state.unit) || 0);
-      const taxRate = state.taxMode / 100;
-      const after = before * (state.taxMode === 0 ? 1 : (1 + taxRate));
+      const after = calcTaxIncludedYen(before, state.taxMode);
 
       let unitPrice = 0;
       let unitLabel = " / 100g";
@@ -2050,9 +2057,9 @@
         }
       }
 
-      $("priceAfterTaxInput").value = `¥${round1(after).toFixed(1)}`;
+      $("priceAfterTaxInput").value = `¥${Math.round(after).toFixed(0)}`;
       $("unitPrice").textContent = `¥${round1(unitPrice).toFixed(1)}${unitLabel}`;
-      return { before, after: round1(after) };
+      return { before, after: Math.round(after) };
     }
 
     function normalizeExpression(value) {
@@ -2449,7 +2456,7 @@
 
     $("quickFillBtn").onclick = () => {
       $("quickMask").style.display = "flex";
-      $("quickHint").textContent = "支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个 / 2pack。";
+      $("quickHint").textContent = "支持商品名、价格、店铺关键词、规格，如 400g / 1000ml / 6个 / 2pack。识别到的价格默认按税前价格带入。";
       $("quickText").focus();
     };
     $("closeQuickFill").onclick = () => {

@@ -1914,13 +1914,21 @@
       return Math.round((after / (1 + rate / 100)) * 10) / 10;
     }
 
+    function calcTaxIncludedYen(priceTaxEx, taxRate) {
+      const before = Number(priceTaxEx || 0);
+      const rate = Number(taxRate ?? 0);
+      if (!(before > 0)) return 0;
+      if (!Number.isFinite(rate) || rate === 0) return Math.round(before);
+      return Math.round(before * (1 + rate / 100));
+    }
+
     function isStoredTaxPairConsistent(priceTaxIn, priceTaxEx, taxRate) {
       const after = Number(priceTaxIn);
       const before = Number(priceTaxEx);
       const rate = Number(taxRate ?? 0);
       if (!(after > 0) || !(before > 0) || !Number.isFinite(rate)) return false;
-      const expectedAfter = Math.round(before * (rate === 0 ? 1 : 1 + rate / 100) * 10) / 10;
-      return Math.abs(expectedAfter - after) <= 0.11;
+      const expectedAfter = calcTaxIncludedYen(before, rate);
+      return Math.abs(expectedAfter - after) <= 0.5;
     }
 
     async function fetchJson(url, options) {
@@ -2613,10 +2621,6 @@
         }
       };
 
-      function round1(n) {
-        return Math.round(n * 10) / 10;
-      }
-
       function setEditTaxMode(nextTaxMode) {
         editTaxMode = Number(nextTaxMode);
         modal.querySelectorAll("#editTaxSegment button").forEach((button) => {
@@ -2690,7 +2694,7 @@
       function calcEdit() {
         const before = Number(modal.querySelector("#editPriceTaxEx").value || 0);
         const spec = Number(resolveEditSpecValue() || 0);
-        const after = before * (editTaxMode === 0 ? 1 : 1 + editTaxMode / 100);
+        const after = calcTaxIncludedYen(before, editTaxMode);
         let unitPrice = 0;
         let unitLabel = "/100g";
         if (spec > 0) {
@@ -2702,9 +2706,9 @@
             unitLabel = `/${editUnit}`;
           }
         }
-        modal.querySelector("#editPriceTaxIn").value = `¥${round1(after).toFixed(1)}`;
-        modal.querySelector("#editUnitPricePreview").textContent = `${round1(unitPrice).toFixed(1)} ${unitLabel}`;
-        return { before, after: round1(after) };
+        modal.querySelector("#editPriceTaxIn").value = `¥${Math.round(after).toFixed(0)}`;
+        modal.querySelector("#editUnitPricePreview").textContent = `${(Math.round(unitPrice * 10) / 10).toFixed(1)} ${unitLabel}`;
+        return { before, after: Math.round(after) };
       }
 
       modal.querySelectorAll("#editTaxSegment button").forEach((btn) => {

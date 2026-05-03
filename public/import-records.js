@@ -45,6 +45,14 @@
     return formulaText ? formulaText[1].trim() : text;
   }
 
+  function calcTaxIncludedYen(priceTaxEx, taxRate) {
+    const before = Number(priceTaxEx || 0);
+    const rate = Number(taxRate ?? 0);
+    if (!(before > 0)) return 0;
+    if (!Number.isFinite(rate) || rate === 0) return Math.round(before);
+    return Math.round(before * (1 + rate / 100));
+  }
+
   function cellValue(row, index, fallback = "") {
     if (!Array.isArray(row) || index == null || index < 0 || index >= row.length) return fallback;
     return cleanSpreadsheetText(row[index]);
@@ -297,9 +305,8 @@
       errors.push(`优惠截止日期格式 YYYY-MM-DD：${String(row.promoUntil || "").trim()}`);
     }
     if (priceTaxIn > 0 && priceTaxEx > 0 && Number.isFinite(taxRate)) {
-      const factor = Number(taxRate) === 0 ? 1 : 1 + Number(taxRate) / 100;
-      const expectedAfter = Math.round(priceTaxEx * factor * 10) / 10;
-      if (Math.abs(expectedAfter - priceTaxIn) > 0.11) {
+      const expectedAfter = calcTaxIncludedYen(priceTaxEx, taxRate);
+      if (Math.abs(expectedAfter - priceTaxIn) > 0.5) {
         errors.push(`税前价/税后价/税率不一致：税前=${priceTaxEx}，税后=${priceTaxIn}，税率=${taxRate}`);
       }
     }
@@ -318,7 +325,7 @@
     const priceTaxIn = toNumberOrNull(row.priceTaxIn);
     const priceTaxEx = toNumberOrNull(row.priceTaxEx);
     const factor = taxRate === 0 ? 1 : 1 + taxRate / 100;
-    const after = priceTaxIn || (priceTaxEx ? Math.round(priceTaxEx * factor * 10) / 10 : null);
+    const after = priceTaxIn || (priceTaxEx ? calcTaxIncludedYen(priceTaxEx, taxRate) : null);
     const before = priceTaxEx || (priceTaxIn ? Math.round((priceTaxIn / factor) * 10) / 10 : null);
     const payload = {
       product: {
