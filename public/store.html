@@ -877,6 +877,7 @@
         renderSelectedImages();
       } finally {
         isCompressing = false;
+        renderSelectedImages();
       }
     }
 
@@ -894,8 +895,9 @@
         renderStore(store);
         renderPosts(posts);
       } catch (error) {
-        $("postSummary").textContent = "";
+        $("postSummary").textContent = "读取失败";
         $("postList").innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message || "请刷新重试")}</div>`;
+        showToast(`店铺详情加载失败：${error.message || "请刷新重试"}`, { type: "error" });
       }
     }
 

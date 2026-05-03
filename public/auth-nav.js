@@ -50,6 +50,15 @@ async function checkLogin(isLocal) {
   }
 }
 
+function normalizeAuthErrorMessage(message) {
+  const text = String(message || "").trim();
+  if (!text) return "操作失败";
+  if (text === "login required") return "请先登录。";
+  if (text === "developer password login is not configured") return "当前环境没有开启开发口令登录。";
+  if (text === "password is incorrect") return "开发口令不正确。";
+  return text;
+}
+
 function showLoginModal() {
   const returnTo = `${location.pathname}${location.search}` || "/products";
   const loginUrl = `/api/auth/login?return=${encodeURIComponent(returnTo)}`;
@@ -96,11 +105,11 @@ function showLoginModal() {
         body: JSON.stringify({ password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "登录失败");
+      if (!res.ok) throw new Error(normalizeAuthErrorMessage(data.error || "登录失败"));
       location.reload();
     } catch (err) {
       msg.textContent = "";
-      showAuthToast(err.message || "登录失败");
+      showAuthToast(normalizeAuthErrorMessage(err.message || "登录失败"));
       button.disabled = false;
     }
   };
@@ -146,12 +155,12 @@ function showUsernameModal(user) {
         body: JSON.stringify({ displayName })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "保存失败");
+      if (!res.ok) throw new Error(normalizeAuthErrorMessage(data.error || "保存失败"));
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: data }));
       mask.remove();
     } catch (err) {
       msg.textContent = "";
-      showAuthToast(err.message || "保存失败");
+      showAuthToast(normalizeAuthErrorMessage(err.message || "保存失败"));
       button.disabled = false;
     }
   };

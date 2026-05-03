@@ -521,7 +521,9 @@
       } catch (err) {
         showToast(`贡献数据读取失败：${err.message || "请稍后重试"}`, { type: "error" });
         $("userLine").textContent = "贡献数据暂时无法读取。";
-        $("totalLine").textContent = "如果你是本地打开，请确认使用 http://127.0.0.1:3000/profile.html，并且 npm start 正在运行。";
+        $("totalLine").textContent = location.hostname === "127.0.0.1" || location.hostname === "localhost"
+          ? "请确认本地服务仍在运行，然后刷新页面重试。"
+          : "请刷新页面，或重新登录后再试。";
       }
     }
 
@@ -547,6 +549,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "保存失败");
         msg.textContent = "已保存。";
+        showToast("用户名已保存。", { type: "success" });
         if (currentStats?.user) {
           currentStats.user.displayName = data.displayName || "";
           renderUserLine(currentStats.user);
@@ -617,6 +620,7 @@
         if (!res.ok) throw new Error(data.error || "提交失败");
         $("feedbackText").value = "";
         msg.textContent = "已提交。";
+        showToast("建议已提交。", { type: "success" });
       } catch (err) {
         msg.textContent = "";
         showToast(err.message || "提交失败", { type: "error" });

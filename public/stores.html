@@ -420,17 +420,17 @@
       <h1 id="formTitle">新增店铺</h1>
       <form id="form" class="form">
         <div class="row">
-          <input id="name" placeholder="店铺名称" required />
-          <button id="searchStoreBtn" class="btn-ghost" type="button">搜索</button>
+          <input id="name" placeholder="例如：Cosmos 西条店" required />
+          <button id="searchStoreBtn" class="btn-ghost" type="button">搜索附近门店</button>
         </div>
         <div id="storeSearchStatus" class="hint">搜索会限定在日本广岛县东广岛市附近。</div>
         <div id="storeSearchResults" class="search-results"></div>
         <div class="row">
-          <input id="location" placeholder="位置（默认尝试GPS）" />
+          <input id="location" placeholder="位置（可自动定位，也可手填）" />
           <button id="detectLocation" class="btn-ghost" type="button">使用当前位置</button>
         </div>
         <div id="geoStatus" class="hint"></div>
-        <input id="note" placeholder="备注（可选）" />
+        <input id="note" placeholder="备注（可选，例如 24 小时营业）" />
         <div class="row">
           <button id="submitBtn" class="btn-primary" type="submit">新增店铺</button>
           <button id="cancelEditBtn" class="btn-ghost" type="button" style="display:none;">取消编辑</button>
@@ -640,7 +640,7 @@
       try {
         const stores = await fetchJson("/api/stores");
         if (!stores.length) {
-          setListStatus("暂无店铺");
+          setListStatus("暂无店铺，点右上角先新增第一家店铺。");
           return;
         }
 
