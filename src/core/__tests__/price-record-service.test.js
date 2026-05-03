@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { buildPriceRecordPayload } from "../price-record-service.js";
+import { buildPriceRecordPayload, getDefaultSpecValueForUnit, resolveSpecValue } from "../price-record-service.js";
 import { createPriceRecord } from "../../storage/repository.js";
 
 test("自动补齐 unitPrice 与 unitPriceLabel", () => {
@@ -26,6 +26,34 @@ test("缺少必填字段时报错", () => {
       productId: "p1"
     })
   );
+});
+
+test("单位默认规格值映射正确", () => {
+  assert.equal(getDefaultSpecValueForUnit("g"), 1000);
+  assert.equal(getDefaultSpecValueForUnit("ml"), 1000);
+  assert.equal(getDefaultSpecValueForUnit("个"), 1);
+  assert.equal(getDefaultSpecValueForUnit("pack"), 1);
+  assert.equal(getDefaultSpecValueForUnit("kg"), 1);
+  assert.equal(getDefaultSpecValueForUnit("l"), 1);
+});
+
+test("规格为空时按单位补默认值", () => {
+  assert.equal(resolveSpecValue("", "g"), 1000);
+  assert.equal(resolveSpecValue(null, "pack"), 1);
+
+  const payload = buildPriceRecordPayload({
+    productId: "p1",
+    storeId: "s1",
+    priceTaxIn: 110,
+    specValue: "",
+    unit: "个",
+    recordDate: "2026-05-03",
+    createdBy: "u1"
+  });
+
+  assert.equal(payload.specValue, 1);
+  assert.equal(payload.unitPrice, 110);
+  assert.equal(payload.unitPriceLabel, "/个");
 });
 
 test("0% 税率应原样保留", () => {

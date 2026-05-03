@@ -2413,7 +2413,7 @@
               <div class="edit-inline-grid">
                 <div class="edit-field">
                   <label for="editSpecValue">规格数值</label>
-                  <input id="editSpecValue" type="number" step="0.01" value="${Number(top.specValue || 0)}" required />
+                  <input id="editSpecValue" type="number" step="0.01" value="${top.specValue != null ? Number(top.specValue) : ""}" placeholder="默认 1000" />
                 </div>
                 <div class="edit-field">
                   <label>规格单位</label>
@@ -2625,6 +2625,26 @@
         calcEdit();
       }
 
+      function getDefaultSpecValue(unit) {
+        const rawUnit = String(unit || "").trim();
+        const lowered = rawUnit.toLowerCase();
+        if (rawUnit === "g" || rawUnit === "ml") return 1000;
+        if (lowered === "kg" || lowered === "l") return 1;
+        if (rawUnit === "个" || rawUnit === "pack" || rawUnit === "パック" || rawUnit === "包" || lowered === "pac") return 1;
+        return null;
+      }
+
+      function resolveEditSpecValue() {
+        const value = Number(modal.querySelector("#editSpecValue").value);
+        if (Number.isFinite(value) && value > 0) return value;
+        return getDefaultSpecValue(editUnit);
+      }
+
+      function updateEditSpecPlaceholder() {
+        const fallback = getDefaultSpecValue(editUnit);
+        modal.querySelector("#editSpecValue").placeholder = fallback == null ? "" : `默认 ${fallback}`;
+      }
+
       function syncRecordFormMode() {
         const isNew = editMode === "new";
         const editTop = modal.querySelector(".edit-top");
@@ -2655,7 +2675,7 @@
         if (isNew) {
           editImageUrls = inheritedImageUrls.slice();
           editUnit = top.unit || "g";
-          modal.querySelector("#editSpecValue").value = Number(top.specValue || 0);
+          modal.querySelector("#editSpecValue").value = top.specValue != null ? Number(top.specValue) : "";
           setEditTaxMode(Number(top.taxRate ?? 8));
         } else {
           editImageUrls = inheritedImageUrls.slice();
@@ -2663,12 +2683,13 @@
           setEditTaxMode(Number(top.taxRate ?? 0));
           renderEditImages(editImageUrls);
         }
+        updateEditSpecPlaceholder();
         calcEdit();
       }
 
       function calcEdit() {
         const before = Number(modal.querySelector("#editPriceTaxEx").value || 0);
-        const spec = Number(modal.querySelector("#editSpecValue").value || 0);
+        const spec = Number(resolveEditSpecValue() || 0);
         const after = before * (editTaxMode === 0 ? 1 : 1 + editTaxMode / 100);
         let unitPrice = 0;
         let unitLabel = "/100g";
@@ -2696,6 +2717,7 @@
           editUnit = btn.dataset.unit;
           modal.querySelectorAll("#editUnitSegment button").forEach((b) => b.classList.remove("active"));
           btn.classList.add("active");
+          updateEditSpecPlaceholder();
           calcEdit();
         };
       });
@@ -2779,6 +2801,11 @@
             editMsg.textContent = "请输入本次看到的税前价格。上次价格只作为提示，不会自动保存。";
             return;
           }
+          const resolvedSpecValue = editMode === "new" ? Number(top.specValue) : resolveEditSpecValue();
+          if (!(resolvedSpecValue > 0)) {
+            editMsg.textContent = "请填写规格数量，或选择带默认规格的单位。";
+            return;
+          }
           const payload = {
             product: editMode === "new"
               ? { id: data.product.id }
@@ -2787,10 +2814,10 @@
                 nameZh: modal.querySelector("#editNameZh").value.trim(),
                 nameJa: modal.querySelector("#editNameJa").value.trim(),
                 barcode: editBarcode
-              },
+            },
             storeId: Number(modal.querySelector("#editStoreId").value),
             priceTaxIn: after,
-            specValue: editMode === "new" ? Number(top.specValue) : Number(modal.querySelector("#editSpecValue").value),
+            specValue: resolvedSpecValue,
             unit: editMode === "new" ? (top.unit || "g") : editUnit,
             recordDate: today(),
             priceTaxEx: before,

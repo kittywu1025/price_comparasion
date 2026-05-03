@@ -1169,9 +1169,9 @@
 
             <div class="inline-grid">
               <div class="field">
-                <label for="spec">规格数值<span class="req">必填</span></label>
+                <label for="spec">规格数值</label>
                 <div class="input-with-action">
-                  <input id="spec" type="number" step="0.01" placeholder="400" required />
+                  <input id="spec" type="number" step="0.01" placeholder="默认 1000" />
                   <button id="openSpecCalc" type="button">计算</button>
                 </div>
               </div>
@@ -1800,7 +1800,28 @@
       $("unitSegment").querySelectorAll("button").forEach((b) => {
         b.classList.toggle("active", b.dataset.unit === unit);
       });
+      updateSpecPlaceholder();
       calc();
+    }
+
+    function getDefaultSpecValue(unit) {
+      const rawUnit = String(unit || "").trim();
+      const lowered = rawUnit.toLowerCase();
+      if (rawUnit === "g" || rawUnit === "ml") return 1000;
+      if (lowered === "kg" || lowered === "l") return 1;
+      if (rawUnit === "个" || rawUnit === "pack" || rawUnit === "パック" || rawUnit === "包" || lowered === "pac") return 1;
+      return null;
+    }
+
+    function resolveSpecValue(value, unit) {
+      const number = Number(value);
+      if (Number.isFinite(number) && number > 0) return number;
+      return getDefaultSpecValue(unit);
+    }
+
+    function updateSpecPlaceholder() {
+      const fallback = getDefaultSpecValue(state.unit);
+      $("spec").placeholder = fallback == null ? "" : `默认 ${formatNumber(fallback)}`;
     }
 
     function setStoreById(storeId) {
@@ -2013,7 +2034,7 @@
 
     function calc() {
       const before = Number($("priceBeforeTax").value || 0);
-      const spec = Number($("spec").value || 0);
+      const spec = Number(resolveSpecValue($("spec").value, state.unit) || 0);
       const taxRate = state.taxMode / 100;
       const after = before * (state.taxMode === 0 ? 1 : (1 + taxRate));
 
@@ -2182,7 +2203,7 @@
 
       return {
         name,
-        priceTaxIn: Number(priceMatch[1]),
+        priceBeforeTax: Number(priceMatch[1]),
         specValue,
         unit,
         store
@@ -2204,8 +2225,7 @@
           applyTaxStoreLinkByStore();
         }
 
-        const taxFactor = state.taxMode === 0 ? 1 : 1 + state.taxMode / 100;
-        $("priceBeforeTax").value = (parsed.priceTaxIn / taxFactor).toFixed(1);
+        $("priceBeforeTax").value = parsed.priceBeforeTax.toFixed(1);
         calc();
         scheduleDuplicateCheck();
         $("quickHint").textContent = "已填入，可继续修改或补照片。";
@@ -2225,6 +2245,8 @@
           state[key] = key === "taxMode" ? Number(btn.dataset.tax) : btn.dataset.unit;
           if (key === "taxMode") {
             applyTaxStoreLinkByTax();
+          } else {
+            updateSpecPlaceholder();
           }
           calc();
         };
@@ -2621,6 +2643,11 @@
         notify("请至少填写中文名或日文名。", "error");
         return;
       }
+      const resolvedSpecValue = resolveSpecValue($("spec").value, state.unit);
+      if (!(resolvedSpecValue > 0)) {
+        notify("请填写规格数量，或选择带默认规格的单位。", "error");
+        return;
+      }
 
       const payload = {
         product: state.selectedProductId
@@ -2634,7 +2661,7 @@
         priceTaxEx: before,
         taxRate: state.taxMode,
         priceTaxIn: after,
-        specValue: Number($("spec").value),
+        specValue: resolvedSpecValue,
         unit: state.unit,
         imageUrls: state.imageDataUrls,
         recordDate: today(),
@@ -2663,6 +2690,7 @@
     setPromoMode(false);
     loadStores();
     updateBarcodeNote();
+    updateSpecPlaceholder();
     calc();
 
     setupSwipeNav();
