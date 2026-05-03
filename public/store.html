@@ -540,7 +540,8 @@
               <button id="galleryTriggerBtn" class="ghost-btn" type="button">从相册选择</button>
             </div>
             <input id="postCameraInput" class="input-hidden" type="file" accept="image/*" capture="environment" />
-            <input id="postGalleryInput" class="input-hidden" type="file" accept="image/*" multiple />
+            <!-- iOS Safari may still show a system source menu for gallery picks; keep this input fully separate and never add capture here. -->
+            <input id="postGalleryInput" class="input-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple />
             <div class="picker-state">
               <div id="imageEmptyState" class="picker-empty">还没有选择图片，可以拍照或从相册选择。</div>
               <div id="imagePreviewGrid" class="picker-grid" hidden></div>
@@ -585,6 +586,9 @@
     let editingPostId = "";
     let selectedImages = [];
     let isCompressing = false;
+    const MAX_POST_IMAGES = 5;
+    const MAX_IMAGE_BYTES = 550 * 1024;
+    const MAX_TOTAL_IMAGE_BYTES = 2.2 * 1024 * 1024;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -687,13 +691,27 @@
           <button class="picker-remove" type="button" data-remove-index="${index}" aria-label="移除第 ${index + 1} 张图片"><span>×</span></button>
         </div>
       `).join("");
-      $("imageMeta").textContent = `已选择 ${selectedImages.length} 张图片。发布时会保存压缩后的图片数据。`;
+      $("imageMeta").textContent = `已选择 ${selectedImages.length} 张图片，最多 ${MAX_POST_IMAGES} 张。发布时会保存压缩后的图片数据。`;
     }
 
     async function fetchJson(url, options) {
       const response = await fetch(url, options);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "请求失败");
+      const rawText = await response.text();
+      let data = {};
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = { rawText };
+        }
+      }
+      if (!response.ok) {
+        const message = data.error || data.message || data.rawText || response.statusText || "请求失败";
+        if (response.status === 401) throw new Error(`未登录：${message}`);
+        if (response.status === 413) throw new Error("请求体过大，请减少图片数量或重试更小图片。");
+        if (response.status >= 500) throw new Error(`服务端错误：${message}`);
+        throw new Error(message);
+      }
       return data;
     }
 
@@ -796,39 +814,66 @@
       resetComposer();
     }
 
-    async function compressImage(file, maxWidth = 1600, quality = 0.75) {
+    function estimateDataUrlBytes(dataUrl) {
+      const base64 = String(dataUrl || "").split(",")[1] || "";
+      return Math.ceil((base64.length * 3) / 4);
+    }
+
+    function totalImageBytes(images) {
+      return images.reduce((sum, item) => sum + estimateDataUrlBytes(item), 0);
+    }
+
+    async function compressImage(file) {
       const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, maxWidth / Math.max(bitmap.width, bitmap.height));
-      const width = Math.max(1, Math.round(bitmap.width * scale));
-      const height = Math.max(1, Math.round(bitmap.height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d", { alpha: false });
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      bitmap.close();
-      return {
-        dataUrl: canvas.toDataURL("image/jpeg", quality),
-        width,
-        height
-      };
+      try {
+        const attempts = [
+          { maxWidth: 1200, quality: 0.72 },
+          { maxWidth: 1080, quality: 0.68 },
+          { maxWidth: 960, quality: 0.64 },
+          { maxWidth: 840, quality: 0.6 }
+        ];
+        for (const attempt of attempts) {
+          const scale = Math.min(1, attempt.maxWidth / Math.max(bitmap.width, bitmap.height));
+          const width = Math.max(1, Math.round(bitmap.width * scale));
+          const height = Math.max(1, Math.round(bitmap.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d", { alpha: false });
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", attempt.quality);
+          if (estimateDataUrlBytes(dataUrl) <= MAX_IMAGE_BYTES || attempt === attempts[attempts.length - 1]) {
+            return { dataUrl, width, height, bytes: estimateDataUrlBytes(dataUrl) };
+          }
+        }
+      } finally {
+        bitmap.close();
+      }
     }
 
     async function handleImageFiles(fileList) {
       const files = Array.from(fileList || []).filter((file) => file && String(file.type || "").startsWith("image/"));
       if (!files.length) return;
+      if (selectedImages.length + files.length > MAX_POST_IMAGES) {
+        throw new Error(`最多上传 ${MAX_POST_IMAGES} 张图片，请减少后再试。`);
+      }
       isCompressing = true;
       $("formStatus").textContent = "";
       $("imageMeta").textContent = `正在压缩 ${files.length} 张图片...`;
       try {
         const compressed = [];
         for (const file of files) {
-          const { dataUrl } = await compressImage(file, 1600, 0.75);
+          const { dataUrl } = await compressImage(file);
           compressed.push(dataUrl);
         }
-        selectedImages = uniqueImages([...selectedImages, ...compressed]);
+        const nextImages = uniqueImages([...selectedImages, ...compressed]);
+        const totalBytes = totalImageBytes(nextImages);
+        if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+          throw new Error("图片总大小过大，请减少图片数量，或改用更少的图片后重试。");
+        }
+        selectedImages = nextImages;
         renderSelectedImages();
       } finally {
         isCompressing = false;
@@ -880,6 +925,14 @@
       };
       if (!payload.images.length) {
         $("formStatus").textContent = "请先上传至少一张图片。";
+        return;
+      }
+      if (payload.images.length > MAX_POST_IMAGES) {
+        $("formStatus").textContent = `最多上传 ${MAX_POST_IMAGES} 张图片。`;
+        return;
+      }
+      if (totalImageBytes(payload.images) > MAX_TOTAL_IMAGE_BYTES) {
+        $("formStatus").textContent = "图片总大小过大，请减少图片数量后重试。";
         return;
       }
       $("formStatus").textContent = "正在保存...";

@@ -1252,6 +1252,12 @@ function normalizeStorePostInput(input = {}) {
   const storeId = input.storeId == null || input.storeId === "" ? "" : String(input.storeId).trim();
   if (!storeId || !/^\d+$/.test(storeId)) throw new Error("storeId is required");
   const images = normalizeStorePostImagesInput(input);
+  if (!images.length) throw new Error("at least one image is required");
+  if (images.length > 5) throw new Error("too many images: max 5");
+  const totalBytes = images.reduce((sum, item) => sum + estimateDataUrlBytes(item), 0);
+  if (totalBytes > 2.2 * 1024 * 1024) {
+    throw new Error("image payload is too large");
+  }
   return {
     storeId,
     title,
@@ -1420,6 +1426,13 @@ function firstDataImage(images) {
 
 function firstUrlImage(images) {
   return images.find((item) => item && !item.startsWith("data:image/")) || "";
+}
+
+function estimateDataUrlBytes(value) {
+  const text = clean(value);
+  if (!text.startsWith("data:image/")) return 0;
+  const base64 = text.split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
 }
 
 function toPriceRecord(row) {
