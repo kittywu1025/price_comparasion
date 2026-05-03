@@ -97,28 +97,6 @@
       white-space: nowrap;
     }
 
-    .hero-edit {
-      display: none;
-      margin-top: 12px;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .hero-edit.show {
-      display: grid;
-    }
-
-    .hero-edit input {
-      background: rgba(255, 255, 255, 0.95);
-      border-color: rgba(255, 255, 255, 0.7);
-    }
-
-    .hero-edit button {
-      background: #fff;
-      color: #0b7f68;
-    }
-
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -332,6 +310,53 @@
       line-height: 1.4;
     }
 
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      background: rgba(7, 19, 18, 0.48);
+      z-index: 60;
+    }
+
+    .modal-mask.show {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(420px, calc(100vw - 20px));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fff;
+      box-shadow: 0 14px 28px rgba(14, 63, 56, 0.18);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .modal-panel h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .developer-tools {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
     nav {
       --active-index: 4;
       position: fixed;
@@ -403,7 +428,7 @@
         grid-template-columns: 1fr;
       }
 
-      .hero-edit {
+      .modal-actions {
         grid-template-columns: 1fr;
       }
     }
@@ -419,11 +444,6 @@
         </div>
         <button id="editProfileNameBtn" class="hero-action" type="button">修改用户名</button>
       </div>
-      <div id="profileNameEditor" class="hero-edit">
-        <input id="displayNameInput" maxlength="40" placeholder="例如：Kitty" />
-        <button id="saveProfileBtn" type="button">保存</button>
-      </div>
-      <p id="profileMsg" class="inline-msg"></p>
     </section>
 
     <section class="stats-grid is-hidden">
@@ -479,6 +499,17 @@
     </nav>
   </div>
 
+  <div id="usernameModal" class="modal-mask">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="usernameModalTitle">
+      <h2 id="usernameModalTitle">修改用户名</h2>
+      <input id="displayNameInput" maxlength="40" placeholder="例如：Kitty" autocomplete="nickname" />
+      <div class="modal-actions">
+        <button id="cancelProfileNameBtn" type="button">取消</button>
+        <button id="saveProfileBtn" class="primary" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
   <script src="toast.js"></script>
   <script src="import-records.js?v=20260501-csv-export"></script>
   <script>
@@ -530,16 +561,32 @@
     loadStats();
     setupPriceImport("priceImportMount");
 
-    $("editProfileNameBtn").onclick = () => {
-      $("profileNameEditor").classList.toggle("show");
-      if ($("profileNameEditor").classList.contains("show")) $("displayNameInput").focus();
-    };
+    function openUsernameModal() {
+      $("displayNameInput").value = currentStats?.user?.displayName || "";
+      $("usernameModal").classList.add("show");
+      setTimeout(() => $("displayNameInput").focus(), 0);
+    }
+
+    function closeUsernameModal() {
+      $("usernameModal").classList.remove("show");
+    }
+
+    $("editProfileNameBtn").onclick = openUsernameModal;
+    $("cancelProfileNameBtn").onclick = closeUsernameModal;
+    $("usernameModal").addEventListener("click", (event) => {
+      if (event.target === $("usernameModal")) closeUsernameModal();
+    });
+    $("displayNameInput").addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeUsernameModal();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        $("saveProfileBtn").click();
+      }
+    });
 
     $("saveProfileBtn").onclick = async () => {
       const button = $("saveProfileBtn");
-      const msg = $("profileMsg");
       button.disabled = true;
-      msg.textContent = "正在保存...";
       try {
         const res = await fetch("/api/me/profile", {
           method: "PUT",
@@ -548,15 +595,13 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "保存失败");
-        msg.textContent = "已保存。";
         showToast("用户名已保存。", { type: "success" });
         if (currentStats?.user) {
           currentStats.user.displayName = data.displayName || "";
           renderUserLine(currentStats.user);
         }
-        $("profileNameEditor").classList.remove("show");
+        closeUsernameModal();
       } catch (err) {
-        msg.textContent = "";
         showToast(err.message || "保存失败", { type: "error" });
       } finally {
         button.disabled = false;
@@ -581,6 +626,9 @@
       if (isAdmin && devMode) {
         panel.innerHTML = `
           <div id="developerDataTools"></div>
+          <div class="developer-tools">
+            <a class="link-button" href="kana.html">开发者工具：日语读音标注</a>
+          </div>
           <p class="panel-title">用户反馈</p>
           <p class="panel-body">这里显示别人提交给开发者的建议。回退管理入口后续也放在开发者模式里。</p>
           <div id="feedbackList" class="feedback-list"><p class="panel-body">正在读取...</p></div>
@@ -663,9 +711,9 @@
     function renderUserLine(user = {}) {
       const name = user.displayName || "未设置";
       const email = user.email || "未登录";
+      const role = user.isAdmin ? "管理员" : "普通用户";
       $("profileName").textContent = name;
-      $("userLine").innerHTML =
-        `${user.isAdmin ? "管理员 · " : ""}${escapeHtml(email)}`;
+      $("userLine").innerHTML = `${escapeHtml(email)} · ${role}`;
     }
 
     function actorLabel(name, email, fallback = "-") {

@@ -290,13 +290,6 @@
           <p class="quick-meta">看最低价、店铺排行和历史价格</p>
         </div>
       </a>
-      <a id="kanaCard" class="quick-card tool-card" href="kana.html" hidden>
-        <div>
-          <span class="tag">开发者工具</span>
-          <p class="quick-title">日语读音标注</p>
-          <p class="quick-meta">输入日语句子，自动标注汉字假名读音</p>
-        </div>
-      </a>
       <a class="quick-card tool-card" href="shipping.html">
         <div>
           <span class="tag">生活工具</span>
@@ -336,7 +329,6 @@
   <script src="auth-nav.js"></script>
   <script>
     setupSwipeNav();
-    revealDeveloperTools();
 
     function setupSwipeNav() {
       const nav = document.querySelector("nav[data-active]");
@@ -360,18 +352,6 @@
           location.href = links[next].getAttribute("href");
         }
       }, { passive: true });
-    }
-
-    async function revealDeveloperTools() {
-      const card = document.getElementById("kanaCard");
-      if (!card) return;
-      const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
-      const session = window.priceAuth?.checkLogin
-        ? await window.priceAuth.checkLogin(isLocal)
-        : { loggedIn: isLocal, user: null };
-      if (isLocal || session.user?.isAdmin) {
-        card.hidden = false;
-      }
     }
   </script>
 </body>
