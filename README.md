@@ -12,7 +12,6 @@
 - 新人优惠页：集中展示 PayPay、Mercari、Yahoo!フリマ 邀请奖励，并支持页内导航快速跳转。
 - 学习工具：日语读音标注工具改为开发者/管理员专用；首页不显示入口，只在“我的”页面的管理员开发者区提供入口，直接访问页面也会被拦下。
 - 生活工具：首页快捷入口可进入日本发快递预估价格；使用滑动分段控件按尺寸、重量、匿名、追踪和补偿需求推荐寄送方式，并在结果中显示对应快递示意图和估算运费。
-- すき家问卷：首页「生活工具」入口进入 `sukiya.html`；显示今天日期和过去 1～5 天的随机日期，保存收据上的官方问卷链接，一键复制或打开官方问卷，并管理历史链接。数据只存在浏览器 localStorage（`sukiyaTool:*`），不自动填写或提交问卷，不生成二维码。
 - 安全：Access 登录令牌会校验 RS256 签名、`aud`、`iss` 和过期时间；图片上传只接受 JPEG/PNG/WebP/GIF；公开接口不再返回贡献者邮箱；旧的 `index.html`、`product.html` 已移除并重定向到 `/products`。
 - 底部导航：五个主页面统一使用滑块式 tabbar，支持在底部导航区域左右滑动切换页面。
 - 商品清单：按商品聚合展示价格，支持全部/名称/店铺范围搜索、店铺筛选、最低价标记、限时优惠标记；卡片上的价格、店铺和单价统一来自该商品的最新记录，最低价只作为标记展示；空结果会显示可点击的录入引导。
@@ -62,7 +61,6 @@ npm start
 - 我的：http://localhost:3000/profile.html
 - 日语读音标注（开发者/管理员专用）：http://localhost:3000/kana.html
 - 日本发快递预估价格：http://localhost:3000/shipping.html
-- すき家问卷：http://localhost:3000/sukiya.html
 - 新人注册优惠：http://localhost:3000/deals.html
 
 ## Cloudflare 数据导入
@@ -182,6 +180,9 @@ npx wrangler pages secret put DEV_LOGIN_SECRET --project-name price-comparasion
 - `server.js`
 
 ## 更新记录
+
+### 2026-10-21 · 移除すき家问卷工具
+- 删除 `public/sukiya.html` 和首页「すき家问卷」入口；浏览器里残留的 `sukiyaTool:*` localStorage 数据不再使用。
 
 ### 2026-10-21 · Excel 导入完善
 - 新增 `public/excel-import.js`：浏览器端读取 `.xlsx`（含内嵌图片）和生成 `.xlsx` 模板。
