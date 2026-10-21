@@ -14,7 +14,37 @@
   }
 
   function today() {
-    return new Date().toISOString().slice(0, 10);
+    // 用本地日期；toISOString 是 UTC，日本时间早上 9 点前会变成前一天
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function normalizeTaxRateText(value) {
+    const text = cleanSpreadsheetText(value).replace(/[%％]/g, "").trim();
+    if (!text) return "";
+    const number = Number(text);
+    // Excel 百分比格式的 8% 实际存的是 0.08
+    if (Number.isFinite(number) && number > 0 && number < 1) return String(Math.round(number * 100));
+    return text;
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // iOS Safari 立刻回收会导致下载失败
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  function readImportText(file) {
+    if (/\.xls$/i.test(file.name)) {
+      throw new Error("当前只支持 .xlsx，旧版 .xls 请先另存为 .xlsx 或 CSV");
+    }
+    return /\.xlsx$/i.test(file.name) ? window.readExcelAsDelimitedText(file) : readTextFile(file);
   }
 
   function notify(message, type = "info", options = {}) {
@@ -101,8 +131,8 @@
       return isValidIsoDate(normalized) ? normalized : text;
     }
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-    if (/^\d{5,6}$/.test(text)) {
-      const serial = Number(text);
+    if (/^\d{5,6}(\.\d+)?$/.test(text)) {
+      const serial = Math.floor(Number(text));
       const date = new Date(Date.UTC(1899, 11, 30 + serial));
       const normalized = date.toISOString().slice(0, 10);
       return isValidIsoDate(normalized) ? normalized : text;
@@ -162,6 +192,14 @@
     let row = [];
     let cell = "";
     let quoted = false;
+    let line = 1;
+    let rowStartLine = 1;
+    const pushRow = () => {
+      if (row.some((value) => value.trim())) {
+        row.lineNumber = rowStartLine;
+        rows.push(row);
+      }
+    };
     const normalizedText = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     for (let i = 0; i < normalizedText.length; i += 1) {
       const ch = normalizedText[i];
@@ -177,15 +215,18 @@
         cell = "";
       } else if (ch === "\n" && !quoted) {
         row.push(cell.trim());
-        if (row.some((value) => value.trim())) rows.push(row);
+        pushRow();
         row = [];
         cell = "";
+        line += 1;
+        rowStartLine = line;
       } else {
+        if (ch === "\n") line += 1;
         cell += ch;
       }
     }
     row.push(cell.trim());
-    if (row.some((value) => value.trim())) rows.push(row);
+    pushRow();
     return rows;
   }
 
@@ -193,7 +234,7 @@
     const cleanText = String(text || "").replace(/^\uFEFF/, "").trim();
     if (!cleanText) throw new Error("文件里没有可导入的数据");
     const delimiter = detectDelimiter(cleanText);
-    const rawRows = splitDelimitedRows(cleanText, delimiter);
+    const rawRows = splitDelimitedRows(String(text || "").replace(/^\uFEFF/, ""), delimiter);
     if (!rawRows.length) throw new Error("文件里没有可导入的数据");
     const headers = rawRows[0].map((x) => x.trim());
     const aliases = {
@@ -219,7 +260,7 @@
       const imageProvided = indexes.imageUrl >= 0;
       return [{
         selected: true,
-        sourceIndex: index + 2,
+        sourceIndex: row.lineNumber || index + 2,
         nameZh: cellValue(row, indexes.nameZh),
         nameJa: cellValue(row, indexes.nameJa),
         barcode: cellValue(row, indexes.barcode),
@@ -228,7 +269,7 @@
         storeName: cellValue(row, indexes.storeName),
         priceTaxIn: cellValue(row, indexes.priceTaxIn),
         priceTaxEx: cellValue(row, indexes.priceTaxEx),
-        taxRate: cellValue(row, indexes.taxRate, "8") || "8",
+        taxRate: normalizeTaxRateText(cellValue(row, indexes.taxRate, "8")) || "8",
         specValue: cellValue(row, indexes.specValue),
         unit: cellValue(row, indexes.unit, "g") || "g",
         recordDate: normalizeDateInput(cellValue(row, indexes.recordDate)) || today(),
@@ -325,7 +366,8 @@
     const priceTaxIn = toNumberOrNull(row.priceTaxIn);
     const priceTaxEx = toNumberOrNull(row.priceTaxEx);
     const factor = taxRate === 0 ? 1 : 1 + taxRate / 100;
-    const after = priceTaxIn || (priceTaxEx ? calcTaxIncludedYen(priceTaxEx, taxRate) : null);
+    // 有税前价时统一按 Math.round(税前 × (1 + 税率)) 计算税后价，不直接用表格里的小数
+    const after = priceTaxEx ? calcTaxIncludedYen(priceTaxEx, taxRate) : (priceTaxIn ? Math.round(priceTaxIn) : null);
     const before = priceTaxEx || (priceTaxIn ? Math.round((priceTaxIn / factor) * 10) / 10 : null);
     const payload = {
       product: {
@@ -343,7 +385,8 @@
       note: buildPromoNote(row)
     };
     if (row.imageProvided) {
-      payload.imageUrls = parseImageUrlsFromCells(row.imageUrl, "");
+      // 一个单元格里可以用 | 分隔多张图片（Excel 内嵌图片也会合并成这种格式）
+      payload.imageUrls = parseImageUrlsFromCells("", row.imageUrl);
     }
     return payload;
   }
@@ -368,7 +411,7 @@
           <td><select data-field="isPromo"><option value="否" ${!isPromoValue(row.isPromo) ? "selected" : ""}>否</option><option value="是" ${isPromoValue(row.isPromo) ? "selected" : ""}>是</option></select></td>
           <td><input data-field="promoUntil" type="date" value="${escapeHtml(row.promoUntil)}" /></td>
           <td><input data-field="note" value="${escapeHtml(row.note)}" /></td>
-          <td>${errors.length ? `<div class="price-import-row-error">${escapeHtml(errors.join("；"))}</div>` : "可导入"}</td>
+          <td>${row.imported ? "已导入" : errors.length ? `<div class="price-import-row-error">${escapeHtml(errors.join("；"))}</div>` : "可导入"}</td>
         </tr>
       `;
     }).join("");
@@ -397,31 +440,19 @@
     const ok = window.confirm("确认下载价格导入模板文件吗？");
     if (!ok) return;
     const rows = [
-      ["中文名", "日文名", "条码", "店铺", "税后价", "税前价", "税率", "规格", "单位", "日期", "限时优惠", "优惠截止日期", "备注"],
-      ["牛奶", "牛乳", protectSpreadsheetText("4900000000000"), state.stores[0]?.name || "请填写已有店铺名", "198", "", "8", "1000", "ml", today(), "是", today(), "可选"]
+      ["中文名", "日文名", "条码", "图片", "店铺", "税前价", "税后价", "税率", "规格", "单位", "日期", "限时优惠", "优惠截止日期", "备注"],
+      ["牛奶", "牛乳", "4900000000000", "", state.stores[0]?.name || "请填写已有店铺名", "183.3", "", "8", "1000", "ml", today(), "是", today(), "可选"]
     ];
-    const csv = `\uFEFF${rows.map((row) => row.map(csvEscape).join(",")).join("\n")}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "price-import-template.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    notify("模板文件已下载。", "success");
+    window.downloadWorkbook(rows, "price-import-template.xlsx");
+    notify("模板文件已下载为 Excel。", "success");
   }
 
   async function handleImportFile(file) {
     if (!file) return;
-    if (/\.(xlsx|xls)$/i.test(file.name)) {
-      notify("当前浏览器端导入请把 Excel 另存为 CSV 后再上传。模板会下载为 CSV。", "error", { sticky: true });
-      return;
-    }
     try {
       await loadStores();
-      const rows = parseDelimitedText(await readTextFile(file));
+      const text = await readImportText(file);
+      const rows = parseDelimitedText(text);
       if (!rows.length) throw new Error("没有解析到有效记录");
       openImportPreview(rows, file.name);
       notify("解析完成，请先预览确认。", "success");
@@ -456,12 +487,16 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(`第 ${item.row.sourceIndex} 行导入失败：${data.error || "未知错误"}`);
+        // 已成功的行取消勾选，失败后重试不会重复提交
+        item.row.selected = false;
+        item.row.imported = true;
         success += 1;
       }
       closeImportPreview();
       notify(`已导入 ${success} 条价格记录。`, "success", { duration: 3600 });
     } catch (err) {
-      notify(err.message || "导入失败", "error", { sticky: true });
+      renderImportPreview();
+      notify(`${success ? `已导入 ${success} 条，已自动取消勾选。` : ""}${err.message || "导入失败"}`, "error", { sticky: true });
     } finally {
       button.disabled = false;
     }
@@ -476,7 +511,7 @@
           <button id="downloadTemplateBtn" class="price-import-action" type="button">下载模板文件</button>
         </div>
         <p class="price-import-help">先下载模板填写价格数据，再导入预览；确认列表里可以单选、批量选择并手动修正。</p>
-        <input id="importFile" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv,text/tab-separated-values" style="display:none" />
+        <input id="importFile" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" />
       </section>
       <datalist id="storeOptions"></datalist>
     `;
@@ -534,7 +569,7 @@
     });
     document.getElementById("selectAllImportRows").onchange = (event) => {
       state.importRows.forEach((row) => {
-        row.selected = event.target.checked;
+        row.selected = row.imported ? false : event.target.checked;
       });
       renderImportPreview();
     };
@@ -595,7 +630,7 @@
           nameZh: detail.product.nameZh || "",
           nameJa: detail.product.nameJa || "",
           barcode: detail.product.barcode || "",
-          imageUrl: record.imageUrl || detail.product.defaultImageUrl || "",
+          imageUrl: (record.imageUrls?.length ? record.imageUrls : [record.imageUrl]).filter(Boolean).join(" | "),
           storeId: record.storeId,
           storeName: storeById.get(Number(record.storeId))?.name || record.storeName || "",
           priceTaxIn: record.priceTaxIn ?? "",
@@ -646,15 +681,7 @@
       row.createdAt
     ]);
     const csv = `\uFEFF${[headers, ...lines].map((row) => row.map(csvEscape).join(",")).join("\r\n")}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `price-records-export-${today()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `price-records-export-${today()}.csv`);
     notify(`已导出 ${rows.length} 条价格记录。`, "success");
   }
 
@@ -662,7 +689,7 @@
     const cleanText = String(text || "").replace(/^\uFEFF/, "").trim();
     if (!cleanText) throw new Error("文件里没有可更新的数据");
     const delimiter = detectDelimiter(cleanText);
-    const rawRows = splitDelimitedRows(cleanText, delimiter);
+    const rawRows = splitDelimitedRows(String(text || "").replace(/^\uFEFF/, ""), delimiter);
     if (!rawRows.length) throw new Error("文件里没有可更新的数据");
     const headers = rawRows[0].map((x) => x.trim());
     const aliases = {
@@ -692,7 +719,7 @@
       const imageProvided = indexes.imageUrl >= 0;
       return [{
         selected: true,
-        sourceIndex: index + 2,
+        sourceIndex: row.lineNumber || index + 2,
         recordId: cellValue(row, indexes.recordId),
         productId: cellValue(row, indexes.productId),
         nameZh: cellValue(row, indexes.nameZh),
@@ -704,7 +731,7 @@
         storeName: cellValue(row, indexes.storeName),
         priceTaxIn: cellValue(row, indexes.priceTaxIn),
         priceTaxEx: cellValue(row, indexes.priceTaxEx),
-        taxRate: cellValue(row, indexes.taxRate, "8") || "8",
+        taxRate: normalizeTaxRateText(cellValue(row, indexes.taxRate, "8")) || "8",
         specValue: cellValue(row, indexes.specValue),
         unit: cellValue(row, indexes.unit, "g") || "g",
         recordDate: normalizeDateInput(cellValue(row, indexes.recordDate)) || today(),
@@ -761,15 +788,12 @@
 
   async function applyDeveloperCsv(file) {
     if (!file) return;
-    if (/\.(xlsx|xls)$/i.test(file.name)) {
-      notify("请把 Excel 另存为 CSV 后再上传。", "error", { sticky: true });
-      return;
-    }
     const ok = window.confirm("会按 recordId 批量更新数据。建议先导出备份。确认继续吗？");
     if (!ok) return;
     try {
       await loadStores();
-      const rows = parseDeveloperRows(await readTextFile(file));
+      const text = await readImportText(file);
+      const rows = parseDeveloperRows(text);
       if (!rows.length) throw new Error("没有解析到有效记录");
       const checks = rows.map((row) => ({ row, ...validateDeveloperRow(row) }));
       const invalid = checks.filter((item) => item.errors.length);
@@ -809,7 +833,7 @@
           <button id="exportAllRecordsBtn" class="primary" type="button">导出所有数据</button>
           <button id="applyEditedRecordsBtn" type="button">上传修改表格</button>
         </div>
-        <input id="developerImportFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" style="display:none" />
+        <input id="developerImportFile" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" />
       </section>
     `;
     document.getElementById("exportAllRecordsBtn").onclick = () => {
