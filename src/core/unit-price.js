@@ -57,15 +57,15 @@ export function normalizeUnit(rawUnit) {
     throw new Error("unit is required");
   }
 
-  const unit = rawUnit.trim().toLowerCase();
-  if (unit === "l") return "l";
-  if (unit === "kg") return "kg";
-  if (unit === "pack") return "pack";
-  return rawUnit.trim();
+  const trimmed = rawUnit.normalize("NFKC").trim();
+  const unit = trimmed.toLowerCase();
+  if (["g", "kg", "ml", "l"].includes(unit)) return unit;
+  if (unit === "pack" || unit === "pac" || trimmed === "パック") return "pack";
+  return trimmed;
 }
 
 function validatePositiveNumber(value, fieldName) {
-  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     throw new Error(`${fieldName} must be a positive number`);
   }
 }

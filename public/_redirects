@@ -1,1 +1,5 @@
 / /home.html 200
+/index.html /products 301
+/index /products 301
+/product.html /products 301
+/product /products 301

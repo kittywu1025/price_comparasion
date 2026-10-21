@@ -12,6 +12,8 @@
 - 新人优惠页：集中展示 PayPay、Mercari、Yahoo!フリマ 邀请奖励，并支持页内导航快速跳转。
 - 学习工具：日语读音标注工具改为开发者/管理员专用；首页不显示入口，只在“我的”页面的管理员开发者区提供入口，直接访问页面也会被拦下。
 - 生活工具：首页快捷入口可进入日本发快递预估价格；使用滑动分段控件按尺寸、重量、匿名、追踪和补偿需求推荐寄送方式，并在结果中显示对应快递示意图和估算运费。
+- すき家问卷：首页「生活工具」入口进入 `sukiya.html`；显示今天日期和过去 1～5 天的随机日期，保存收据上的官方问卷链接，一键复制或打开官方问卷，并管理历史链接。数据只存在浏览器 localStorage（`sukiyaTool:*`），不自动填写或提交问卷，不生成二维码。
+- 安全：Access 登录令牌会校验 RS256 签名、`aud`、`iss` 和过期时间；图片上传只接受 JPEG/PNG/WebP/GIF；公开接口不再返回贡献者邮箱；旧的 `index.html`、`product.html` 已移除并重定向到 `/products`。
 - 底部导航：五个主页面统一使用滑块式 tabbar，支持在底部导航区域左右滑动切换页面。
 - 商品清单：按商品聚合展示价格，支持全部/名称/店铺范围搜索、店铺筛选、最低价标记、限时优惠标记；卡片上的价格、店铺和单价统一来自该商品的最新记录，最低价只作为标记展示；空结果会显示可点击的录入引导。
 - 商品详情：头部左侧显示紧凑商品图，右侧显示中文名和日文名；查看税后总价、规格、店铺、各店现价排行、历史记录、税后价格走势；历史记录显示记录人、日期和价格。
@@ -55,6 +57,7 @@ npm start
 - 我的：http://localhost:3000/profile.html
 - 日语读音标注（开发者/管理员专用）：http://localhost:3000/kana.html
 - 日本发快递预估价格：http://localhost:3000/shipping.html
+- すき家问卷：http://localhost:3000/sukiya.html
 - 新人注册优惠：http://localhost:3000/deals.html
 
 ## Cloudflare 数据导入
@@ -74,6 +77,7 @@ npx wrangler d1 execute price-comparison --remote --file tmp/reference-xlsx-impo
 - `ACCESS_ADMIN_EMAIL_HASHES`：填写开发者邮箱的小写 SHA-256 哈希，多个用英文逗号分隔。
 - `ACCESS_ADMIN_EMAILS`：兼容明文邮箱配置，但不建议提交到公开仓库。
 - 兼容别名：`ADMIN_EMAILS`。
+- `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD`：Cloudflare Access 的 team 域名和应用 AUD 标签（公开值，不是密钥），后端用它们校验 `CF_Authorization` JWT。修改 Access 应用后需同步更新，否则 Access 登录会失效（开发口令登录不受影响）。
 
 当前项目通过 `wrangler.toml` 管理环境变量，所以 Cloudflare 控制台里会提示“此项目的环境变量在 wrangler.toml 中管理”，不能直接在页面保存。需要改 `wrangler.toml`：
 

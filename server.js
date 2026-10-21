@@ -54,14 +54,28 @@ function sendJson(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
 function parseBody(req) {
   return new Promise((resolve, reject) => {
-    let raw = "";
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
     req.on("data", (chunk) => {
-      raw += chunk;
-      if (raw.length > 1e6) req.destroy();
+      if (tooLarge) return;
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        tooLarge = true;
+        reject(new Error("request body too large"));
+        req.resume();
+        return;
+      }
+      chunks.push(chunk);
     });
     req.on("end", () => {
+      if (tooLarge) return;
+      // 合并后再解码，避免中文字符被切在两个 chunk 之间变成乱码
+      const raw = Buffer.concat(chunks).toString("utf8");
       if (!raw) return resolve({});
       try {
         resolve(JSON.parse(raw));

@@ -1691,7 +1691,6 @@
     function actorLabel(name, email, fallback = "-") {
       const cleanName = String(name || "").trim();
       const cleanEmail = String(email || "").trim();
-      if (cleanName && cleanEmail && cleanName !== cleanEmail) return `${cleanName} / ${cleanEmail}`;
       return cleanName || cleanEmail || fallback;
     }
 
@@ -1701,10 +1700,10 @@
       if (!preview || !strip) return;
       preview.classList.toggle("has-image", Boolean(imageUrls[0]));
       preview.innerHTML = imageUrls[0]
-        ? `<img src="${imageUrls[0]}" alt="商品图" /><span class="edit-photo-tip">拍照/上传</span>`
+        ? `<img src="${escapeHtml(imageUrls[0])}" alt="商品图" /><span class="edit-photo-tip">拍照/上传</span>`
         : "<span>拍照/上传</span>";
       strip.innerHTML = imageUrls.length > 1
-        ? imageUrls.map((url) => `<img src="${url}" alt="商品图缩略图" />`).join("")
+        ? imageUrls.map((url) => `<img src="${escapeHtml(url)}" alt="商品图缩略图" />`).join("")
         : "";
     }
 
@@ -1864,7 +1863,9 @@
     }
 
     function today() {
-      return new Date().toISOString().slice(0, 10);
+      // 用本地日期；toISOString 是 UTC，日本时间早上 9 点前会变成前一天
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
 
     function normalizeDateInput(value) {
@@ -2215,14 +2216,27 @@
       await load();
     }
 
+    let loadSeq = 0;
+
     async function load() {
+      const seq = ++loadSeq;
       const q = $("q").value.trim();
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (q && searchScope !== "all") params.set("scope", searchScope);
       if (storeFilterId) params.set("storeId", storeFilterId);
       const query = params.toString();
-      const data = await fetch("/api/products" + (query ? `?${query}` : "")).then((r) => r.json());
+      let data;
+      try {
+        const res = await fetch("/api/products" + (query ? `?${query}` : ""));
+        data = await res.json();
+        if (!res.ok || !Array.isArray(data)) throw new Error(data?.error || "加载失败");
+      } catch (err) {
+        if (seq === loadSeq) showToast(err.message || "加载失败", { type: "error" });
+        return;
+      }
+      // 输入很快时，旧请求可能比新请求更晚返回，只渲染最新一次
+      if (seq !== loadSeq) return;
       cache = data.slice();
       const visibleIds = new Set(cache.map((item) => String(item.productId)));
       selectedProducts.forEach((id) => {
@@ -2254,17 +2268,17 @@
               <div class="select-dot">${selectedProducts.has(String(item.productId)) ? "✓" : ""}</div>
               ${flags ? `<div class="flags">${flags}</div>` : ""}
               <div class="thumb">
-                ${item.defaultImageUrl ? `<img src="${item.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+                ${item.defaultImageUrl ? `<img src="${escapeHtml(item.defaultImageUrl)}" alt="商品图" />` : "暂无图片"}
               </div>
               <div class="info">
                 <h2 class="name" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</h2>
                 ${secondaryName ? `<div class="name-sub" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</div>` : ""}
-                <div class="meta">记录店铺：${item.latestStoreName || "-"}</div>
+                <div class="meta">记录店铺：${escapeHtml(item.latestStoreName || "-")}</div>
                 <div class="price-row">
                   <div class="price">¥${asMoney(item.latestPriceTaxIn)}</div>
                   <div class="unit ${isBest ? "best" : ""}">${asUnit(item.latestUnitPrice, item.latestUnitPriceLabel)}</div>
                 </div>
-                <div class="meta">${item.latestRecordDate || "-"}</div>
+                <div class="meta">${escapeHtml(item.latestRecordDate || "-")}</div>
               </div>
             </article>
           `;
@@ -2289,7 +2303,7 @@
       const productHead = `
         <div class="modal-product-head">
           <div class="modal-img compact" data-view-image="${escapeHtml(data.product.defaultImageUrl || "")}" role="${data.product.defaultImageUrl ? "button" : "img"}" tabindex="${data.product.defaultImageUrl ? "0" : "-1"}" aria-label="查看商品大图">
-            ${data.product.defaultImageUrl ? `<img src="${data.product.defaultImageUrl}" alt="商品图" />` : "暂无图片"}
+            ${data.product.defaultImageUrl ? `<img src="${escapeHtml(data.product.defaultImageUrl)}" alt="商品图" />` : "暂无图片"}
           </div>
           <div class="modal-name-stack">
             <p class="modal-name-zh">${escapeHtml(primaryName)}</p>
@@ -2990,7 +3004,11 @@
           const deleted = await deleteRecord(Number(row.dataset.recordId));
           if (deleted) {
             await load();
-            closeModal();
+            if (activeProductId) {
+              await openDetail(activeProductId);
+            } else {
+              closeModal();
+            }
           }
         } catch (err) {
           showToast(err.message || "删除失败", { type: "error" });
@@ -3001,7 +3019,16 @@
       $("modal").addEventListener(eventName, clearLongPress, { passive: true });
     });
 
-    $("q").addEventListener("input", load);
+    let searchTimer = null;
+    $("q").addEventListener("input", (event) => {
+      if (event.isComposing) return;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(load, 200);
+    });
+    $("q").addEventListener("compositionend", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(load, 200);
+    });
     $("batchEntry").onclick = () => {
       if (!developerBatchEnabled) return;
       if (batchMode) exitBatchMode();

@@ -40,6 +40,8 @@
       font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Hiragino Sans", "Noto Sans JP", "Noto Sans SC", sans-serif;
     }
 
+    .app[data-gate-pending] { visibility: hidden; }
+
     .app {
       width: min(760px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
       margin: 0 auto;
@@ -270,7 +272,7 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div class="app" data-gate-pending>
     <section class="hero">
       <div class="hero-top">
         <h1>日语读音标注</h1>
@@ -340,8 +342,10 @@
           </section>
         `;
         document.title = "开发者专用";
+        document.querySelector(".app").removeAttribute("data-gate-pending");
         return;
       }
+      document.querySelector(".app").removeAttribute("data-gate-pending");
 
     const VOCAB_KEY = "kanaTool:vocab";
     const KNOWN_KEY = "kanaTool:known";

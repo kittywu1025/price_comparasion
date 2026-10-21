@@ -470,10 +470,14 @@
         if (location.protocol === "file:") {
           throw new Error("当前是 file:// 打开，无法读取 API。请用 http://127.0.0.1:3000/stores.html 打开。");
         }
-        throw new Error("无法连接本地 API。请确认终端里 npm start 正在运行，并使用 http://127.0.0.1:3000/stores.html 打开。");
+        const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+        throw new Error(isLocal
+          ? "无法连接本地 API。请确认终端里 npm start 正在运行，并使用 http://127.0.0.1:3000/stores.html 打开。"
+          : "网络连接失败，请稍后重试。");
       }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "请求失败");
+      const isJson = (res.headers.get("content-type") || "").includes("application/json");
+      const data = isJson ? await res.json() : {};
+      if (!res.ok) throw new Error(data.error || `请求失败（${res.status}）`);
       return data;
     }
 

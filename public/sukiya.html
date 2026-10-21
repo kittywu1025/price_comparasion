@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>すき家问卷</title>
+  <style>
+    :root {
+      --bg: #f2f6f5;
+      --surface: #fff;
+      --soft: #f7fbfa;
+      --line: #dbe7e3;
+      --text: #1f2a2b;
+      --muted: #607270;
+      --primary: #0d9a7d;
+      --primary-soft: #e2f7f1;
+      --danger: #c93f3f;
+      --warn-bg: #fff7e6;
+      --warn-line: #f1d9a6;
+      --warn-text: #8a5a00;
+      --shadow: 0 14px 28px rgba(14, 63, 56, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(20px + env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 10% 0%, #d7f6ed 0, transparent 35%),
+        radial-gradient(circle at 90% 0%, #d8eef8 0, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Text", "PingFang SC", "Hiragino Sans", "Noto Sans JP", "Noto Sans SC", sans-serif;
+    }
+
+    .app {
+      width: min(760px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px));
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(140deg, #1aaf90, #0a7f69);
+      color: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 8px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero h1 { margin: 0; font-size: 21px; line-height: 1.25; }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .back-link {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 8px 16px rgba(12, 48, 42, 0.05);
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel-title { margin: 0; font-size: 16px; font-weight: 800; }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .date-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .date-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .date-box.accent { background: var(--primary-soft); border-color: #bfe6da; }
+    .date-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .date-value { font-size: 20px; font-weight: 800; letter-spacing: 0.02em; }
+    .date-code { color: #06735d; font-size: 13px; font-weight: 700; }
+
+    .btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--text);
+      min-height: 46px;
+      padding: 0 14px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.small { min-height: 36px; padding: 0 10px; font-size: 13px; border-radius: 10px; }
+    .btn.danger-text { color: var(--danger); }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .url-input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 16px; /* >=16px 防止 iOS Safari 聚焦时自动放大 */
+      color: var(--text);
+      background: #fff;
+      resize: vertical;
+      word-break: break-all;
+    }
+
+    .url-input:focus { outline: 2px solid #9fdcca; outline-offset: 1px; }
+
+    .field-label { font-size: 13px; font-weight: 700; }
+
+    .warn {
+      border: 1px solid var(--warn-line);
+      border-radius: 12px;
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+    .history-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-url {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    .history-meta { color: var(--muted); font-size: 11px; }
+
+    .history-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 8px 0; }
+
+    .footer-back {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+    @media (max-width: 420px) {
+      .hero { padding: 14px 12px; }
+      .hero h1 { font-size: 19px; }
+      .date-value { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <h1>Sukiya 问卷工具</h1>
+        <a class="back-link" href="home.html">返回首页</a>
+      </div>
+      <p>管理すき家收据上的官方问卷链接，一键复制或打开。问卷请在官方页面自行填写并提交，优惠券由官方按活动条件发放。</p>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">日期</p>
+      <div class="date-grid">
+        <div class="date-box">
+          <span class="date-label">今天</span>
+          <span class="date-value" id="todayText">-</span>
+          <span class="date-code" id="todayCode">-</span>
+        </div>
+        <div class="date-box accent">
+          <span class="date-label">随机日期（过去 1～5 天）</span>
+          <span class="date-value" id="randomText">-</span>
+          <span class="date-code" id="randomCode">-</span>
+        </div>
+      </div>
+      <button class="btn" type="button" id="rerollBtn">重新随机</button>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">问卷链接</p>
+      <label class="field-label" for="urlInput">请粘贴收据上二维码对应的官方问卷链接</label>
+      <textarea class="url-input" id="urlInput" rows="3" inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://jp-sukiya.csfeedback.net/sv/ja/..."></textarea>
+      <p class="hint" id="urlStatus"></p>
+      <button class="btn primary" type="button" id="saveBtn">保存链接</button>
+      <div class="btn-row">
+        <button class="btn" type="button" id="copyBtn">复制链接</button>
+        <button class="btn" type="button" id="openBtn">打开问卷</button>
+      </div>
+      <p class="hint">复制和打开始终使用你输入的原始链接，不会做任何改动。</p>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">历史链接记录</p>
+      <ul class="history-list" id="historyList"></ul>
+      <button class="btn small danger-text" type="button" id="clearHistoryBtn" hidden>清空全部历史</button>
+    </section>
+
+    <a class="btn footer-back" href="home.html">返回首页</a>
+  </div>
+
+  <script src="toast.js"></script>
+  <script>
+    // Sukiya 问卷工具：与比价业务完全隔离，只使用 sukiyaTool:* 前缀的 localStorage key。
+    const HISTORY_KEY = "sukiyaTool:history";
+    const DRAFT_KEY = "sukiyaTool:draftUrl";
+    const HISTORY_LIMIT = 20;
+    const OFFICIAL_HOST_SUFFIX = "csfeedback.net";
+
+    const $ = (id) => document.getElementById(id);
+    let randomDate = null;
+
+    function notify(message) {
+      if (typeof window.showToast === "function") window.showToast(message);
+      else alert(message);
+    }
+
+    // ---------- 日期 ----------
+    // 用本地时区的年月日构造日期，setDate 自动处理跨月、跨年和闰年。
+    function startOfToday() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    function daysAgo(base, n) {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+      d.setDate(d.getDate() - n);
+      return d;
+    }
+
+    function pickRandomPastDate(base) {
+      const offset = 1 + Math.floor(Math.random() * 5); // 1..5，不含今天
+      return daysAgo(base, offset);
+    }
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const formatFull = (d) => `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+    const formatMMDD = (d) => `${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+
+    function renderDates() {
+      const today = startOfToday();
+      $("todayText").textContent = formatFull(today);
+      $("todayCode").textContent = `MMDD：${formatMMDD(today)}`;
+      $("randomText").textContent = formatFull(randomDate);
+      $("randomCode").textContent = `MMDD：${formatMMDD(randomDate)}`;
+    }
+
+    function reroll() {
+      randomDate = pickRandomPastDate(startOfToday());
+      renderDates();
+    }
+
+    // ---------- URL ----------
+    function parseUrl(raw) {
+      const text = String(raw || "").trim();
+      if (!text) return { ok: false, empty: true };
+      try {
+        const url = new URL(text);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return { ok: false };
+        const official = url.hostname === OFFICIAL_HOST_SUFFIX || url.hostname.endsWith(`.${OFFICIAL_HOST_SUFFIX}`);
+        return { ok: true, url, href: url.href, official };
+      } catch {
+        return { ok: false };
+      }
+    }
+
+    const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function renderUrlStatus() {
+      const parsed = parseUrl($("urlInput").value);
+      const status = $("urlStatus");
+      if (parsed.empty) status.textContent = "";
+      else if (!parsed.ok) status.textContent = "链接格式不正确，请确认以 https:// 开头。";
+      else if (!parsed.official) status.textContent = "提示：这不是 csfeedback.net 的链接，请确认是すき家官方问卷地址。";
+      else status.textContent = "已识别为すき家官方问卷域名。";
+      $("copyBtn").disabled = !parsed.ok;
+      $("openBtn").disabled = !parsed.ok;
+      $("saveBtn").disabled = !parsed.ok;
+    }
+
+    function onUrlInput() {
+      try { localStorage.setItem(DRAFT_KEY, $("urlInput").value); } catch {}
+      renderUrlStatus();
+    }
+
+    // ---------- 历史 ----------
+    function loadHistory() {
+      try {
+        const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+        return Array.isArray(list) ? list.filter((item) => item && typeof item.url === "string") : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(list) {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_LIMIT)));
+        return true;
+      } catch {
+        notify("保存失败：浏览器可能处于无痕模式");
+        return false;
+      }
+    }
+
+    function addToHistory(href) {
+      const list = loadHistory().filter((item) => item.url !== href);
+      list.unshift({ url: href, savedAt: Date.now() });
+      return saveHistory(list);
+    }
+
+    function renderHistory() {
+      const list = loadHistory();
+      const ul = $("historyList");
+      $("clearHistoryBtn").hidden = list.length === 0;
+      if (!list.length) {
+        ul.innerHTML = `<li class="empty">还没有保存的链接</li>`;
+        return;
+      }
+      ul.innerHTML = list.map((item, i) => {
+        const d = new Date(item.savedAt);
+        const time = Number.isNaN(d.getTime()) ? "" : `${formatFull(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        return `<li class="history-item">
+          <p class="history-url">${escapeHtml(item.url)}</p>
+          <span class="history-meta">保存于 ${time}</span>
+          <div class="history-actions">
+            <button class="btn small" type="button" data-action="use" data-index="${i}">填入</button>
+            <button class="btn small" type="button" data-action="copy" data-index="${i}">复制</button>
+            <button class="btn small danger-text" type="button" data-action="delete" data-index="${i}">删除</button>
+          </div>
+        </li>`;
+      }).join("");
+    }
+
+    // ---------- 复制 / 打开 ----------
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {}
+      // 兜底：非 HTTPS 或旧版 Safari
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch {}
+      ta.remove();
+      return ok;
+    }
+
+    async function copyCurrent() {
+      const parsed = parseUrl($("urlInput").value);
+      if (!parsed.ok) return notify("请先输入有效链接");
+      notify((await copyText(parsed.href)) ? "已复制链接" : "复制失败，请长按输入框手动复制");
+    }
+
+    function openCurrent() {
+      const parsed = parseUrl($("urlInput").value);
+      if (!parsed.ok) return notify("请先输入有效链接");
+      addToHistory(parsed.href);
+      renderHistory();
+      // 必须在点击事件中同步调用，iOS Safari 才不会拦截弹窗。
+      // 带 noopener 时 window.open 按规范总是返回 null，所以先不带，再手动断开 opener。
+      const win = window.open(parsed.href, "_blank");
+      if (win) win.opener = null;
+      else location.href = parsed.href;
+    }
+
+    function saveCurrent() {
+      const parsed = parseUrl($("urlInput").value);
+      if (!parsed.ok) return notify("请先输入有效链接");
+      if (addToHistory(parsed.href)) {
+        renderHistory();
+        notify("已保存链接");
+      }
+    }
+
+    // ---------- 初始化 ----------
+    $("rerollBtn").addEventListener("click", reroll);
+    $("urlInput").addEventListener("input", onUrlInput);
+    $("saveBtn").addEventListener("click", saveCurrent);
+    $("copyBtn").addEventListener("click", copyCurrent);
+    $("openBtn").addEventListener("click", openCurrent);
+
+    $("historyList").addEventListener("click", async (event) => {
+      const btn = event.target.closest("button[data-action]");
+      if (!btn) return;
+      const list = loadHistory();
+      const item = list[Number(btn.dataset.index)];
+      if (!item) return;
+      if (btn.dataset.action === "use") {
+        $("urlInput").value = item.url;
+        onUrlInput();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (btn.dataset.action === "copy") {
+        notify((await copyText(item.url)) ? "已复制链接" : "复制失败");
+      } else if (btn.dataset.action === "delete") {
+        list.splice(Number(btn.dataset.index), 1);
+        saveHistory(list);
+        renderHistory();
+      }
+    });
+
+    $("clearHistoryBtn").addEventListener("click", () => {
+      if (!confirm("确定清空全部すき家问卷历史链接吗？")) return;
+      saveHistory([]);
+      renderHistory();
+    });
+
+    try { $("urlInput").value = localStorage.getItem(DRAFT_KEY) || ""; } catch {}
+    randomDate = pickRandomPastDate(startOfToday());
+    renderDates();
+    renderUrlStatus();
+    renderHistory();
+  </script>
+</body>
+</html>

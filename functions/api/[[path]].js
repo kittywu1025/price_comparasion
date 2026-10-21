@@ -85,12 +85,8 @@ function requiresAccess(route, request) {
 
 async function getAuth(request, env) {
   const devSession = await devSessionFromCookie(request, env);
-  const email = String(
-    request.headers.get("cf-access-authenticated-user-email") ||
-    emailFromAccessJwt(getAccessJwt(request)) ||
-    devSession?.email ||
-    ""
-  ).trim().toLowerCase();
+  const accessEmail = await verifiedEmailFromAccessJwt(getAccessJwt(request), env);
+  const email = String(accessEmail || devSession?.email || "").trim().toLowerCase();
   const adminEmails = String(env.ACCESS_ADMIN_EMAILS || env.ADMIN_EMAILS || "")
     .split(",")
     .map((x) => x.trim().toLowerCase())
@@ -226,18 +222,71 @@ function cookieValue(request, name) {
     ?.slice(name.length + 1) || "";
 }
 
-function emailFromAccessJwt(token) {
-  if (!token) return "";
+// Cloudflare Access 只保护 /api/auth*，其余接口靠 CF_Authorization cookie 识别用户，
+// 所以必须校验 JWT 签名、aud、iss 和过期时间，否则任何人都能伪造邮箱冒充管理员。
+const ACCESS_CERTS_TTL_MS = 60 * 60 * 1000;
+let accessCertsCache = { url: "", keys: null, fetchedAt: 0 };
+
+async function verifiedEmailFromAccessJwt(token, env) {
+  const teamDomain = String(env.ACCESS_TEAM_DOMAIN || "").trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  const audiences = String(env.ACCESS_AUD || "").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!token || !teamDomain || !audiences.length) return "";
   try {
-    const payload = token.split(".")[1];
-    if (!payload) return "";
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonText = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
-    const data = JSON.parse(jsonText);
-    return data.email || data.sub || "";
+    const [headerText, payloadText, signatureText] = token.split(".");
+    if (!headerText || !payloadText || !signatureText) return "";
+    const header = JSON.parse(base64UrlDecode(headerText));
+    if (header.alg !== "RS256" || !header.kid) return "";
+    const payload = JSON.parse(base64UrlDecode(payloadText));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.iss !== `https://${teamDomain}`) return "";
+    const tokenAud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    if (!tokenAud.some((aud) => audiences.includes(aud))) return "";
+    if (!Number(payload.exp) || Number(payload.exp) < now) return "";
+    if (payload.nbf && Number(payload.nbf) > now + 60) return "";
+
+    const key = await getAccessPublicKey(teamDomain, header.kid);
+    if (!key) return "";
+    const valid = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      key,
+      base64UrlToBytes(signatureText),
+      new TextEncoder().encode(`${headerText}.${payloadText}`)
+    );
+    return valid ? String(payload.email || "") : "";
   } catch {
     return "";
   }
+}
+
+async function getAccessPublicKey(teamDomain, kid) {
+  const url = `https://${teamDomain}/cdn-cgi/access/certs`;
+  const fresh = accessCertsCache.url === url && Date.now() - accessCertsCache.fetchedAt < ACCESS_CERTS_TTL_MS;
+  if (!fresh || !accessCertsCache.keys?.has(kid)) {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const keys = new Map();
+    for (const jwk of data.keys || []) {
+      if (!jwk.kid || jwk.kty !== "RSA") continue;
+      keys.set(jwk.kid, await crypto.subtle.importKey(
+        "jwk",
+        jwk,
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        false,
+        ["verify"]
+      ));
+    }
+    accessCertsCache = { url, keys, fetchedAt: Date.now() };
+  }
+  return accessCertsCache.keys.get(kid) || null;
+}
+
+function base64UrlToBytes(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 function getRoute(pathParam) {
@@ -327,7 +376,11 @@ async function ensureStorePostsTable(env) {
   await run(env, "create index if not exists idx_store_posts_deleted_at on store_posts(deleted_at)");
   const columns = await all(env, "pragma table_info(store_posts)");
   if (!columns.some((row) => String(row.name || "").toLowerCase() === "images_json")) {
-    await run(env, "alter table store_posts add column images_json text");
+    try {
+      await run(env, "alter table store_posts add column images_json text");
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error?.message || ""))) throw error;
+    }
   }
 }
 
@@ -352,8 +405,12 @@ async function handleCategories(request, env) {
 function handleAuth(request) {
   const url = new URL(request.url);
   const rawReturnTo = url.searchParams.get("return") || "/products";
-  const returnTo = rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : "/products";
-  return Response.redirect(new URL(returnTo, url.origin).href, 302);
+  let target = new URL("/products", url.origin);
+  try {
+    const candidate = new URL(rawReturnTo, url.origin);
+    if (candidate.origin === url.origin && !rawReturnTo.includes("\\")) target = candidate;
+  } catch {}
+  return Response.redirect(target.href, 302);
 }
 
 async function handleStores(request, env, route, auth) {
@@ -479,10 +536,30 @@ async function handleProducts(request, env, route, auth) {
   if (request.method === "GET" && productId && Number.isFinite(productId)) {
     const detail = await getProductDetail(env, productId);
     if (!detail) return json({ error: "product not found" }, 404);
+    // 商品详情是公开接口，非管理员只返回昵称或打码邮箱
+    if (!auth.isAdmin) detail.records = detail.records.map(redactRecordEmails);
     return json(detail);
   }
 
   return json({ error: "Method not allowed" }, 405);
+}
+
+function maskEmail(email) {
+  const text = String(email || "");
+  const at = text.indexOf("@");
+  if (at < 0) return text;
+  return `${text.slice(0, Math.min(2, at))}***`;
+}
+
+function redactRecordEmails(record) {
+  const isEmail = (value) => String(value || "").includes("@");
+  return {
+    ...record,
+    createdBy: "",
+    lastModifiedBy: "",
+    createdByName: isEmail(record.createdByName) ? maskEmail(record.createdByName) : record.createdByName,
+    lastModifiedByName: isEmail(record.lastModifiedByName) ? maskEmail(record.lastModifiedByName) : record.lastModifiedByName
+  };
 }
 
 async function handleStorePosts(request, env, route, auth) {
@@ -953,6 +1030,9 @@ async function getProductDetail(env, productId) {
 }
 
 async function createPriceRecord(env, input, auth) {
+  // 先校验，避免校验失败时已经上传了图片或新建/改名了商品
+  buildPriceRecordPayload({ ...priceFieldsFromInput(input), productId: "pending", createdBy: getCreatedBy(auth) });
+  await assertStoreExists(env, input.storeId);
   const imageUrls = await normalizeImageUrls(env, input.imageUrls ?? input.imageUrl);
   const imageUrl = serializeImageUrls(imageUrls);
   const productId = await resolveProductId(env, input.product, imageUrls[0] || null, auth);
@@ -1031,16 +1111,35 @@ async function createPriceRecord(env, input, auth) {
   return toPriceRecord(row);
 }
 
+function priceFieldsFromInput(input) {
+  return {
+    storeId: input.storeId,
+    priceTaxIn: input.priceTaxIn,
+    priceTaxEx: input.priceTaxEx,
+    taxRate: input.taxRate,
+    specValue: input.specValue,
+    unit: input.unit,
+    recordDate: input.recordDate,
+    note: input.note
+  };
+}
+
+async function assertStoreExists(env, storeId) {
+  const store = await first(env, "select id from stores where id = ?", [Number(storeId)]);
+  if (!store) throw new Error("store not found");
+}
+
 async function updatePriceRecord(env, recordId, input, auth) {
   const existing = await first(env, "select * from price_records where id = ?", [recordId]);
   if (!existing) throw new Error("price record not found");
-  await snapshotPriceRecordRevision(env, existing, auth);
+  buildPriceRecordPayload({ ...priceFieldsFromInput(input), productId: existing.product_id, createdBy: existing.created_by || getCreatedBy(auth) });
+  await assertStoreExists(env, input.storeId);
 
   const imageValue = input.imageUrls !== undefined ? input.imageUrls : input.imageUrl;
   const imageUrls = imageValue === undefined ? parseImageUrls(existing.image_url) : await normalizeImageUrls(env, imageValue);
   const imageUrl = serializeImageUrls(imageUrls);
   const payload = buildPriceRecordPayload({
-    productId: input.productId || existing.product_id,
+    productId: existing.product_id,
     storeId: input.storeId,
     priceTaxIn: input.priceTaxIn,
     priceTaxEx: input.priceTaxEx,
@@ -1074,6 +1173,7 @@ async function updatePriceRecord(env, recordId, input, auth) {
       recordId
     ]
   );
+  await snapshotPriceRecordRevision(env, existing, auth);
   await updateProductMetadata(env, payload.productId, input.product, imageUrls[0] || null, { setDefaultImage: true });
 
   const row = await first(env, "select * from price_records where id = ?", [recordId]);
@@ -1145,7 +1245,7 @@ async function updateProductMetadata(env, productId, productInput = {}, imageUrl
       params.push(barcode);
     } else {
       updates.push("barcode = ?");
-      params.push(null);
+      params.push("");
     }
   }
   if (options.setDefaultImage) {
@@ -1159,11 +1259,15 @@ async function updateProductMetadata(env, productId, productInput = {}, imageUrl
 
 async function normalizeImageUrl(env, imageUrl) {
   if (!imageUrl || typeof imageUrl !== "string") return null;
-  if (!imageUrl.startsWith("data:image/")) return imageUrl;
+  if (!imageUrl.startsWith("data:image/")) {
+    // 只接受本站 R2 图片或 https 图片，防止把任意字符串写进 <img src>
+    if (/^\/api\/images\/[A-Za-z0-9/_.-]+$/.test(imageUrl) || /^https:\/\/[^\s"'<>]+$/.test(imageUrl)) return imageUrl;
+    throw new Error("invalid image url");
+  }
   if (!env.IMAGES) throw new Error("Cloudflare R2 binding IMAGES is missing");
 
-  const match = imageUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) throw new Error("invalid image data url");
+  const match = imageUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,(.+)$/);
+  if (!match) throw new Error("只支持 JPEG、PNG、WebP、GIF 图片");
 
   const mimeType = match[1];
   const bytes = base64ToBytes(match[2]);
@@ -1221,6 +1325,8 @@ async function getImage(env, keyParts) {
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
   headers.set("cache-control", "public, max-age=31536000, immutable");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("content-security-policy", "default-src 'none'; sandbox");
   return new Response(object.body, { headers });
 }
 
@@ -1376,8 +1482,8 @@ function toStorePost(row, auth) {
     lastConfirmedAt: row.last_confirmed_at || "",
     validFrom: row.valid_from || "",
     validTo: row.valid_to || "",
-    createdBy: row.created_by || "",
-    createdByName: row.created_by_name || row.created_by || "",
+    createdBy: auth?.isAdmin ? row.created_by || "" : "",
+    createdByName: row.created_by_name || maskEmail(row.created_by),
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || row.created_at || "",
     deletedAt: row.deleted_at || null,
